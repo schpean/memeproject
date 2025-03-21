@@ -1,64 +1,35 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { doc, updateDoc, increment } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import '../../styles/MemeCard.css';
+import './styles/MemeCard.css';
 
-function MemeCard({ meme }) {
-  const { id, imageUrl, company, managerQuote, country, managerType, votes } = meme;
-  
-  const handleUpvote = async (e) => {
-    e.preventDefault(); // Prevent link navigation
-    
+const MemeCard = ({ meme, onVote }) => {
+  const handleVote = async () => {
     try {
-      const memeRef = doc(db, 'memes', id);
-      await updateDoc(memeRef, {
-        votes: increment(1)
+      const response = await fetch(`http://localhost:5000/api/memes/${meme.id}/vote`, {
+        method: 'POST'
       });
-      
-      // Update UI optimistically (you could use state management here)
-      const voteCount = document.getElementById(`vote-count-${id}`);
-      if (voteCount) {
-        voteCount.textContent = parseInt(voteCount.textContent) + 1;
+      if (!response.ok) {
+        throw new Error('Failed to vote');
       }
+      const updatedMeme = await response.json();
+      onVote(updatedMeme);
     } catch (error) {
-      console.error('Error upvoting meme:', error);
+      console.error('Error voting on meme:', error);
     }
   };
-  
+
   return (
     <div className="meme-card">
-      <div className="meme-image-container">
-        <img src={imageUrl} alt="Manager Rant Meme" className="meme-image" />
-      </div>
-      
-      <div className="meme-content">
-        <h3>Manager at {company}</h3>
-        <p className="quote">"{managerQuote}"</p>
-        
-        <div className="meme-metadata">
-          <span className="country">{country}</span>
-          <span className="manager-type">{managerType}</span>
-        </div>
-        
-        <div className="meme-actions">
-          <div className="vote-section">
-            <button className="vote-button" onClick={handleUpvote}>
-              🔥 Upvote
-            </button>
-            <span id={`vote-count-${id}`} className="vote-count">
-              {votes || 0}
-            </span>
-            <span className="vote-label">rage points</span>
-          </div>
-          
-          <Link to={`/company/${company}`} className="company-link">
-            See all from {company}
-          </Link>
-        </div>
+      <img src={`http://localhost:5000${meme.image_url}`} alt={`Meme from ${meme.company}`} />
+      <div className="meme-info">
+        <p><strong>Company:</strong> {meme.company}</p>
+        <p><strong>Quote:</strong> {meme.manager_quote}</p>
+        <p><strong>Country:</strong> {meme.country}</p>
+        <p><strong>Manager Type:</strong> {meme.manager_type}</p>
+        <p><strong>Votes:</strong> {meme.votes}</p>
+        <button onClick={handleVote}>Vote</button>
       </div>
     </div>
   );
-}
+};
 
 export default MemeCard;

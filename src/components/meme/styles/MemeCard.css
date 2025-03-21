@@ -1,0 +1,49 @@
+.meme-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.2s ease-in-out;
+  margin: 1rem;
+  max-width: 400px;
+}
+
+.meme-card:hover {
+  transform: translateY(-5px);
+}
+
+.meme-card img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+.meme-info {
+  padding: 1rem;
+}
+
+.meme-info p {
+  margin: 0.5rem 0;
+  color: #666;
+}
+
+.meme-info strong {
+  color: #333;
+  font-weight: 600;
+}
+
+.meme-info button {
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 1rem;
+}
+
+.meme-info button:hover {
+  background-color: #cc0000;
+} 
