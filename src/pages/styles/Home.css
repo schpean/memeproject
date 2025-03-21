@@ -1,0 +1,60 @@
+.home {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.home h1 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 2rem;
+}
+
+.companies-section {
+  margin-bottom: 3rem;
+}
+
+.companies-section h2 {
+  color: #444;
+  margin-bottom: 1rem;
+}
+
+.companies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.company-link {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #333;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.company-link:hover {
+  background-color: #e9ecef;
+}
+
+.memes-section h2 {
+  color: #444;
+  margin-bottom: 1rem;
+}
+
+.memes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  padding: 1rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+  color: #666;
+} 

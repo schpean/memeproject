@@ -1,0 +1,56 @@
+.browse-memes {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.browse-memes h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #333;
+}
+
+.meme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+.meme-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.2s ease-in-out;
+}
+
+.meme-card:hover {
+  transform: translateY(-5px);
+}
+
+.meme-card img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.meme-info {
+  padding: 15px;
+}
+
+.meme-info p {
+  margin: 8px 0;
+  color: #666;
+}
+
+.meme-info strong {
+  color: #333;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 1.2em;
+  color: #666;
+} 
