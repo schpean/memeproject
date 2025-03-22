@@ -47,7 +47,7 @@ const BrowseMemes = () => {
 
   return (
     <div className="browse-memes">
-      <h1>Browse Memes</h1>
+      <h1>Browse bossmemes</h1>
       <div className="meme-grid">
         {memes.map(meme => (
           <div key={meme.id} className="meme-card">
