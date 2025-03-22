@@ -6,7 +6,7 @@ function Header() {
     <header className="header">
       <div className="container">
         <Link to="/" className="logo">
-          MemeManagerRants
+          bossme.me
         </Link>
         <nav>
           <ul>

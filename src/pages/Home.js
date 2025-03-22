@@ -43,7 +43,7 @@ const Home = () => {
 
   return (
     <div className="home">
-      <h1>Manager Rant Memes</h1>
+  
       
       <div className="companies-section">
         <h2>Browse by Company</h2>
