@@ -11,7 +11,8 @@ function Header() {
         <nav>
           <ul>
             <Link to="/">Home</Link>
-            <Link to="/create">Create Meme</Link>
+           {/* <Link to="/create">Create Meme</Link>*/}
+            <Link to="/howto">How-to-meme</Link>
             <Link to="/browse">Browse</Link>
           </ul>
         </nav>

@@ -1,0 +1,16 @@
+.howto-page {
+    padding: 20px;
+    font-family: Arial, sans-serif;
+  }
+  
+  .upload-section {
+    margin-top: 20px;
+  }
+  
+  .error-message {
+    color: red;
+  }
+  
+  .success-message {
+    color: green;
+  }

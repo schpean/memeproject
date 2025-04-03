@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/BrowseMemes.css';
+import MemeCard from '../components/meme/MemeCard';
 
 const BrowseMemes = () => {
   const [memes, setMemes] = useState([]);
@@ -47,20 +48,10 @@ const BrowseMemes = () => {
 
   return (
     <div className="browse-memes">
-      <h1>Browse bossmemes</h1>
+      <h1>Browse Memes</h1>
       <div className="meme-grid">
         {memes.map(meme => (
-          <div key={meme.id} className="meme-card">
-            <img src={`http://localhost:5000${meme.image_url}`} alt={`Meme from ${meme.company}`} />
-            <div className="meme-info">
-              <p><strong>Company:</strong> {meme.company}</p>
-              <p><strong>Quote:</strong> {meme.manager_quote}</p>
-              <p><strong>Country:</strong> {meme.country}</p>
-              <p><strong>Manager Type:</strong> {meme.manager_type}</p>
-              <p><strong>Votes:</strong> {meme.votes}</p>
-              <button onClick={() => handleVote(meme.id)}>Vote</button>
-            </div>
-          </div>
+          <MemeCard key={meme.id} meme={meme} />
         ))}
       </div>
     </div>
