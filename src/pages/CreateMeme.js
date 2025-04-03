@@ -44,7 +44,7 @@ function CreateMeme() {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [selectedCategory, setSelectedCategory] = useState('Popular');
   const [page, setPage] = useState(1);
-  const templatesPerPage = 12;
+  const templatesPerPage = 1;
   
   // Initialize canvas
   useEffect(() => {
@@ -427,19 +427,9 @@ function CreateMeme() {
               className="template-search"
             />
             
-            <div className="category-filters">
-              {categories.slice(0, 8).map(category => (
-                <button 
-                  key={category}
-                  className={`category-btn ${selectedCategory === category ? 'active' : ''}`}
-                  onClick={() => {
-                    setSelectedCategory(category);
-                    setSearchQuery(''); // Clear search when selecting a category
-                  }}
-                >
-                  {category}
-                </button>
-              ))}
+            {/* Replaced category buttons with a simple text indicator */}
+            <div className="sorting-indicator">
+              <span>Sorted by most popular</span>
             </div>
           </div>
           
