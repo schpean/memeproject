@@ -357,7 +357,7 @@ function CreateMeme() {
       formData.append('managerType', managerType);
       
       // Send to backend
-      const response = await fetch('http://localhost:5000/api/memes', {
+      const response = await fetch('http://localhost:1337/api/memes', {
         method: 'POST',
         body: formData
       });

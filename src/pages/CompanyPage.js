@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import MemeCard from '../components/meme/MemeCard';
 import './styles/CompanyPage.css';
+import { API_ENDPOINTS } from '../utils/config';
 
 const CompanyPage = () => {
   const { companyName } = useParams();
@@ -11,7 +12,7 @@ const CompanyPage = () => {
   useEffect(() => {
     const fetchCompanyMemes = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/memes?company=${encodeURIComponent(companyName)}`);
+        const response = await fetch(API_ENDPOINTS.memesByCompany(companyName));
         if (!response.ok) {
           throw new Error('Failed to fetch company memes');
         }

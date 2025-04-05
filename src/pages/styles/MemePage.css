@@ -1,0 +1,255 @@
+.meme-page {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.meme-page.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 500px;
+}
+
+.loading-spinner {
+  color: #666;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.meme-page.error {
+  text-align: center;
+  padding: 2rem;
+  color: #d32f2f;
+}
+
+.meme-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+/* Meme Header */
+.meme-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.meme-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.meme-metadata {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.meme-country {
+  background-color: #f5f5f5;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-weight: 500;
+}
+
+/* Meme Content */
+.meme-content {
+  display: flex;
+  background-color: #fafafa;
+  position: relative;
+}
+
+.votes-sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f5f5f5;
+}
+
+.vote-button {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #999;
+  transition: color 0.2s;
+}
+
+.vote-button:hover:not(:disabled) {
+  color: #ff4444;
+}
+
+.vote-button.voted {
+  color: #ff4444;
+}
+
+.vote-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vote-count {
+  font-weight: 700;
+  color: #333;
+  margin-top: 0.25rem;
+}
+
+.meme-image-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.meme-image {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+/* Update comments section to a simpler actions bar */
+.meme-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.2rem 1.5rem;
+  border-top: 1px solid #f0f0f0;
+  background-color: #f9f9f9;
+}
+
+.comments-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f0f0f0;
+  color: #333;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.comments-button:hover {
+  background-color: #e0e0e0;
+}
+
+.comments-icon {
+  font-size: 1.1rem;
+}
+
+.login-prompt {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.login-prompt a {
+  color: #ff4444;
+  text-decoration: none;
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.login-prompt a:hover {
+  text-decoration: underline;
+}
+
+/* Remove the old comments section styles that we no longer need */
+.comments-section {
+  display: none;
+}
+
+/* Navigation Links */
+.navigation-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.back-link, .company-link {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  background-color: #f5f5f5;
+  color: #666;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.back-link:hover, .company-link:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .meme-page {
+    padding: 1rem;
+  }
+  
+  .meme-content {
+    flex-direction: column;
+  }
+  
+  .votes-sidebar {
+    flex-direction: row;
+    padding: 0.5rem;
+  }
+  
+  .vote-button {
+    margin-right: 0.5rem;
+  }
+}
+
+/* Meme message styling */
+.meme-message {
+  padding: 16px 20px;
+  background-color: #fafafa;
+  border-top: 1px solid #f0f0f0;
+  font-size: 1rem;
+  color: #333;
+  line-height: 1.5;
+}
+
+.meme-message p {
+  margin: 0;
+}
+
+/* Create meme button for error page */
+.create-meme-button {
+  display: block;
+  margin: 1.5rem auto 1rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-meme-button:hover {
+  background-color: #cc0000;
+}
+
+/* Comments unavailable styling */
+.comments-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #999;
+  font-size: 0.95rem;
+  padding: 0.6rem 0;
+} 

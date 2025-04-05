@@ -2,16 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MemeCard from '../components/meme/MemeCard';
 import './styles/Home.css';
+import CompanySection from '../components/CompanySection';
+import { API_ENDPOINTS } from '../utils/config';
+
+
 
 const Home = () => {
   const [memes, setMemes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState([]);
 
+
+  
   useEffect(() => {
     const fetchMemes = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/memes');
+        const response = await fetch(API_ENDPOINTS.memes);
         if (!response.ok) {
           throw new Error('Failed to fetch memes');
         }
@@ -43,19 +49,23 @@ const Home = () => {
 
   return (
     <div className="home">
-  
-      
-      <div className="companies-section">
-        <h2>Browse by Company</h2>
-        <div className="companies-grid">
-          {companies.map(company => (
-            <Link key={company} to={`/company/${company}`} className="company-link">
-              {company}
-            </Link>
-          ))}
+      {/* Hero Section */}
+      <section className="hero-section">
+        <div className="hero-content">
+          <h1>Expose the Fun. Share the Struggles. Meme Your Workplace!</h1>
+          <p>Review your company the way it deserves—with memes and upvotes.</p>
+          <div className="hero-cta-buttons">
+            <Link to="/howto" className="btn btn-primary">Upload a Meme</Link>
+            <Link to="/browse" className="btn btn-secondary">Browse Top Memes</Link>
+          </div>
         </div>
-      </div>
-
+        <div className="hero-background">
+          {/* Animated meme icons or carousel could be added here */}
+        </div>
+      </section>
+      <section>
+      <CompanySection companies={companies} />
+      </section>
       <div className="memes-section">
         <h2>Latest Memes</h2>
         <div className="memes-grid">
