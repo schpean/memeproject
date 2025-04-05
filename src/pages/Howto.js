@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import '../styles/Howto.css'; // Import the CSS file
+import { API_ENDPOINTS } from '../utils/config';
+import AuthContext from '../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 const Howto = () => {
+  const { currentUser, loginWithGoogle } = useContext(AuthContext);
   const [file, setFile] = useState(null);
   const [imageUrl, setImageUrl] = useState('');
   const [error, setError] = useState('');
@@ -24,7 +28,8 @@ const Howto = () => {
     'Romania', 'Germany', 'France',
   ];
   
-
+  // Add a message state variable
+  const [message, setMessage] = useState('');
 
   // Handle form field changes
   const handleFormChange = (e) => {
@@ -107,6 +112,28 @@ const Howto = () => {
       let data;
       let uploadMethod;
       
+      // Debug information about current user
+      console.log('Current user from context:', currentUser);
+      
+      // Get user information directly from localStorage as a backup
+      let userInfo = null;
+      const storedUser = localStorage.getItem('memeUser');
+      if (storedUser) {
+        try {
+          userInfo = JSON.parse(storedUser);
+          console.log('User from localStorage:', userInfo);
+        } catch (e) {
+          console.error('Error parsing user from localStorage:', e);
+        }
+      }
+      
+      // Determine which user info to use (context or localStorage)
+      const userId = currentUser?.uid || userInfo?.uid;
+      const username = currentUser?.username || userInfo?.username || currentUser?.displayName || userInfo?.displayName;
+      
+      console.log('Using userId:', userId);
+      console.log('Using username:', username);
+      
       if (file) {
         // If uploading a file
         uploadMethod = 'file';
@@ -118,6 +145,18 @@ const Howto = () => {
           formDataToSend.append(key, value);
         });
         
+        // Update the FormData section in the handleSubmit function
+        formDataToSend.append('message', message);
+        
+        // Add user information if available
+        if (userId && username) {
+          formDataToSend.append('userId', userId);
+          formDataToSend.append('username', username);
+          console.log('Added user info to FormData:', userId, username);
+        } else {
+          console.log('No user info available for FormData');
+        }
+        
         data = formDataToSend;
         console.log('Uploading file:', file.name);
       } else if (imageUrl) {
@@ -128,10 +167,22 @@ const Howto = () => {
         uploadMethod = 'url';
         
         // For URL uploads, we'll use JSON format with the image_url field
-        data = JSON.stringify({
+        const jsonData = {
           ...formData,
-          image_url: transformedUrl
-        });
+          image_url: transformedUrl,
+          message: message
+        };
+        
+        // Add user information if available
+        if (userId && username) {
+          jsonData.userId = userId;
+          jsonData.username = username;
+          console.log('Added user info to JSON payload:', userId, username);
+        } else {
+          console.log('No user info available for JSON payload');
+        }
+        
+        data = JSON.stringify(jsonData);
         
         console.log('Debug - JSON payload:', data);
       }
@@ -139,7 +190,7 @@ const Howto = () => {
       // Send the request to the server
       console.log('Sending request to server...');
       
-      const response = await fetch('http://localhost:5000/api/memes', {
+      const response = await fetch(API_ENDPOINTS.memes, {
         method: 'POST',
         headers: uploadMethod === 'url' ? {
           'Content-Type': 'application/json'
@@ -193,6 +244,25 @@ const Howto = () => {
     return null;
   };
 
+  // Render login required message
+  if (!currentUser) {
+    return (
+      <div className="howto-page login-required">
+        <h1>Login Required</h1>
+        <div className="login-message">
+          <p>You must be logged in to create memes.</p>
+          <p>Please log in with your Google account to continue.</p>
+          <button className="login-button" onClick={loginWithGoogle}>
+            Login with Google
+          </button>
+          <p className="back-link">
+            <Link to="/">Return to Home</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="howto-page">
       <h1>How to Create Your Meme</h1>
@@ -204,7 +274,7 @@ const Howto = () => {
           Visit <a href="https://imgflip.com" target="_blank" rel="noopener noreferrer">Imgflip</a> to create or find memes
         </p>
         <p>
-          When you find a meme you like, copy the URL (e.g., https://imgflip.com/i/9pjt7s) or download the image.
+          When you find a meme you like, copy the URL (e.g., https://imgflip.com/i/9pv2ly) or download the image.
         </p>
       </div>
       
@@ -289,6 +359,16 @@ const Howto = () => {
           </select>
         </div>
         
+        <div className="form-group">
+          <label htmlFor="message">Message (optional)</label>
+          <textarea
+            id="message"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Add a message to go with your meme"
+            rows="4"
+          ></textarea>
+        </div>
       </div>
       
       <div className="submission">
