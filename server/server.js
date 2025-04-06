@@ -38,34 +38,36 @@ const upload = multer({ storage });
 
 // Routes
 
-// Get all memes or filter by company or country
+// Get all memes or filter by company or city
 app.get('/memes', async (req, res) => {
   try {
-    const { company, country } = req.query;
-    let query = 'SELECT * FROM memes';
-    let params = [];
+    // Get all memes or filter by company or city
     let conditions = [];
-
+    let params = [];
+    
+    const { company, city } = req.query;
+    
     if (company) {
       conditions.push(`company = $${params.length + 1}`);
       params.push(company);
     }
-
-    if (country) {
-      conditions.push(`country = $${params.length + 1}`);
-      params.push(country);
-    }
-
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
-
-    query += ' ORDER BY created_at DESC';
     
-    const result = await pool.query(query, params);
+    if (city) {
+      conditions.push(`city = $${params.length + 1}`);
+      params.push(city);
+    }
+    
+    // Build the WHERE clause if we have conditions
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    
+    const result = await pool.query(
+      `SELECT * FROM memes ${whereClause} ORDER BY created_at DESC`,
+      params
+    );
+    
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching memes:', error);
+    console.error('Error getting memes:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -73,11 +75,13 @@ app.get('/memes', async (req, res) => {
 // Create a new meme with simplified fields
 app.post('/memes', upload.single('image'), async (req, res) => {
   try {
-    const { company, country, message, userId, username } = req.body;
+    const { company, city, country, message, userId, username } = req.body;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : req.body.image_url;
     
-    console.log('Received meme creation request with:');
+    console.log('---DETAILED MEME REQUEST INFO---');
+    console.log('- Full request body:', req.body);
     console.log('- Company:', company);
+    console.log('- City:', city);
     console.log('- Country:', country);
     console.log('- Has image:', !!req.file);
     console.log('- Image URL:', imageUrl);
@@ -95,44 +99,195 @@ app.post('/memes', upload.single('image'), async (req, res) => {
     }
     
     // Validate required fields
-    if (!company || !country) {
-      return res.status(400).json({ error: 'Company and country are required' });
+    if (!company || !city) {
+      console.log('Validation failed - Missing fields:');
+      console.log('- Company present:', !!company);
+      console.log('- City present:', !!city);
+      return res.status(400).json({ error: 'Company and city are required' });
     }
 
     console.log('Creating meme with user attribution:', username);
     // Convert userId to integer if needed
-    const userIdInt = parseInt(userId, 10);
+    let userIdInt;
+    try {
+      userIdInt = userId ? parseInt(userId, 10) : null;
+      // If NaN, set to null
+      if (isNaN(userIdInt)) {
+        console.log('Warning: userId could not be parsed as integer, using null instead');
+        userIdInt = null;
+      }
+    } catch (parseError) {
+      console.error('Error parsing userId:', parseError);
+      userIdInt = null;
+    }
     
-    // Insert the meme with user information
-    const result = await pool.query(
-      'INSERT INTO memes (company, country, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [company, country, imageUrl, message || null, userIdInt, username]
-    );
-    res.status(201).json(result.rows[0]);
+    console.log('Using userIdInt:', userIdInt);
+    
+    // Check if uploads directory exists
+    const uploadsDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      console.log('Creating uploads directory...');
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    
+    console.log('Inserting meme into database with parameters:');
+    console.log('- Company:', company);
+    console.log('- City:', city);
+    console.log('- Country:', country || 'Romania');
+    console.log('- Image URL:', imageUrl);
+    console.log('- Message:', message || null);
+    console.log('- User ID:', userIdInt);
+    console.log('- Username:', username);
+    
+    try {
+      // Try to insert the meme
+      const result = await pool.query(
+        'INSERT INTO memes (company, city, country, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [
+          company || '', 
+          city || '', 
+          country || 'Romania', // Always provide a fallback value for country
+          imageUrl || '', 
+          message || null, 
+          userIdInt, 
+          username || 'anonymous'
+        ]
+      );
+      console.log('Meme creation successful, returning result');
+      res.status(201).json(result.rows[0]);
+    } catch (dbError) {
+      console.error('Database error while creating meme:', dbError);
+      console.error('Error details:', dbError.message);
+      
+      // Check for missing column error
+      if (dbError.code === '42703' && (dbError.message.includes('column "city"') || dbError.message.includes('column "company"') || dbError.message.includes('column "country"'))) {
+        console.log('Detected missing column error. Attempting to fix and retry...');
+        
+        // Run the fix for missing columns
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          
+          // Check and add city column if needed
+          if (dbError.message.includes('column "city"')) {
+            await client.query(`ALTER TABLE memes ADD COLUMN city TEXT DEFAULT 'Unknown'`);
+            console.log('Added missing city column');
+          }
+          
+          // Check and add company column if needed
+          if (dbError.message.includes('column "company"')) {
+            await client.query(`ALTER TABLE memes ADD COLUMN company TEXT DEFAULT 'Unknown'`);
+            console.log('Added missing company column');
+          }
+          
+          // Check and add country column if needed
+          if (dbError.message.includes('column "country"')) {
+            await client.query(`ALTER TABLE memes ADD COLUMN country TEXT DEFAULT 'Romania'`);
+            console.log('Added missing country column');
+          }
+          
+          // Always ensure country column allows NULL values and has default value
+          await client.query(`ALTER TABLE memes ALTER COLUMN country DROP NOT NULL`);
+          await client.query(`ALTER TABLE memes ALTER COLUMN country SET DEFAULT 'Romania'`);
+          console.log('✅ Made country column nullable with default value "Romania"');
+          
+          await client.query('COMMIT');
+          
+          // Retry the insert
+          console.log('Retrying meme creation...');
+          const retryResult = await pool.query(
+            'INSERT INTO memes (company, city, country, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [
+              company || '', 
+              city || '', 
+              country || 'Romania', // Always provide a fallback value for country
+              country || 'Romania', 
+              imageUrl || '', 
+              message || null, 
+              userIdInt, 
+              username || 'anonymous'
+            ]
+          );
+          console.log('Retry successful, returning result');
+          return res.status(201).json(retryResult.rows[0]);
+        } catch (retryError) {
+          await client.query('ROLLBACK');
+          console.error('Error during retry:', retryError);
+          throw retryError;
+        } finally {
+          client.release();
+        }
+      } else if (dbError.code === '23502' && dbError.message.includes('column "country"')) {
+        // Handle NOT NULL violation for country column
+        console.log('Detected NOT NULL constraint violation for country column, attempting fix...');
+        
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          
+          // Make country column nullable
+          await client.query(`ALTER TABLE memes ALTER COLUMN country DROP NOT NULL`);
+          console.log('Made country column nullable');
+          
+          await client.query('COMMIT');
+          
+          // Retry the insert with default country value
+          console.log('Retrying meme creation with default country...');
+          const retryResult = await pool.query(
+            'INSERT INTO memes (company, city, country, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [
+              company || '', 
+              city || '', 
+              'Romania', // Default country 
+              imageUrl || '', 
+              message || null, 
+              userIdInt, 
+              username || 'anonymous'
+            ]
+          );
+          console.log('Retry successful, returning result');
+          return res.status(201).json(retryResult.rows[0]);
+        } catch (retryError) {
+          await client.query('ROLLBACK');
+          console.error('Error during retry after fixing NOT NULL constraint:', retryError);
+          throw retryError;
+        } finally {
+          client.release();
+        }
+      } else {
+        // For other DB errors, rethrow
+        if (dbError.code) {
+          console.error('Error code:', dbError.code);
+        }
+        if (dbError.stack) {
+          console.error('Stack trace:', dbError.stack);
+        }
+        throw dbError;
+      }
+    }
   } catch (error) {
     console.error('Error creating meme:', error);
-    res.status(500).json({ error: 'Failed to create meme' });
+    console.error('Error type:', error.name);
+    console.error('Error message:', error.message);
+    if (error.code) {
+      console.error('Error code:', error.code);
+    }
+    res.status(500).json({ error: 'Failed to create meme', details: error.message });
   }
 });
 
-// Vote on a meme (kept for compatibility, but may not be needed with initial votes)
+// Vote on a meme
 app.post('/memes/:id/vote', async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.body;
+    const { userId, voteType } = req.body;
     
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required to vote' });
     }
     
-    // Check if user has already voted for this meme
-    const voteCheck = await pool.query(
-      'SELECT id FROM user_votes WHERE user_id = $1 AND meme_id = $2',
-      [userId, id]
-    );
-    
-    if (voteCheck.rows.length > 0) {
-      return res.status(400).json({ error: 'You have already voted for this meme' });
+    if (!voteType || (voteType !== 'up' && voteType !== 'down')) {
+      return res.status(400).json({ error: 'Invalid vote type. Must be "up" or "down"' });
     }
     
     // Begin transaction
@@ -140,25 +295,65 @@ app.post('/memes/:id/vote', async (req, res) => {
     try {
       await client.query('BEGIN');
       
-      // Record the user's vote
-      await client.query(
-        'INSERT INTO user_votes (user_id, meme_id) VALUES ($1, $2)',
+      // Check if user has already voted for this meme
+      const voteCheck = await client.query(
+        'SELECT id FROM user_votes WHERE user_id = $1 AND meme_id = $2',
         [userId, id]
       );
       
-      // Increment meme votes
-      const result = await client.query(
-        'UPDATE memes SET votes = votes + 1 WHERE id = $1 RETURNING *',
-        [id]
-      );
-      
-      if (result.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ error: 'Meme not found' });
+      if (voteType === 'up') {
+        // User wants to upvote
+        if (voteCheck.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'You have already voted for this meme' });
+        }
+        
+        // Record the user's vote
+        await client.query(
+          'INSERT INTO user_votes (user_id, meme_id) VALUES ($1, $2)',
+          [userId, id]
+        );
+        
+        // Increment meme votes
+        const result = await client.query(
+          'UPDATE memes SET votes = votes + 1 WHERE id = $1 RETURNING *',
+          [id]
+        );
+        
+        if (result.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Meme not found' });
+        }
+        
+        await client.query('COMMIT');
+        res.json(result.rows[0]);
+      } else {
+        // User wants to remove upvote (downvote)
+        if (voteCheck.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'You have not voted for this meme yet' });
+        }
+        
+        // Delete the user's vote
+        await client.query(
+          'DELETE FROM user_votes WHERE user_id = $1 AND meme_id = $2',
+          [userId, id]
+        );
+        
+        // Decrement meme votes
+        const result = await client.query(
+          'UPDATE memes SET votes = votes - 1 WHERE id = $1 RETURNING *',
+          [id]
+        );
+        
+        if (result.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Meme not found' });
+        }
+        
+        await client.query('COMMIT');
+        res.json(result.rows[0]);
       }
-      
-      await client.query('COMMIT');
-      res.json(result.rows[0]);
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -166,7 +361,7 @@ app.post('/memes/:id/vote', async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error('Error voting on meme:', error);
+    console.error('Error handling vote on meme:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -244,6 +439,119 @@ const updateSchema = async () => {
 // Run the schema updates on startup
 updateSchema().catch(console.error);
 
+// Add a function to fix user_id column definition
+const fixUserIdConstraints = async () => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Check if there are foreign key constraints on user_id
+    const constraintCheck = await client.query(`
+      SELECT con.conname
+      FROM pg_constraint con
+      JOIN pg_class rel ON rel.oid = con.conrelid
+      JOIN pg_attribute att ON att.attrelid = rel.oid AND att.attnum = ANY(con.conkey)
+      WHERE rel.relname = 'memes' AND att.attname = 'user_id' AND con.contype = 'f'
+    `);
+    
+    if (constraintCheck.rows.length > 0) {
+      console.log('Found foreign key constraints on user_id, removing...');
+      
+      // Drop each constraint
+      for (const row of constraintCheck.rows) {
+        await client.query(`ALTER TABLE memes DROP CONSTRAINT IF EXISTS ${row.conname}`);
+        console.log(`Dropped constraint: ${row.conname}`);
+      }
+      
+      // Update the column type to be just INTEGER
+      await client.query('ALTER TABLE memes ALTER COLUMN user_id TYPE INTEGER');
+      console.log('Updated user_id column type');
+    } else {
+      console.log('No foreign key constraints found on user_id');
+    }
+    
+    await client.query('COMMIT');
+    console.log('Successfully fixed user_id constraints');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error fixing user_id constraints:', error);
+  } finally {
+    client.release();
+  }
+};
+
+// Run the fix on startup
+fixUserIdConstraints().catch(console.error);
+
+// Add a function to check and add required columns to the memes table
+const fixMissingColumns = async () => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Check if the city column exists
+    const cityColumnCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'memes' AND column_name = 'city'
+      );
+    `);
+    
+    // Add city column if it doesn't exist
+    if (!cityColumnCheck.rows[0].exists) {
+      console.log('❌ Missing column "city" in memes table, adding it now...');
+      await client.query(`ALTER TABLE memes ADD COLUMN city TEXT DEFAULT 'Unknown'`);
+      console.log('✅ Added city column to memes table');
+    }
+
+    // Check if the company column exists
+    const companyColumnCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'memes' AND column_name = 'company'
+      );
+    `);
+    
+    // Add company column if it doesn't exist
+    if (!companyColumnCheck.rows[0].exists) {
+      console.log('❌ Missing column "company" in memes table, adding it now...');
+      await client.query(`ALTER TABLE memes ADD COLUMN company TEXT DEFAULT 'Unknown'`);
+      console.log('✅ Added company column to memes table');
+    }
+    
+    // Check if the country column exists
+    const countryColumnCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'memes' AND column_name = 'country'
+      );
+    `);
+    
+    // Add country column if it doesn't exist
+    if (!countryColumnCheck.rows[0].exists) {
+      console.log('❌ Missing column "country" in memes table, adding it now...');
+      await client.query(`ALTER TABLE memes ADD COLUMN country TEXT DEFAULT 'Romania'`);
+      console.log('✅ Added country column to memes table');
+    }
+    
+    // Always ensure country column allows NULL values and has default value
+    await client.query(`ALTER TABLE memes ALTER COLUMN country DROP NOT NULL`);
+    await client.query(`ALTER TABLE memes ALTER COLUMN country SET DEFAULT 'Romania'`);
+    console.log('✅ Made country column nullable with default value "Romania"');
+    
+    await client.query('COMMIT');
+    console.log('Successfully fixed missing columns');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error fixing missing columns:', error);
+  } finally {
+    client.release();
+  }
+};
+
+// Run the fix on startup
+fixMissingColumns().catch(console.error);
+
 // Setup meme table if it doesn't exist
 const setupMemeTable = async () => {
   const client = await pool.connect();
@@ -264,11 +572,11 @@ const setupMemeTable = async () => {
         CREATE TABLE memes (
           id SERIAL PRIMARY KEY,
           company TEXT NOT NULL,
-          country TEXT NOT NULL,
+          city TEXT NOT NULL,
           image_url TEXT NOT NULL,
           message TEXT,
           votes INTEGER DEFAULT 0,
-          user_id INTEGER REFERENCES users(id),
+          user_id INTEGER,
           username TEXT,
           created_at TIMESTAMP DEFAULT NOW()
         )
@@ -286,7 +594,7 @@ const setupMemeTable = async () => {
       
       if (!userIdColumnCheck.rows[0].exists) {
         await client.query(`
-          ALTER TABLE memes ADD COLUMN user_id INTEGER REFERENCES users(id);
+          ALTER TABLE memes ADD COLUMN user_id INTEGER;
         `);
         console.log('Added user_id column to memes table');
       }
@@ -477,11 +785,28 @@ const setupCommentsTable = async () => {
           user_id INTEGER REFERENCES users(id),
           username TEXT NOT NULL,
           content TEXT NOT NULL,
+          parent_id INTEGER NULL REFERENCES comments(id),
+          votes INTEGER DEFAULT 0,
           created_at TIMESTAMP DEFAULT NOW()
         )
       `);
       
       console.log('Comments table created successfully');
+    } else {
+      // Check if parent_id column exists, add it if it doesn't
+      const parentIdColumnCheck = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_name = 'comments' AND column_name = 'parent_id'
+        );
+      `);
+      
+      if (!parentIdColumnCheck.rows[0].exists) {
+        await client.query(`
+          ALTER TABLE comments ADD COLUMN parent_id INTEGER NULL REFERENCES comments(id);
+        `);
+        console.log('Added parent_id column to comments table');
+      }
     }
     
     await client.query('COMMIT');
@@ -552,12 +877,33 @@ app.get('/memes/:id/comments', async (req, res) => {
       return res.status(404).json({ error: 'Comments functionality not available yet' });
     }
     
-    const result = await pool.query(
-      'SELECT * FROM comments WHERE meme_id = $1 ORDER BY created_at ASC',
-      [id]
-    );
+    // Check if parent_id column exists in the comments table
+    const columnCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'comments' AND column_name = 'parent_id'
+      );
+    `);
     
-    res.json(result.rows);
+    // If parent_id exists, include it in the SELECT statement
+    let query = 'SELECT * FROM comments WHERE meme_id = $1 ORDER BY created_at ASC';
+    if (!columnCheck.rows[0].exists) {
+      console.log('Warning: parent_id column does not exist in comments table');
+    }
+    
+    const result = await pool.query(query, [id]);
+    
+    // Transform the results to ensure parent_id property is properly named for frontend
+    const comments = result.rows.map(comment => {
+      // Convert parent_id to parentId for consistent naming in frontend
+      const { parent_id, ...rest } = comment;
+      return {
+        ...rest,
+        parentId: parent_id
+      };
+    });
+    
+    res.json(comments);
   } catch (error) {
     console.error('Error fetching comments:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -568,7 +914,7 @@ app.get('/memes/:id/comments', async (req, res) => {
 app.post('/memes/:id/comments', async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId, content, username } = req.body;
+    const { userId, content, username, parentId } = req.body;
     
     if (!userId || !content) {
       return res.status(400).json({ error: 'User ID and content are required' });
@@ -591,15 +937,115 @@ app.post('/memes/:id/comments', async (req, res) => {
     if (memeCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Meme not found' });
     }
+
+    // If parentId is provided, verify it exists
+    if (parentId) {
+      const parentCheck = await pool.query('SELECT id FROM comments WHERE id = $1', [parentId]);
+      if (parentCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Parent comment not found' });
+      }
+    }
     
+    // Insert with parentId if it's a reply, otherwise null
     const result = await pool.query(
-      'INSERT INTO comments (meme_id, user_id, username, content) VALUES ($1, $2, $3, $4) RETURNING *',
-      [id, userId, username, content]
+      'INSERT INTO comments (meme_id, user_id, username, content, parent_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [id, userId, username, content, parentId || null]
     );
     
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error adding comment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Vote on a comment
+app.post('/memes/:memeId/comments/:commentId/vote', async (req, res) => {
+  try {
+    const { memeId, commentId } = req.params;
+    const { userId, voteType } = req.body;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required to vote' });
+    }
+    
+    if (!voteType || (voteType !== 'up' && voteType !== 'down')) {
+      return res.status(400).json({ error: 'Invalid vote type. Must be "up" or "down"' });
+    }
+    
+    // Begin transaction
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Check if comment exists
+      const commentCheck = await client.query(
+        'SELECT * FROM comments WHERE id = $1 AND meme_id = $2',
+        [commentId, memeId]
+      );
+      
+      if (commentCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+      
+      // Check if user has already voted for this comment
+      const voteCheck = await client.query(
+        'SELECT id FROM comment_votes WHERE user_id = $1 AND comment_id = $2',
+        [userId, commentId]
+      );
+      
+      if (voteType === 'up') {
+        // User wants to upvote
+        if (voteCheck.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'You have already voted for this comment' });
+        }
+        
+        // Record the user's vote
+        await client.query(
+          'INSERT INTO comment_votes (user_id, comment_id) VALUES ($1, $2)',
+          [userId, commentId]
+        );
+        
+        // Increment comment votes
+        const result = await client.query(
+          'UPDATE comments SET votes = votes + 1 WHERE id = $1 RETURNING *',
+          [commentId]
+        );
+        
+        await client.query('COMMIT');
+        res.json(result.rows[0]);
+      } else {
+        // User wants to remove upvote (downvote)
+        if (voteCheck.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'You have not voted for this comment yet' });
+        }
+        
+        // Delete the user's vote
+        await client.query(
+          'DELETE FROM comment_votes WHERE user_id = $1 AND comment_id = $2',
+          [userId, commentId]
+        );
+        
+        // Decrement comment votes
+        const result = await client.query(
+          'UPDATE comments SET votes = votes - 1 WHERE id = $1 RETURNING *',
+          [commentId]
+        );
+        
+        await client.query('COMMIT');
+        res.json(result.rows[0]);
+      }
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error handling vote on comment:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -639,4 +1085,29 @@ app.get('/memes/:id', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  
+  // Test database connection at startup
+  pool.query('SELECT NOW()', (err, res) => {
+    if (err) {
+      console.error('❌ Database connection failed:', err.message);
+      console.error('Check database credentials and ensure PostgreSQL is running.');
+    } else {
+      console.log('✅ Database connected successfully:', res.rows[0]);
+      
+      // Test that memes table exists
+      pool.query('SELECT to_regclass(\'public.memes\') as table_exists', (tableErr, tableRes) => {
+        if (tableErr) {
+          console.error('Error checking if memes table exists:', tableErr.message);
+        } else {
+          const tableExists = tableRes.rows[0].table_exists;
+          console.log('Memes table exists:', !!tableExists);
+          
+          if (!tableExists) {
+            console.error('⚠️ Warning: memes table does not exist.');
+            console.error('Make sure database schema is properly initialized.');
+          }
+        }
+      });
+    }
+  });
 });

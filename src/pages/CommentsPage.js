@@ -2,17 +2,20 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import AuthContext from '../contexts/AuthContext';
 import { memeApi, commentApi } from '../api/api';
+import CommentSection from '../components/comments/CommentSection';
 import './styles/CommentsPage.css';
-import { FaArrowUp, FaComment } from 'react-icons/fa';
+import { FaArrowUp } from 'react-icons/fa';
 
-const CommentsPage = () => {
-  const { id } = useParams();
+// Accept optional memeId prop, but still use params if not provided
+const CommentsPage = ({ memeId: propMemeId }) => {
+  // Use the prop if provided, otherwise use the URL parameter
+  const { id: paramId } = useParams();
+  const id = propMemeId || paramId;
+  
   const { currentUser, hasUpvoted, addUpvotedMeme } = useContext(AuthContext);
   
   const [meme, setMeme] = useState(null);
   const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -59,42 +62,6 @@ const CommentsPage = () => {
     } catch (error) {
       console.error('Error voting:', error);
       alert('Failed to register vote. Please try again.');
-    }
-  };
-
-  // Submit new comment
-  const handleSubmitComment = async (e) => {
-    e.preventDefault();
-    
-    if (!currentUser) {
-      alert('Please log in to comment');
-      return;
-    }
-    
-    if (!newComment.trim()) {
-      alert('Comment cannot be empty');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      const commentData = {
-        userId: currentUser.uid,
-        username: currentUser.username || currentUser.displayName || 'Anonymous',
-        content: newComment
-      };
-      
-      const newCommentData = await commentApi.addComment(meme.id, commentData);
-      
-      // Add the new comment to the list
-      setComments([newCommentData, ...comments]);
-      setNewComment('');
-    } catch (error) {
-      console.error('Error posting comment:', error);
-      alert('Failed to post comment. Please try again.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -178,7 +145,7 @@ const CommentsPage = () => {
               Posted by {meme.username || meme.user?.username || (meme.user_id ? 'unknown user' : 'anonymous')}
             </span>
             <span className="meme-date">{formatDate(meme.createdAt || meme.created_at)}</span>
-            {meme.country && <span className="meme-country">{meme.country}</span>}
+            {meme.city && <span className="meme-city">{meme.city}</span>}
           </div>
         </div>
         
@@ -214,53 +181,8 @@ const CommentsPage = () => {
         </div>
       </div>
       
-      <div className="comments-section">
-        <h2 className="comments-header">
-          <FaComment className="icon" />
-          <span>Comments ({comments.length})</span>
-        </h2>
-        
-        {currentUser ? (
-          <form className="comment-form" onSubmit={handleSubmitComment}>
-            <textarea
-              className="comment-input"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment..."
-              disabled={isSubmitting}
-            />
-            <button 
-              type="submit" 
-              className="submit-comment" 
-              disabled={isSubmitting || !newComment.trim()}
-            >
-              {isSubmitting ? 'Posting...' : 'Post'}
-            </button>
-          </form>
-        ) : (
-          <div className="login-prompt">
-            Please <Link to="/login">log in</Link> to add comments
-          </div>
-        )}
-        
-        {comments.length > 0 ? (
-          <div className="comments-list">
-            {comments.map((comment) => (
-              <div key={comment.id} className="comment">
-                <div className="comment-header">
-                  <span className="comment-author">{comment.username || (comment.user_id ? 'unknown user' : 'Anonymous')}</span>
-                  <span className="comment-date">{formatDate(comment.created_at)}</span>
-                </div>
-                <div className="comment-text">{comment.content}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="no-comments">
-            No comments yet. Be the first to comment!
-          </div>
-        )}
-      </div>
+      {/* Pass the correct meme ID to the comment section */}
+      <CommentSection memeId={meme.id} initialComments={comments} />
       
       <div className="navigation-links">
         <Link to="/browse" className="back-link">Back to Browse</Link>

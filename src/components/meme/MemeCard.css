@@ -1,0 +1,195 @@
+/* First, let's read the current styles */ 
+
+.meme-card {
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.meme-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.meme-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.meme-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.meme-company {
+  font-weight: 600;
+  color: #333;
+}
+
+.meme-city {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.meme-date {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.meme-image-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.meme-image {
+  width: 100%;
+  max-height: 350px;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.meme-card:hover .meme-image {
+  transform: scale(1.02);
+}
+
+.meme-content {
+  padding: 10px 15px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.meme-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+  text-decoration: none;
+}
+
+.meme-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.meme-title a:hover {
+  color: #e94560;
+}
+
+.meme-description {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 15px;
+  line-height: 1.4;
+}
+
+.meme-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 6px;
+  margin-top: auto;
+  border-top: 1px solid #eee;
+}
+
+.meme-stats {
+  display: flex;
+  gap: 15px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.upvote-button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.upvote-button:hover, .upvote-button.upvoted {
+  color: #e94560;
+}
+
+.upvote-button.upvoted svg {
+  animation: pulse 0.4s ease;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* Compact mode styles */
+.meme-card.compact {
+  margin-bottom: 12px;
+}
+
+.meme-card.compact .meme-header {
+  padding: 4px 12px;
+}
+
+.meme-card.compact .meme-image {
+  max-height: 250px;
+}
+
+.meme-card.compact .meme-content {
+  padding: 6px 12px;
+}
+
+.meme-card.compact .meme-title {
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.meme-card.compact .meme-description {
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+  max-height: 2.8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.meme-card.compact .meme-footer {
+  padding-top: 8px;
+}
+
+.meme-card.compact .stat-item,
+.meme-card.compact .upvote-button {
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .meme-card {
+    margin-bottom: 15px;
+  }
+  
+  .meme-image {
+    max-height: 250px;
+  }
+} 
