@@ -457,4 +457,135 @@
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+}
+
+.meme-actions {
+  display: flex;
+  justify-content: flex-start;
+  padding: 0.5rem 1rem 1rem;
+}
+
+.share-button {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: 1px solid #ddd;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  color: #555;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.share-button:hover {
+  background-color: #f0f0f0;
+  color: #5890ff;
+  border-color: #ccc;
+}
+
+.share-button .icon {
+  margin-right: 0.5rem;
+}
+
+/* For smaller screens */
+@media (max-width: 600px) {
+  .meme-actions {
+    padding: 0.5rem 0.75rem 0.75rem;
+  }
+  
+  .share-button {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+  }
+}
+
+.meme-header {
+  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  border-bottom: 1px solid #eee;
+}
+
+.votes-sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-right: 15px;
+  margin-right: 12px;
+  border-right: 1px solid #f0f0f0;
+}
+
+.meme-info {
+  flex: 1;
+}
+
+.meme-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: #1a1a1b;
+}
+
+.vote-button {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #999;
+  transition: color 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.vote-button:hover:not(:disabled) {
+  color: #ff4444;
+}
+
+.vote-button.voted {
+  color: #ff4444;
+}
+
+.vote-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vote-count {
+  font-weight: 700;
+  color: #333;
+  font-size: 1rem;
+  margin-top: 3px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .meme-header {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  
+  .votes-sidebar {
+    margin-right: 10px;
+    padding-right: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .meme-header {
+    flex-direction: row;
+    padding: 0.75rem;
+  }
+  
+  .votes-sidebar {
+    margin-right: 8px;
+    padding-right: 8px;
+  }
+  
+  .meme-title {
+    font-size: 1.2rem;
+  }
 } 

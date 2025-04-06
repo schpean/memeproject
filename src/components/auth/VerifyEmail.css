@@ -1,0 +1,101 @@
+.verify-email-container {
+  max-width: 600px;
+  margin: 3rem auto;
+  padding: 2rem;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.verify-email-container h2 {
+  color: #333;
+  margin-bottom: 1.5rem;
+}
+
+.verify-email-container p {
+  color: #666;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.verify-email-container.success {
+  border-left: 5px solid #4caf50;
+}
+
+.info-box {
+  background-color: #f5f5f5;
+  border-radius: 6px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.info-box h3 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.info-box ul {
+  padding-left: 1.5rem;
+}
+
+.info-box li {
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 0.8rem 1.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+  border: none;
+}
+
+.btn.primary {
+  background-color: #ff5722;
+  color: white;
+}
+
+.btn.primary:hover {
+  background-color: #e64a19;
+}
+
+.btn.secondary {
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.btn.secondary:hover {
+  background-color: #e0e0e0;
+}
+
+@media (max-width: 600px) {
+  .verify-email-container {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .actions {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+}

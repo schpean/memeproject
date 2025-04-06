@@ -1,0 +1,48 @@
+.notification-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.notification {
+  background-color: rgba(40, 40, 40, 0.9);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  animation: fadeInOut 3s ease forwards;
+  min-width: 200px;
+  text-align: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.notification .icon {
+  margin-right: 10px;
+  font-size: 16px;
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+} 

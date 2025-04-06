@@ -184,6 +184,33 @@
   margin-right: 0.4rem;
 }
 
+.share-button {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  color: #878a8c;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.share-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #5890ff;
+}
+
+.share-button .icon {
+  margin-right: 0.4rem;
+}
+
+.meme-card.compact .share-button {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+}
+
 /* For smaller screens */
 @media (max-width: 600px) {
   .meme-card {
@@ -202,4 +229,74 @@
   .meme-actions {
     padding: 0.4rem;
   }
+}
+
+/* Add styles for approval status */
+.approval-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.approval-status svg {
+  margin-right: 3px;
+  font-size: 10px;
+}
+
+.approval-status.pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.approval-status.approved {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.approval-status.rejected {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Approval buttons */
+.approve-button, .reject-button {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.approve-button {
+  color: #28a745;
+}
+
+.approve-button:hover:not(:disabled) {
+  background-color: rgba(40, 167, 69, 0.1);
+}
+
+.reject-button {
+  color: #dc3545;
+}
+
+.reject-button:hover:not(:disabled) {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.approve-button .icon, .reject-button .icon {
+  margin-right: 0.4rem;
+}
+
+.meme-card.compact .approve-button,
+.meme-card.compact .reject-button {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
 } 

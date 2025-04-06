@@ -100,12 +100,48 @@ export const memeApi = {
         voteType = upvotedMemes.includes(parseInt(id)) || upvotedMemes.includes(id) ? 'down' : 'up';
       }
       
-      const response = await api.post(`/memes/${id}/vote`, { 
-        userId: userId,
-        voteType: voteType
-      });
-      
-      return response.data;
+      try {
+        const response = await api.post(`/memes/${id}/vote`, { 
+          userId: userId,
+          voteType: voteType
+        });
+        
+        return response.data;
+      } catch (error) {
+        // Handle 400 errors gracefully
+        if (error.response && error.response.status === 400) {
+          console.log('Vote status error:', error.response.data.error);
+          
+          // If trying to upvote but already voted, return the meme with current votes
+          if (voteType === 'up' && error.response.data.error === 'You have already voted for this meme') {
+            // Update local storage to reflect server state
+            const upvotedMemes = JSON.parse(localStorage.getItem('upvotedMemes') || '[]');
+            if (!upvotedMemes.includes(id)) {
+              upvotedMemes.push(id);
+              localStorage.setItem('upvotedMemes', JSON.stringify(upvotedMemes));
+            }
+            
+            // Get the current meme data
+            const memeResponse = await api.get(`/memes/${id}`);
+            return memeResponse.data;
+          }
+          
+          // If trying to unvote but never voted, return the meme with current votes
+          if (voteType === 'down' && error.response.data.error === 'You have not voted for this meme yet') {
+            // Update local storage to reflect server state
+            const upvotedMemes = JSON.parse(localStorage.getItem('upvotedMemes') || '[]');
+            const updatedUpvotes = upvotedMemes.filter(memeId => memeId != id);
+            localStorage.setItem('upvotedMemes', JSON.stringify(updatedUpvotes));
+            
+            // Get the current meme data
+            const memeResponse = await api.get(`/memes/${id}`);
+            return memeResponse.data;
+          }
+        }
+        
+        // Re-throw other errors
+        throw error;
+      }
     } catch (error) {
       console.error(`Error handling vote for meme ${id}:`, error);
       throw error;
@@ -278,12 +314,9 @@ export const userApi = {
       
       // Check if nickname has already been changed
       if (user.nickname_changed) {
-        console.warn('Nickname already changed for user:', userId);
+        console.warn('Nickname already changed for this user');
         throw new Error('You can only change your nickname once');
       }
-      
-      console.log('Making nickname update request to:', API_ENDPOINTS.updateNickname);
-      console.log('With data:', { userId, newNickname });
       
       let response;
       try {
@@ -293,7 +326,7 @@ export const userApi = {
           newNickname: newNickname
         });
       } catch (axiosError) {
-        console.error('Axios request failed, trying with fetch:', axiosError);
+        console.error('Request failed, trying alternative method');
         
         // Fallback to fetch API if axios fails
         const fetchResponse = await fetch(API_ENDPOINTS.updateNickname, {
@@ -308,13 +341,11 @@ export const userApi = {
         });
         
         if (!fetchResponse.ok) {
-          throw new Error(`Fetch request failed with status: ${fetchResponse.status}`);
+          throw new Error(`Request failed with status: ${fetchResponse.status}`);
         }
         
         response = { data: await fetchResponse.json() };
       }
-      
-      console.log('Nickname update response:', response.data);
       
       // Update the user in localStorage with the new nickname
       const updatedUser = {
@@ -324,12 +355,11 @@ export const userApi = {
         nickname_changed: true // Ensure this is set properly
       };
       
-      console.log('Updated user object with new nickname:', updatedUser);
       localStorage.setItem('memeUser', JSON.stringify(updatedUser));
       
       return response.data;
     } catch (error) {
-      console.error('Error updating nickname:', error);
+      console.error('Error updating nickname');
       throw error;
     }
   }

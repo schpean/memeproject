@@ -9,29 +9,38 @@ import CompanyPage from './pages/CompanyPage';
 import NotFound from './pages/NotFound';
 import MemePage from './pages/MemePage';
 import CommentsPage from './pages/CommentsPage';
+import AdminPanel from './pages/AdminPanel';
+import PendingMemes from './pages/PendingMemes';
 import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './components/common/Notification';
+import VerifyEmail from './components/auth/VerifyEmail';
 import './App.css';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="App">
-          <Header />
-          <main className="container">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/howto" element={<Howto />} />
-              <Route path="/browse" element={<BrowseMemes />} />
-              <Route path="/company/:companyName" element={<CompanyPage />} />
-              <Route path="/meme/:id" element={<MemePage />} />
-              <Route path="/meme/:id/comments" element={<CommentsPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </Router>
+      <NotificationProvider>
+        <Router>
+          <div className="App">
+            <Header />
+            <main className="container">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/howto" element={<Howto />} />
+                <Route path="/browse" element={<BrowseMemes />} />
+                <Route path="/company/:companyName" element={<CompanyPage />} />
+                <Route path="/meme/:id" element={<MemePage />} />
+                <Route path="/meme/:id/comments" element={<CommentsPage />} />
+                <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/pending" element={<PendingMemes />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </Router>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

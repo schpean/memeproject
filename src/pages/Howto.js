@@ -3,7 +3,7 @@ import '../styles/Howto.css';
 import { API_ENDPOINTS } from '../utils/config';
 import AuthContext from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
-import { FaUpload, FaLink, FaBuilding, FaComment, FaExclamationTriangle, FaCity } from 'react-icons/fa';
+import { FaUpload, FaLink, FaBuilding, FaComment, FaExclamationTriangle, FaCity, FaInfoCircle } from 'react-icons/fa';
 
 const Howto = () => {
   const { currentUser, loginWithGoogle } = useContext(AuthContext);
@@ -302,7 +302,15 @@ const Howto = () => {
   // Main form for logged in users
   return (
     <div className="howto-page">
-      <h1>How to Create Your Meme</h1>
+      <h1>How to Create a Meme</h1>
+      
+      <div className="moderation-notice">
+        <FaInfoCircle className="info-icon" />
+        <div className="notice-content">
+          <h3>Moderation Notice</h3>
+          <p>All memes are reviewed by our moderation team before being published. Thank you for your understanding!</p>
+        </div>
+      </div>
       
       <div className="reminder">
         <FaExclamationTriangle /> Remember: No real names, keep it legal, have fun!

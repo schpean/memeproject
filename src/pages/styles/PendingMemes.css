@@ -1,0 +1,68 @@
+.pending-memes {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.pending-memes h1 {
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-size: 1.8rem;
+}
+
+.pending-memes p {
+  margin-bottom: 1.5rem;
+  color: #666;
+}
+
+.pending-memes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.no-pending-memes {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.no-pending-memes p {
+  font-size: 1.1rem;
+  color: #28a745;
+  margin: 0;
+}
+
+.pending-memes.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  font-size: 1.1rem;
+  color: #666;
+}
+
+.pending-memes.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 1rem;
+  border-radius: 4px;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+  .pending-memes {
+    padding: 1rem;
+  }
+  
+  .pending-memes h1 {
+    font-size: 1.5rem;
+  }
+  
+  .no-pending-memes {
+    padding: 2rem 1rem;
+  }
+} 

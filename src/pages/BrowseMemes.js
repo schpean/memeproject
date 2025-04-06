@@ -3,17 +3,20 @@ import '../styles/BrowseMemes.css';
 import MemeCard from '../components/meme/MemeCard';
 import { API_ENDPOINTS } from '../utils/config';
 import { Link } from 'react-router-dom';
-import { FaSort, FaCalendarAlt, FaComment, FaArrowUp } from 'react-icons/fa';
+import { FaSort, FaCalendarAlt, FaComment, FaArrowUp, FaSearch, FaTimes } from 'react-icons/fa';
+import { memeApi } from '../api/api';
 
 const BrowseMemes = () => {
   const [memes, setMemes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [selectedCompany, setSelectedCompany] = useState('');
   const [sortBy, setSortBy] = useState('recent');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  
-  // Static list of predefined companies
-  const companies = [
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Restore the original company list
+  const companyOptions = [
     'Google', 
     'Microsoft', 
     'UiPath', 
@@ -27,10 +30,27 @@ const BrowseMemes = () => {
     'Luxoft'
   ];
 
+  // Sort options
+  const sortOptions = [
+    { id: 'recent', label: 'Most Recent', icon: <FaCalendarAlt /> },
+    { id: 'comments', label: 'Most Comments', icon: <FaComment /> },
+    { id: 'votes', label: 'Most Votes', icon: <FaArrowUp /> }
+  ];
+
+  // Filter companies based on search term
+  const filteredCompanies = searchTerm 
+    ? companyOptions.filter(company => 
+        company.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : companyOptions;
+
   useEffect(() => {
     const fetchMemes = async () => {
       try {
-        const response = await fetch(API_ENDPOINTS.memes);
+        const response = await fetch(selectedCompany
+          ? `${API_ENDPOINTS.memes}?company=${selectedCompany}`
+          : API_ENDPOINTS.memes
+        );
         if (!response.ok) {
           throw new Error('Failed to fetch memes');
         }
@@ -58,9 +78,38 @@ const BrowseMemes = () => {
         setLoading(false);
       }
     };
-
     fetchMemes();
-  }, []);
+  }, [selectedCompany]);
+
+  const toggleSortMenu = () => {
+    setSortMenuOpen(!sortMenuOpen);
+  };
+
+  const selectSortOption = (option) => {
+    setSortBy(option);
+    setSortMenuOpen(false);
+  };
+
+  const handleCompanySelect = (company) => {
+    setSelectedCompany(company === selectedCompany ? '' : company);
+    setLoading(true);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
+
+  // Sort memes based on selected option
+  const sortedMemes = [...memes].sort((a, b) => {
+    if (sortBy === 'recent') {
+      return new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt);
+    } else if (sortBy === 'votes') {
+      return (b.votes || 0) - (a.votes || 0);
+    } else if (sortBy === 'comments') {
+      return (b.commentCount || 0) - (a.commentCount || 0);
+    }
+    return 0;
+  });
 
   const handleVote = (updatedMeme) => {
     setMemes(memes.map(meme => 
@@ -68,40 +117,12 @@ const BrowseMemes = () => {
     ));
   };
 
-  const handleCompanySelect = (company) => {
-    setSelectedCompany(company === selectedCompany ? null : company);
-  };
-
-  const handleSortChange = (sortOption) => {
-    setSortBy(sortOption);
-    setSortMenuOpen(false);
-  };
-
-  const toggleSortMenu = () => {
-    setSortMenuOpen(!sortMenuOpen);
-  };
-
-  // Filter by company first
-  const filteredMemes = selectedCompany 
-    ? memes.filter(meme => meme.company === selectedCompany)
-    : memes;
-
-  // Then sort according to selection
-  const sortedMemes = [...filteredMemes].sort((a, b) => {
-    switch (sortBy) {
-      case 'recent':
-        return new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt);
-      case 'upvoted':
-        return (b.votes || 0) - (a.votes || 0);
-      case 'commented':
-        return (b.commentCount || 0) - (a.commentCount || 0);
-      default:
-        return 0;
-    }
-  });
-
   if (loading) {
     return <div className="loading">Loading memes...</div>;
+  }
+
+  if (error) {
+    return <div className="error">{error}</div>;
   }
 
   return (
@@ -109,69 +130,87 @@ const BrowseMemes = () => {
       <h1>Browse meme based reviews</h1>
       
       <div className="browse-controls">
-        <div className="company-filter-section">
+        <div className="controls-header">
           <h2>Filter by Company</h2>
-          <div className="company-buttons">
-            {companies.map(company => (
-              <button 
-                key={company}
-                className={`company-button ${selectedCompany === company ? 'selected' : ''}`}
-                onClick={() => handleCompanySelect(company)}
-              >
-                {company}
-              </button>
-            ))}
-          </div>
-          {selectedCompany && (
-            <div className="clear-filter">
-              <button onClick={() => setSelectedCompany(null)}>Clear Filter</button>
-            </div>
-          )}
-        </div>
-
-        <div className="sort-section">
-          <div className="sort-dropdown">
+          
+          <div className="sort-control">
             <button className="sort-button" onClick={toggleSortMenu}>
-              <FaSort /> Sort: {sortBy === 'recent' ? 'Most Recent' : sortBy === 'upvoted' ? 'Most Upvoted' : 'Most Commented'}
+              <FaSort />
+              <span>Sort: {sortOptions.find(opt => opt.id === sortBy)?.label}</span>
             </button>
+            
             {sortMenuOpen && (
               <div className="sort-menu">
-                <button 
-                  className={`sort-option ${sortBy === 'recent' ? 'active' : ''}`} 
-                  onClick={() => handleSortChange('recent')}
-                >
-                  <FaCalendarAlt /> Most Recent
-                </button>
-                <button 
-                  className={`sort-option ${sortBy === 'upvoted' ? 'active' : ''}`} 
-                  onClick={() => handleSortChange('upvoted')}
-                >
-                  <FaArrowUp /> Most Upvoted
-                </button>
-                <button 
-                  className={`sort-option ${sortBy === 'commented' ? 'active' : ''}`} 
-                  onClick={() => handleSortChange('commented')}
-                >
-                  <FaComment /> Most Commented
-                </button>
+                {sortOptions.map(option => (
+                  <button
+                    key={option.id}
+                    className={`sort-option ${sortBy === option.id ? 'active' : ''}`}
+                    onClick={() => selectSortOption(option.id)}
+                  >
+                    {option.icon}
+                    <span>{option.label}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
         </div>
-      </div>
-      
-      <div className="meme-grid">
-        {sortedMemes.map(meme => (
-          <MemeCard key={meme.id} meme={meme} onVote={handleVote} compact={true} />
-        ))}
-      </div>
-      {sortedMemes.length === 0 && !loading && (
-        <div className="no-memes-message">
-          <h2>No memes found</h2>
-          <p>{selectedCompany ? `No memes found for ${selectedCompany}` : 'Be the first to share a meme!'}</p>
-          <Link to="/howto" className="create-meme-link">Create New Meme</Link>
+        
+        <div className="company-filter-section">
+          <div className="search-wrapper">
+            <div className="search-box">
+              <FaSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="company-search"
+              />
+              {searchTerm && (
+                <button className="clear-search" onClick={clearSearch}>
+                  <FaTimes />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div className="company-grid">
+            {filteredCompanies.map(company => (
+              <div 
+                key={company}
+                className={`company-card ${selectedCompany === company ? 'selected' : ''}`}
+                onClick={() => handleCompanySelect(company)}
+              >
+                <span className="company-name">{company}</span>
+              </div>
+            ))}
+          </div>
+          
+          {selectedCompany && (
+            <div className="selected-filter">
+              <span>Filtering by: <strong>{selectedCompany}</strong></span>
+              <button className="clear-filter" onClick={() => handleCompanySelect(selectedCompany)}>
+                Clear filter
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
+
+      <div className="meme-grid">
+        {sortedMemes.length > 0 ? (
+          sortedMemes.map(meme => (
+            <MemeCard key={meme.id} meme={meme} onVote={handleVote} compact={true} />
+          ))
+        ) : (
+          <div className="no-memes-message">
+            <h2>No memes found</h2>
+            <p>{selectedCompany ? `No memes found for ${selectedCompany}` : 'Be the first to share a meme!'}</p>
+            <Link to="/howto" className="create-meme-link">Create New Meme</Link>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

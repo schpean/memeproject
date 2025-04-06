@@ -13,6 +13,20 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [upvotedMemes, setUpvotedMemes] = useState([]);
+  // Add verification state
+  const [needsVerification, setNeedsVerification] = useState(false);
+  // Add new state for role-based permissions
+  const [userPermissions, setUserPermissions] = useState({
+    isAdmin: false,
+    isModerator: false,
+    permissions: {
+      canCreateMemes: false,
+      canDeleteMemes: false,
+      canEditMemes: false,
+      canManageUsers: false,
+      canManageRoles: false
+    }
+  });
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -27,10 +41,20 @@ export const AuthProvider = ({ children }) => {
         if (savedUpvotes) {
           setUpvotedMemes(JSON.parse(savedUpvotes));
         }
+        
+        // Load saved permissions or fetch fresh ones
+        const savedPermissions = localStorage.getItem('userPermissions');
+        if (savedPermissions) {
+          setUserPermissions(JSON.parse(savedPermissions));
+        }
+        
+        // Fetch latest permissions
+        fetchUserPermissions(parsedUser.uid);
       } catch (error) {
         console.error('Error parsing saved user:', error);
         localStorage.removeItem('memeUser');
         localStorage.removeItem('upvotedMemes');
+        localStorage.removeItem('userPermissions');
       }
     }
     setLoading(false);
@@ -89,6 +113,42 @@ export const AuthProvider = ({ children }) => {
   // Check if user has upvoted a meme
   const hasUpvoted = (memeId) => {
     return upvotedMemes.includes(memeId);
+  };
+
+  // Fetch the latest user permissions
+  const fetchUserPermissions = async (userId) => {
+    if (!userId) return;
+    
+    try {
+      const response = await fetch(`${API_ENDPOINTS.users}/me?userId=${userId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching user permissions: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Update permissions state
+      const permissions = {
+        isAdmin: data.isAdmin || false,
+        isModerator: data.isModerator || false,
+        permissions: data.permissions || {
+          canCreateMemes: true,
+          canDeleteMemes: false,
+          canEditMemes: false,
+          canManageUsers: false,
+          canManageRoles: false
+        }
+      };
+      
+      setUserPermissions(permissions);
+      
+      // Save permissions to localStorage
+      localStorage.setItem('userPermissions', JSON.stringify(permissions));
+      
+    } catch (error) {
+      console.error('Error fetching user permissions:', error);
+    }
   };
 
   // Google login logic
@@ -169,20 +229,43 @@ export const AuthProvider = ({ children }) => {
             const userData = await response.json();
             
             // Create the full user object with data from both Google and your server
-            // Don't use real Google data, use username and mascot image from server
             const user = {
               uid: userData.id,
               googleId: userData.google_id,
-              email: userData.email,
+              // Don't store email in the user object for privacy
               displayName: userData.username, // Use username instead of real name
               username: userData.username,
               photoURL: userData.photo_url, // Will be mascot image from server
               nickname_changed: userData.nickname_changed || false,
+              isAdmin: userData.isAdmin || false,
+              isModerator: userData.isModerator || false,
               provider: 'google'
             };
             
             setCurrentUser(user);
             localStorage.setItem('memeUser', JSON.stringify(user));
+            
+            // Check if user needs to verify email
+            if (userData.needsVerification) {
+              setNeedsVerification(true);
+              // Show generic verification message without mentioning specific email
+              window.alert('Account created successfully! Please verify your email to access all features.');
+            }
+            
+            // Set permissions based on the response
+            if (userData.permissions) {
+              const permissions = {
+                isAdmin: userData.isAdmin || false,
+                isModerator: userData.isModerator || false,
+                permissions: userData.permissions
+              };
+              
+              setUserPermissions(permissions);
+              localStorage.setItem('userPermissions', JSON.stringify(permissions));
+            } else {
+              // Fetch permissions if not included in the response
+              fetchUserPermissions(user.uid);
+            }
             
             // Try to fetch upvoted memes from server
             try {
@@ -216,9 +299,62 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setCurrentUser(null);
     setUpvotedMemes([]);
+    setUserPermissions({
+      isAdmin: false,
+      isModerator: false,
+      permissions: {
+        canCreateMemes: false,
+        canDeleteMemes: false,
+        canEditMemes: false,
+        canManageUsers: false,
+        canManageRoles: false
+      }
+    });
     localStorage.removeItem('memeUser');
     localStorage.removeItem('upvotedMemes');
-    // We don't need to manually revoke the token with the new approach
+    localStorage.removeItem('userPermissions');
+  };
+  
+  // Helper function to check if user has a specific permission
+  const hasPermission = (permission) => {
+    if (!currentUser) return false;
+    
+    // Admin has all permissions
+    if (userPermissions.isAdmin) return true;
+    
+    // Check specific permission
+    return userPermissions.permissions && userPermissions.permissions[permission] === true;
+  };
+
+  // Add resend verification email function
+  const resendVerificationEmail = async () => {
+    if (!currentUser || !currentUser.uid) {
+      setAuthError('User not logged in');
+      return false;
+    }
+    
+    try {
+      // Send only the user ID instead of email
+      const response = await fetch(`${API_ENDPOINTS.base}/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: currentUser.uid }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to resend verification email');
+      }
+      
+      const result = await response.json();
+      window.alert('Verification email has been sent. Please check your inbox.');
+      return true;
+    } catch (error) {
+      console.error('Error resending verification email:', error);
+      setAuthError('Failed to resend verification email. Please try again.');
+      return false;
+    }
   };
 
   const value = {
@@ -230,7 +366,14 @@ export const AuthProvider = ({ children }) => {
     addUpvotedMeme,
     removeUpvotedMeme,
     loginWithGoogle,
-    logout
+    logout,
+    // Add new role-based props
+    isAdmin: userPermissions.isAdmin,
+    isModerator: userPermissions.isModerator,
+    permissions: userPermissions.permissions,
+    hasPermission,
+    needsVerification,
+    resendVerificationEmail
   };
 
   return (
