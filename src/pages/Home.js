@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import MemeCard from '../components/meme/MemeCard';
 import './styles/Home.css';
 import { API_ENDPOINTS } from '../utils/config';
-import { FaFire, FaChartLine, FaClock, FaAngleDown } from 'react-icons/fa';
+import { FaFire, FaChartLine, FaClock, FaAngleDown, FaSort, FaCalendarAlt, FaComment, FaArrowUp } from 'react-icons/fa';
 
 const Home = () => {
   const [memes, setMemes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState('latest'); // 'latest', 'top', 'hot'
+  const [sortBy, setSortBy] = useState('recent'); // 'recent', 'upvoted', 'commented'
   const [timeFilter, setTimeFilter] = useState('all'); // 'now', 'today', 'week', 'all'
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
@@ -48,12 +48,8 @@ const Home = () => {
     try {
       let url = API_ENDPOINTS.memes;
       
-      // Add query parameters for sorting and time filtering
+      // Add query parameters for time filtering
       const params = new URLSearchParams();
-      
-      if (sortBy !== 'latest') {
-        params.append('sort', sortBy);
-      }
       
       if (timeFilter !== 'all') {
         params.append('time', timeFilter);
@@ -100,25 +96,43 @@ const Home = () => {
         });
       }
       
-      // Apply sorting locally if server doesn't support sorting
-      let sortedData = filteredData;
+      // Fetch comment counts for memes if sorting by comments
+      let memesWithCommentCounts = filteredData;
       
-      if (sortBy !== 'latest' && !url.includes('sort=')) {
-        if (sortBy === 'top') {
-          sortedData = [...filteredData].sort((a, b) => (b.votes || 0) - (a.votes || 0));
-        } else if (sortBy === 'hot') {
-          // Simple hot algorithm: upvotes / (age in hours + 2)^1.5
-          const now = new Date();
-          sortedData = [...filteredData].sort((a, b) => {
-            const aDate = new Date(a.created_at || a.createdAt);
-            const bDate = new Date(b.created_at || b.createdAt);
-            const aHours = Math.max(1, (now - aDate) / 3600000);
-            const bHours = Math.max(1, (now - bDate) / 3600000);
-            const aHot = (a.votes || 0) / Math.pow(aHours + 2, 1.5);
-            const bHot = (b.votes || 0) / Math.pow(bHours + 2, 1.5);
-            return bHot - aHot;
-          });
-        }
+      if (sortBy === 'commented') {
+        memesWithCommentCounts = await Promise.all(
+          filteredData.map(async (meme) => {
+            try {
+              const commentsResponse = await fetch(API_ENDPOINTS.getComments(meme.id));
+              if (!commentsResponse.ok) {
+                return { ...meme, commentCount: 0 };
+              }
+              const comments = await commentsResponse.json();
+              return { ...meme, commentCount: comments.length };
+            } catch (error) {
+              console.error(`Error fetching comments for meme ${meme.id}:`, error);
+              return { ...meme, commentCount: 0 };
+            }
+          })
+        );
+      }
+      
+      // Apply sorting locally
+      let sortedData = memesWithCommentCounts;
+      
+      switch (sortBy) {
+        case 'upvoted':
+          sortedData = [...memesWithCommentCounts].sort((a, b) => (b.votes || 0) - (a.votes || 0));
+          break;
+        case 'commented':
+          sortedData = [...memesWithCommentCounts].sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
+          break;
+        case 'recent':
+        default:
+          sortedData = [...memesWithCommentCounts].sort((a, b) => 
+            new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt)
+          );
+          break;
       }
       
       // Show only first 8 memes for more compact view
@@ -138,23 +152,25 @@ const Home = () => {
 
   const getSortIcon = () => {
     switch (sortBy) {
-      case 'top':
-        return <FaChartLine />;
-      case 'hot':
-        return <FaFire />;
+      case 'upvoted':
+        return <FaArrowUp />;
+      case 'commented':
+        return <FaComment />;
+      case 'recent':
       default:
-        return <FaClock />;
+        return <FaCalendarAlt />;
     }
   };
 
   const getSortLabel = () => {
     switch (sortBy) {
-      case 'top':
-        return 'Top';
-      case 'hot':
-        return 'Hot';
+      case 'upvoted':
+        return 'Most Upvoted';
+      case 'commented':
+        return 'Most Commented';
+      case 'recent':
       default:
-        return 'Latest';
+        return 'Most Recent';
     }
   };
 
@@ -213,22 +229,22 @@ const Home = () => {
               {showSortDropdown && (
                 <div className="dropdown-menu">
                   <button 
-                    className={sortBy === 'latest' ? 'active' : ''} 
-                    onClick={() => { setSortBy('latest'); setShowSortDropdown(false); }}
+                    className={sortBy === 'recent' ? 'active' : ''} 
+                    onClick={() => { setSortBy('recent'); setShowSortDropdown(false); }}
                   >
-                    <FaClock /> Latest
+                    <FaCalendarAlt /> Most Recent
                   </button>
                   <button 
-                    className={sortBy === 'top' ? 'active' : ''} 
-                    onClick={() => { setSortBy('top'); setShowSortDropdown(false); }}
+                    className={sortBy === 'upvoted' ? 'active' : ''} 
+                    onClick={() => { setSortBy('upvoted'); setShowSortDropdown(false); }}
                   >
-                    <FaChartLine /> Top
+                    <FaArrowUp /> Most Upvoted
                   </button>
                   <button 
-                    className={sortBy === 'hot' ? 'active' : ''} 
-                    onClick={() => { setSortBy('hot'); setShowSortDropdown(false); }}
+                    className={sortBy === 'commented' ? 'active' : ''} 
+                    onClick={() => { setSortBy('commented'); setShowSortDropdown(false); }}
                   >
-                    <FaFire /> Hot
+                    <FaComment /> Most Commented
                   </button>
                 </div>
               )}

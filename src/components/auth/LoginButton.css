@@ -3,7 +3,7 @@
 }
 
 .login-button {
-  background-color: #ff4444;
+  background-color: #ff5722;
   color: white;
   border: none;
   border-radius: 4px;
@@ -14,31 +14,33 @@
 }
 
 .login-button:hover {
-  background-color: #cc0000;
+  background-color: #e64a19;
 }
 
 .user-profile {
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 5px 10px;
+  border-radius: 20px;
   transition: background-color 0.2s;
 }
 
 .user-profile:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
+  object-fit: cover;
   margin-right: 8px;
 }
 
 .user-name {
   font-weight: 500;
+  color: #333;
   max-width: 120px;
   white-space: nowrap;
   overflow: hidden;
@@ -50,38 +52,87 @@
   position: absolute;
   top: 100%;
   right: 0;
-  width: 300px;
-  margin-top: 10px;
-  background-color: #1e1e24;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-  border: 1px solid #2a2a35;
-  z-index: 1000;
+  min-width: 200px;
+  z-index: 100;
   overflow: hidden;
-  animation: slideDown 0.2s ease;
+  animation: dropdown-fade 0.2s ease-in-out;
 }
 
-/* Triangle indicator for dropdown */
-.user-dropdown::before {
-  content: '';
-  position: absolute;
-  top: -8px;
-  right: 15px;
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-bottom: 8px solid #2a2a35;
+@keyframes dropdown-fade {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: #333;
+  font-size: 14px;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+/* Verification alert styles */
+.verification-alert {
+  padding: 12px 16px;
+  background-color: #fff3e0;
+  border-left: 3px solid #ff9800;
+  margin-bottom: 8px;
+}
+
+.verification-alert p {
+  margin: 0 0 10px 0;
+  color: #e65100;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.verification-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.verification-link {
+  color: #2196f3;
+  background-color: rgba(33, 150, 243, 0.1);
+  text-align: center;
+}
+
+.verification-link:hover {
+  background-color: rgba(33, 150, 243, 0.2);
+}
+
+.resend-link {
+  color: #ff5722;
+  background-color: rgba(255, 87, 34, 0.1);
+  text-align: center;
+}
+
+.resend-link:hover {
+  background-color: rgba(255, 87, 34, 0.2);
+}
+
+@media (max-width: 768px) {
+  .user-name {
+    display: none;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  
+  .user-dropdown {
+    right: -10px;
   }
 }
 
@@ -179,8 +230,8 @@
 
 /* Logout button */
 .logout-button {
-  background-color: #e74c3c;
-  color: white;
+  background-color: #f1f1f1;
+  color: #333;
   border: none;
   border-radius: 6px;
   padding: 12px;
@@ -193,7 +244,7 @@
 }
 
 .logout-button:hover {
-  background-color: #c0392b;
+  background-color: #e0e0e0;
 }
 
 /* Nickname change section */
@@ -378,4 +429,150 @@
   padding: 20px;
   max-height: calc(100vh - 200px);
   overflow-y: auto;
-} 
+}
+
+.auth-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.auth-button .auth-icon {
+  margin-right: 8px;
+}
+
+.auth-icon {
+  margin-right: 0.5rem;
+  font-size: 1rem;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Nickname Change Modal */
+.nickname-modal {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  animation: modal-appear 0.3s ease-out;
+}
+
+@keyframes modal-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nickname-modal h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 1.3rem;
+  margin-bottom: 8px;
+}
+
+.nickname-info {
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  border-color: #ff5722;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 87, 34, 0.2);
+}
+
+.error-message {
+  color: #d32f2f;
+  font-size: 0.85rem;
+  margin-top: 6px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* Buttons (reusing the existing btn classes) */
+.btn {
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background-color: #ff5722;
+  color: white;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background-color: #e64a19;
+}
+
+.btn.secondary {
+  background-color: #f1f1f1;
+  color: #333;
+}
+
+.btn.secondary:hover:not(:disabled) {
+  background-color: #e0e0e0;
+}

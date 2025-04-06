@@ -14,3 +14,61 @@
   .success-message {
     color: green;
   }
+
+  .approval-notice {
+    display: flex;
+    align-items: flex-start;
+    background-color: #e6f7ff;
+    border-left: 4px solid #1890ff;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+  }
+
+  .approval-notice .info-icon {
+    color: #1890ff;
+    margin-right: 0.75rem;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .approval-notice p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #0050b3;
+    line-height: 1.4;
+  }
+
+  .moderation-notice {
+    display: flex;
+    margin-bottom: 2rem;
+    background-color: #fff3cd;
+    border-radius: 8px;
+    padding: 1.25rem;
+    border-left: 5px solid #ffc107;
+  }
+
+  .moderation-notice .info-icon {
+    color: #856404;
+    font-size: 1.5rem;
+    margin-right: 1rem;
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+  }
+
+  .moderation-notice .notice-content {
+    flex: 1;
+  }
+
+  .moderation-notice h3 {
+    margin: 0 0 0.5rem 0;
+    color: #856404;
+    font-size: 1.2rem;
+  }
+
+  .moderation-notice p {
+    margin: 0;
+    color: #856404;
+    line-height: 1.5;
+  }

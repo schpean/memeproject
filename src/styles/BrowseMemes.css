@@ -1,223 +1,255 @@
+body {
+  background-color: #121212;
+  color: white;
+}
+
 .browse-memes {
-  padding: 15px;
-  max-width: 1300px;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 2rem 1rem;
 }
 
 .browse-memes h1 {
+  margin-bottom: 2rem;
   text-align: center;
-  margin-bottom: 20px;
-  color: #333;
-  font-size: 1.8rem;
+  color: #fff;
+  font-size: 2rem;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
 }
 
-/* Control section that contains filters and sorting */
 .browse-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-/* Company Filter Section Styles */
-.company-filter-section {
-  margin: 0;
-  padding: 15px;
-  background-color: #f5f5f5;
+  margin-bottom: 2rem;
+  background-color: #1a1a1a;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
-.company-filter-section h2 {
+.controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.controls-header h2 {
+  color: #fff;
   font-size: 1.2rem;
-  margin-bottom: 12px;
-  color: #333;
+  margin: 0;
 }
 
-.company-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.company-button {
-  padding: 6px 14px;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  border-radius: 20px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.company-button:hover {
-  background-color: #f0f0f0;
-  border-color: #ccc;
-}
-
-.company-button.selected {
-  background-color: #e94560;
-  color: white;
-  border-color: #e94560;
-}
-
-.clear-filter {
-  display: flex;
-  justify-content: center;
-  margin-top: 8px;
-}
-
-.clear-filter button {
-  background-color: transparent;
-  border: none;
-  color: #666;
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 4px 8px;
-  font-size: 13px;
-}
-
-.clear-filter button:hover {
-  color: #e94560;
-}
-
-/* Sort Section Styles */
-.sort-section {
-  position: relative;
-  padding: 12px 15px;
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.sort-dropdown {
+.sort-control {
   position: relative;
 }
 
 .sort-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 15px;
-  background-color: #fff;
-  border: 1px solid #ddd;
+  gap: 0.5rem;
+  background-color: #333;
+  border: none;
   border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: #fff;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-  color: #333;
-  width: 100%;
-  justify-content: center;
+  transition: background-color 0.2s;
 }
 
 .sort-button:hover {
-  background-color: #f0f0f0;
+  background-color: #444;
 }
 
 .sort-menu {
   position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
+  top: 100%;
   right: 0;
-  background-color: #fff;
+  background-color: #333;
   border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   z-index: 10;
+  min-width: 180px;
+  margin-top: 0.5rem;
   overflow: hidden;
 }
 
 .sort-option {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 15px;
-  background: none;
-  border: none;
-  border-bottom: 1px solid #eee;
+  gap: 0.5rem;
   width: 100%;
   text-align: left;
+  background: none;
+  border: none;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: #fff;
   cursor: pointer;
   transition: background-color 0.2s;
-  font-size: 14px;
-  color: #555;
-}
-
-.sort-option:last-child {
-  border-bottom: none;
 }
 
 .sort-option:hover {
-  background-color: #f5f5f5;
+  background-color: #444;
 }
 
 .sort-option.active {
-  background-color: #f0f0f0;
-  color: #e94560;
-  font-weight: 500;
+  background-color: #444;
+  font-weight: 600;
+  color: #ff4444;
 }
 
-/* Meme Grid Styles */
+/* Company Filter Section */
+.company-filter-section {
+  padding-top: 0;
+}
+
+.search-wrapper {
+  margin-bottom: 1rem;
+}
+
+.search-box {
+  position: relative;
+  width: 300px;
+  max-width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.company-search {
+  width: 100%;
+  padding: 6px 8px 6px 28px;
+  border: none;
+  border-radius: 4px;
+  background-color: #333;
+  color: #fff;
+  font-size: 0.85rem;
+  height: 32px;
+}
+
+.company-search::placeholder {
+  color: #888;
+}
+
+.company-search:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 68, 68, 0.5);
+}
+
+.clear-search {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.clear-search:hover {
+  color: #ff4444;
+}
+
+.company-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.company-card {
+  background-color: #292929;
+  border-radius: 4px;
+  padding: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.company-card:hover {
+  background-color: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.company-card.selected {
+  background-color: #333;
+  border-color: #ff4444;
+}
+
+.company-name {
+  color: #fff;
+  font-weight: 500;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #333;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.clear-filter {
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clear-filter:hover {
+  background-color: #e03c3c;
+}
+
 .meme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 15px;
-  padding: 10px 0;
-}
-
-/* Responsive Styles */
-@media (min-width: 768px) {
-  .browse-controls {
-    flex-direction: row;
-  }
-
-  .company-filter-section {
-    flex: 3;
-  }
-
-  .sort-section {
-    flex: 1;
-    display: flex;
-    align-items: center;
-  }
-  
-  .meme-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-}
-
-@media (min-width: 1024px) {
-  .meme-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
-}
-
-.loading {
-  text-align: center;
-  padding: 40px;
-  font-size: 1.2em;
-  color: #666;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
 }
 
 .no-memes-message {
   text-align: center;
   padding: 3rem;
-  margin: 2rem auto;
-  max-width: 600px;
-  background-color: #f9f9f9;
+  background-color: #1a1a1a;
   border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  color: #fff;
+  margin-top: 2rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .no-memes-message h2 {
-  color: #333;
-  margin-bottom: 1rem;
+  margin-top: 0;
+  color: #ff4444;
 }
 
 .no-memes-message p {
-  color: #666;
+  color: #bbb;
   margin-bottom: 1.5rem;
-  font-size: 1.1rem;
 }
 
 .create-meme-link {
@@ -232,5 +264,37 @@
 }
 
 .create-meme-link:hover {
-  background-color: #cc0000;
+  background-color: #e03c3c;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: #fff;
+  font-size: 1.1rem;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  margin-top: 2rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 768px) {
+  .company-grid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 8px;
+  }
+  
+  .meme-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .selected-filter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .browse-memes h1 {
+    font-size: 1.5rem;
+  }
 } 

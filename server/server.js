@@ -6,18 +6,49 @@ const fs = require('fs');
 const pool = require('./db');
 require('dotenv').config();
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
+const emailService = require('./email');
 
 const app = express();
 const port = process.env.PORT || 1337;
 
+// CORS configuration with environment variables
+const allowedOrigins = [
+  process.env.CLIENT_BASE_URL || 'http://localhost:1338',
+  'http://localhost:3000',  // React dev server
+  process.env.PRODUCTION_CLIENT_URL,  // Add your production URL when deploying
+  'http://86.120.25.207:1338', // Add IP-based access explicitly
+  'null', // For local file testing
+  '*' // Allow all origins for image resources
+].filter(Boolean); // Remove undefined values
+
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:1338', 'http://localhost:3000'], // Allow both React dev server ports
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.indexOf('*') !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS rejected origin:', origin);
+      callback(null, true); // Allow all origins in development
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true, // Allow cookies if needed
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'user-id']
 }));
 app.use(express.json());
+
+// Add CORS headers for static files
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
+
 app.use('/uploads', express.static('uploads'));
 app.use('/images', express.static(path.join(__dirname, '../public/images')));
 
@@ -36,6 +67,56 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+
+// Role-based authorization middleware
+const authorize = (roles = []) => {
+  // roles parameter can be a single role string (e.g., 'admin') 
+  // or an array of roles (e.g., ['admin', 'moderator'])
+  if (typeof roles === 'string') {
+    roles = [roles];
+  }
+
+  return async (req, res, next) => {
+    // Get user ID from the request
+    const userId = req.headers['user-id'] || req.query.userId || (req.body && req.body.userId);
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized - Please log in' });
+    }
+
+    try {
+      // Get user and their role
+      const result = await pool.query(`
+        SELECT u.*, r.name as role_name 
+        FROM users u
+        LEFT JOIN user_roles r ON u.role_id = r.id
+        WHERE u.id = $1
+      `, [userId]);
+      
+      if (result.rows.length === 0) {
+        return res.status(401).json({ error: 'Unauthorized - User not found' });
+      }
+      
+      const user = result.rows[0];
+      
+      // Check if role is required and if user's role is allowed
+      if (roles.length && !roles.includes(user.role_name)) {
+        return res.status(403).json({ 
+          error: 'Forbidden - Insufficient permissions',
+          requiredRoles: roles,
+          userRole: user.role_name
+        });
+      }
+      
+      // Add user to request for use in route handlers
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error('Authorization error:', error);
+      res.status(500).json({ error: 'Internal server error during authorization' });
+    }
+  };
+};
 
 // Routes
 
@@ -58,6 +139,33 @@ app.get('/memes', async (req, res) => {
       params.push(city);
     }
     
+    // Only show approved memes by default for regular users
+    const userId = req.headers['user-id'] || req.query.userId;
+    let userRole = 'user';
+    
+    if (userId) {
+      try {
+        const userResult = await pool.query(`
+          SELECT u.*, r.name as role_name 
+          FROM users u
+          LEFT JOIN user_roles r ON u.role_id = r.id
+          WHERE u.id = $1
+        `, [userId]);
+        
+        if (userResult.rows.length > 0) {
+          userRole = userResult.rows[0].role_name;
+        }
+      } catch (error) {
+        console.error('Error checking user role:', error);
+      }
+    }
+    
+    // For regular users, only show approved memes
+    if (userRole !== 'admin' && userRole !== 'moderator') {
+      conditions.push(`approval_status = $${params.length + 1}`);
+      params.push('approved');
+    }
+    
     // Build the WHERE clause if we have conditions
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     
@@ -69,6 +177,49 @@ app.get('/memes', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Error getting memes:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get pending memes for approval (admin and moderator only)
+app.get('/memes/pending', authorize(['admin', 'moderator']), async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM memes WHERE approval_status = $1 ORDER BY created_at ASC',
+      ['pending']
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error getting pending memes:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Approve or reject a meme
+app.put('/memes/:id/approval', authorize(['admin', 'moderator']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+    
+    // Validate status
+    if (!status || !['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Must be "approved" or "rejected"' });
+    }
+    
+    // Update meme approval status
+    const result = await pool.query(
+      'UPDATE memes SET approval_status = $1, rejection_reason = $2 WHERE id = $3 RETURNING *',
+      [status, reason || null, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Meme not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating meme approval status:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -141,9 +292,27 @@ app.post('/memes', upload.single('image'), async (req, res) => {
     console.log('- Username:', username);
     
     try {
+      // Check if user is admin or moderator - their posts are auto-approved
+      let approvalStatus = 'pending';
+      try {
+        const userResult = await pool.query(`
+          SELECT u.*, r.name as role_name 
+          FROM users u
+          LEFT JOIN user_roles r ON u.role_id = r.id
+          WHERE u.id = $1
+        `, [userIdInt]);
+        
+        if (userResult.rows.length > 0 && 
+           (userResult.rows[0].role_name === 'admin' || userResult.rows[0].role_name === 'moderator')) {
+          approvalStatus = 'approved';
+        }
+      } catch (error) {
+        console.error('Error checking user role:', error);
+      }
+      
       // Try to insert the meme
       const result = await pool.query(
-        'INSERT INTO memes (company, city, country, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        'INSERT INTO memes (company, city, country, image_url, message, user_id, username, approval_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
         [
           company || '', 
           city || '', 
@@ -151,7 +320,8 @@ app.post('/memes', upload.single('image'), async (req, res) => {
           imageUrl || '', 
           message || null, 
           userIdInt, 
-          username || 'anonymous'
+          username || 'anonymous',
+          approvalStatus
         ]
       );
       console.log('Meme creation successful, returning result');
@@ -540,6 +710,54 @@ const fixMissingColumns = async () => {
     await client.query(`ALTER TABLE memes ALTER COLUMN country SET DEFAULT 'Romania'`);
     console.log('✅ Made country column nullable with default value "Romania"');
     
+    // Check if the approval_status column exists
+    const approvalStatusColumnCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'memes' AND column_name = 'approval_status'
+      );
+    `);
+    
+    // Add approval_status column if it doesn't exist
+    if (!approvalStatusColumnCheck.rows[0].exists) {
+      console.log('❌ Missing column "approval_status" in memes table, adding it now...');
+      await client.query(`
+        ALTER TABLE memes 
+        ADD COLUMN approval_status VARCHAR(20) DEFAULT 'pending'
+      `);
+      
+      // Add check constraint
+      await client.query(`
+        ALTER TABLE memes 
+        ADD CONSTRAINT approval_status_check 
+        CHECK (approval_status IN ('pending', 'approved', 'rejected'))
+      `);
+      
+      // Update existing memes to be approved by default
+      await client.query(`
+        UPDATE memes 
+        SET approval_status = 'approved' 
+        WHERE approval_status IS NULL OR approval_status = 'pending'
+      `);
+      
+      console.log('✅ Added approval_status column to memes table');
+    }
+    
+    // Check if the rejection_reason column exists
+    const rejectionReasonColumnCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'memes' AND column_name = 'rejection_reason'
+      );
+    `);
+    
+    // Add rejection_reason column if it doesn't exist
+    if (!rejectionReasonColumnCheck.rows[0].exists) {
+      console.log('❌ Missing column "rejection_reason" in memes table, adding it now...');
+      await client.query(`ALTER TABLE memes ADD COLUMN rejection_reason TEXT`);
+      console.log('✅ Added rejection_reason column to memes table');
+    }
+    
     await client.query('COMMIT');
     console.log('Successfully fixed missing columns');
   } catch (error) {
@@ -627,9 +845,7 @@ const setupMemeTable = async () => {
 // Run the table setup on startup
 setupMemeTable().catch(console.error);
 
-// Add these new routes for user authentication after your existing routes
-
-// Create a new user or get existing one after Google OAuth
+// Update the Google OAuth login to include role information and email verification
 app.post('/users/google-auth', async (req, res) => {
   try {
     const { googleId, email, displayName, photoURL, token } = req.body;
@@ -646,10 +862,12 @@ app.post('/users/google-auth', async (req, res) => {
     }
     
     // Check if user already exists
-    let result = await pool.query(
-      'SELECT * FROM users WHERE google_id = $1',
-      [googleId]
-    );
+    let result = await pool.query(`
+      SELECT u.*, r.name as role_name 
+      FROM users u
+      LEFT JOIN user_roles r ON u.role_id = r.id
+      WHERE u.google_id = $1
+    `, [googleId]);
     
     if (result.rows.length > 0) {
       // User exists, update last login time
@@ -658,20 +876,80 @@ app.post('/users/google-auth', async (req, res) => {
         'UPDATE users SET last_login = NOW(), photo_url = $1 WHERE id = $2',
         [getMascotImageUrl(user.username), user.id]
       );
-      return res.json(user);
+      
+      // If the user hasn't verified their email yet, prompt them to verify
+      if (!user.is_verified) {
+        // Generate a new verification token
+        const verificationToken = uuidv4();
+        const expiryTime = new Date();
+        expiryTime.setHours(expiryTime.getHours() + 24); // Token expires in 24 hours
+        
+        // Update the user's verification token
+        await pool.query(
+          'UPDATE users SET verification_token = $1, verification_expires = $2 WHERE id = $3',
+          [verificationToken, expiryTime, user.id]
+        );
+        
+        // Send verification email
+        await emailService.sendVerificationEmail(user, verificationToken);
+        
+        return res.json({
+          ...user,
+          isAdmin: user.role_name === 'admin',
+          isModerator: user.role_name === 'moderator' || user.role_name === 'admin',
+          needsVerification: true
+        });
+      }
+      
+      return res.json({
+        ...user,
+        isAdmin: user.role_name === 'admin',
+        isModerator: user.role_name === 'moderator' || user.role_name === 'admin'
+      });
     }
     
     // User doesn't exist, generate a unique username
     const username = await generateUniqueUsername(displayName);
     
+    // Get default role id (user role)
+    const roleResult = await pool.query(
+      'SELECT id FROM user_roles WHERE name = $1',
+      ['user']
+    );
+    
+    const roleId = roleResult.rows.length > 0 ? roleResult.rows[0].id : 1;
+    
+    // Generate verification token
+    const verificationToken = uuidv4();
+    const expiryTime = new Date();
+    expiryTime.setHours(expiryTime.getHours() + 24); // Token expires in 24 hours
+    
     // Hide real name by using the username instead of displayName
     // Use mascot image instead of real profile photo
     result = await pool.query(
-      'INSERT INTO users (google_id, email, display_name, photo_url, username) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [googleId, email, username, getMascotImageUrl(username), username]
+      'INSERT INTO users (google_id, email, display_name, photo_url, username, role_id, verification_token, verification_expires) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [googleId, email, username, getMascotImageUrl(username), username, roleId, verificationToken, expiryTime]
     );
     
-    res.status(201).json(result.rows[0]);
+    // Get role name for the new user
+    const userWithRole = await pool.query(`
+      SELECT u.*, r.name as role_name 
+      FROM users u
+      LEFT JOIN user_roles r ON u.role_id = r.id
+      WHERE u.id = $1
+    `, [result.rows[0].id]);
+    
+    const newUser = userWithRole.rows[0];
+    
+    // Send verification email
+    await emailService.sendVerificationEmail(newUser, verificationToken);
+    
+    res.status(201).json({
+      ...newUser,
+      isAdmin: newUser.role_name === 'admin',
+      isModerator: newUser.role_name === 'moderator' || newUser.role_name === 'admin',
+      needsVerification: true
+    });
   } catch (error) {
     console.error('Error during Google authentication:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -755,7 +1033,7 @@ function getMascotImageUrl(username) {
   */
 }
 
-// Add a migration to create the users table if it doesn't exist
+// Update user table setup to include role_id
 const setupUserTable = async () => {
   const client = await pool.connect();
   try {
@@ -783,6 +1061,10 @@ const setupUserTable = async () => {
           username TEXT UNIQUE NOT NULL,
           photo_url TEXT,
           nickname_changed BOOLEAN DEFAULT FALSE,
+          role_id INTEGER DEFAULT 1,
+          is_verified BOOLEAN DEFAULT FALSE,
+          verification_token TEXT,
+          verification_expires TIMESTAMP,
           created_at TIMESTAMP DEFAULT NOW(),
           last_login TIMESTAMP DEFAULT NOW()
         )
@@ -807,6 +1089,70 @@ const setupUserTable = async () => {
         `);
         console.log('Added nickname_changed column to users table');
       }
+
+      // Check if role_id column exists
+      const roleIdColumnCheck = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_name = 'users' AND column_name = 'role_id'
+        );
+      `);
+      
+      if (!roleIdColumnCheck.rows[0].exists) {
+        console.log('Adding role_id column to users table...');
+        await client.query(`
+          ALTER TABLE users ADD COLUMN role_id INTEGER DEFAULT 1;
+        `);
+        console.log('Added role_id column to users table');
+      }
+      
+      // Check if is_verified column exists
+      const isVerifiedColumnCheck = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_name = 'users' AND column_name = 'is_verified'
+        );
+      `);
+      
+      if (!isVerifiedColumnCheck.rows[0].exists) {
+        console.log('Adding is_verified column to users table...');
+        await client.query(`
+          ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE;
+        `);
+        console.log('Added is_verified column to users table');
+      }
+      
+      // Check if verification_token column exists
+      const verificationTokenColumnCheck = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_name = 'users' AND column_name = 'verification_token'
+        );
+      `);
+      
+      if (!verificationTokenColumnCheck.rows[0].exists) {
+        console.log('Adding verification_token column to users table...');
+        await client.query(`
+          ALTER TABLE users ADD COLUMN verification_token TEXT;
+        `);
+        console.log('Added verification_token column to users table');
+      }
+      
+      // Check if verification_expires column exists
+      const verificationExpiresColumnCheck = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_name = 'users' AND column_name = 'verification_expires'
+        );
+      `);
+      
+      if (!verificationExpiresColumnCheck.rows[0].exists) {
+        console.log('Adding verification_expires column to users table...');
+        await client.query(`
+          ALTER TABLE users ADD COLUMN verification_expires TIMESTAMP;
+        `);
+        console.log('Added verification_expires column to users table');
+      }
       
       // Ensure the users table has the correct structure
       console.log('Fixing any potential column type issues...');
@@ -823,21 +1169,76 @@ const setupUserTable = async () => {
       console.log('User table setup complete');
     }
     
+    // Setup user_roles table
+    await setupUserRolesTable(client);
+    
     await client.query('COMMIT');
-    console.log('User table schema transaction committed successfully');
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error setting up users table:', error);
-    console.error('Error code:', error.code);
-    console.error('Error details:', error.message);
-    console.error('Stack trace:', error.stack);
   } finally {
     client.release();
   }
 };
 
-// Run the schema updates
-setupUserTable().catch(console.error);
+// New function to set up user roles table
+const setupUserRolesTable = async (client) => {
+  try {
+    console.log('Setting up user_roles table...');
+    
+    // Check if user_roles table exists
+    const tableCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'user_roles'
+      );
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      console.log('user_roles table does not exist, creating it...');
+      
+      // Create user_roles table
+      await client.query(`
+        CREATE TABLE user_roles (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(50) UNIQUE NOT NULL,
+          description TEXT
+        )
+      `);
+      
+      // Insert default roles
+      await client.query(`
+        INSERT INTO user_roles (name, description) 
+        VALUES 
+          ('user', 'Regular user with basic permissions'),
+          ('moderator', 'Moderator with content management permissions'),
+          ('admin', 'Administrator with full system access')
+      `);
+      
+      console.log('user_roles table created and populated successfully');
+    } else {
+      console.log('user_roles table already exists, ensuring default roles...');
+      
+      // Ensure default roles exist
+      const roles = [
+        { name: 'user', description: 'Regular user with basic permissions' },
+        { name: 'moderator', description: 'Moderator with content management permissions' },
+        { name: 'admin', description: 'Administrator with full system access' }
+      ];
+      
+      for (const role of roles) {
+        await client.query(`
+          INSERT INTO user_roles (name, description)
+          VALUES ($1, $2)
+          ON CONFLICT (name) DO NOTHING
+        `, [role.name, role.description]);
+      }
+    }
+  } catch (error) {
+    console.error('Error setting up user_roles table:', error);
+    throw error;
+  }
+};
 
 // Add this after your existing meme routes
 // Create comments table if it doesn't exist
@@ -941,16 +1342,15 @@ setupUserVotesTable().catch(console.error);
 // Update user nickname
 app.post('/users/update-nickname', async (req, res) => {
   try {
-    console.log('Received nickname update request:', req.body);
     const { userId, newNickname } = req.body;
 
     if (!userId || !newNickname) {
-      console.log('Missing required fields:', { userId, newNickname });
+      console.log('Missing required fields');
       return res.status(400).json({ error: 'User ID and new nickname are required' });
     }
 
     if (newNickname.length < 3 || newNickname.length > 30) {
-      console.log('Invalid nickname length:', newNickname.length);
+      console.log('Invalid nickname length');
       return res.status(400).json({ error: 'Nickname must be between 3 and 30 characters' });
     }
 
@@ -959,15 +1359,14 @@ app.post('/users/update-nickname', async (req, res) => {
     try {
       userIdInt = parseInt(userId, 10);
       if (isNaN(userIdInt)) {
-        console.log('Invalid user ID format:', userId);
+        console.log('Invalid user ID format');
         return res.status(400).json({ error: 'Invalid user ID format' });
       }
     } catch (parseError) {
-      console.error('Error parsing user ID:', parseError);
+      console.error('Error parsing user ID');
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
-    console.log('Checking user existence for ID:', userIdInt);
     // Check if the user exists and if they have already changed their nickname
     const userCheck = await pool.query(
       'SELECT * FROM users WHERE id = $1',
@@ -975,19 +1374,17 @@ app.post('/users/update-nickname', async (req, res) => {
     );
 
     if (userCheck.rows.length === 0) {
-      console.log('User not found with ID:', userIdInt);
+      console.log('User not found');
       return res.status(404).json({ error: 'User not found' });
     }
 
     const user = userCheck.rows[0];
-    console.log('Found user:', { id: user.id, username: user.username, nickname_changed: user.nickname_changed });
     
     if (user.nickname_changed) {
-      console.log('User already changed nickname:', user.id);
+      console.log('User already changed nickname');
       return res.status(403).json({ error: 'You can only change your nickname once' });
     }
 
-    console.log('Checking if nickname is already taken:', newNickname);
     // Check if the nickname is already taken
     const nicknameCheck = await pool.query(
       'SELECT id FROM users WHERE username = $1 AND id != $2',
@@ -995,21 +1392,19 @@ app.post('/users/update-nickname', async (req, res) => {
     );
 
     if (nicknameCheck.rows.length > 0) {
-      console.log('Nickname already taken:', newNickname);
+      console.log('Nickname already taken');
       return res.status(409).json({ error: 'This nickname is already taken' });
     }
 
-    console.log('Updating user nickname:', { userId: userIdInt, oldUsername: user.username, newNickname });
     // Update the user's nickname
     const result = await pool.query(
       'UPDATE users SET username = $1, display_name = $1, nickname_changed = TRUE WHERE id = $2 RETURNING *',
       [newNickname, userIdInt]
     );
 
-    console.log('Nickname updated successfully:', result.rows[0]);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating nickname:', error);
+    console.error('Error updating nickname');
     // Add more detailed error logging
     if (error.code) {
       console.error('Error code:', error.code);
@@ -1289,6 +1684,229 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+// Make sure both schema setup functions are called at startup
+setupMemeTable().catch(console.error);
+setupUserTable().catch(console.error);
+
+// Add admin routes for user management
+// Get all users with role information (admin only)
+app.get('/admin/users', authorize('admin'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT u.id, u.username, u.email, u.display_name, u.created_at, u.last_login, 
+             r.name as role, r.id as role_id
+      FROM users u
+      LEFT JOIN user_roles r ON u.role_id = r.id
+      ORDER BY u.last_login DESC
+    `);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all available roles (admin only)
+app.get('/admin/roles', authorize('admin'), async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM user_roles ORDER BY id');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a user's role (admin only)
+app.put('/admin/users/:userId/role', authorize('admin'), async (req, res) => {
+  const { userId } = req.params;
+  const { roleId } = req.body;
+  
+  if (!roleId) {
+    return res.status(400).json({ error: 'Role ID is required' });
+  }
+  
+  try {
+    // Check if user exists
+    const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Check if role exists
+    const roleCheck = await pool.query('SELECT id, name FROM user_roles WHERE id = $1', [roleId]);
+    if (roleCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Update user's role
+    await pool.query('UPDATE users SET role_id = $1 WHERE id = $2', [roleId, userId]);
+    
+    res.json({ 
+      success: true, 
+      message: `User ${userId} role updated to ${roleCheck.rows[0].name}` 
+    });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get current user's role and permissions
+app.get('/users/me', async (req, res) => {
+  const userId = req.headers['user-id'] || req.query.userId;
+  
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized - Please log in' });
+  }
+  
+  try {
+    const result = await pool.query(`
+      SELECT u.id, u.username, u.email, u.photo_url, 
+             r.name as role
+      FROM users u
+      LEFT JOIN user_roles r ON u.role_id = r.id
+      WHERE u.id = $1
+    `, [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = result.rows[0];
+    
+    // Add permission flags
+    const isAdmin = user.role === 'admin';
+    const isModerator = user.role === 'moderator' || isAdmin;
+    
+    res.json({
+      ...user,
+      isAdmin,
+      isModerator,
+      permissions: {
+        canCreateMemes: true, // All users can create memes
+        canDeleteMemes: isModerator, // Moderators and admins can delete memes
+        canEditMemes: isModerator, // Moderators and admins can edit memes
+        canManageUsers: isAdmin, // Only admins can manage users
+        canManageRoles: isAdmin // Only admins can manage roles
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Email verification endpoint
+app.get('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required' });
+    }
+    
+    // Find user with this verification token
+    const result = await pool.query(`
+      SELECT u.*, r.name as role_name 
+      FROM users u
+      LEFT JOIN user_roles r ON u.role_id = r.id
+      WHERE u.verification_token = $1
+    `, [token]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invalid verification token' });
+    }
+    
+    const user = result.rows[0];
+    
+    // Check if token has expired
+    if (user.verification_expires && new Date(user.verification_expires) < new Date()) {
+      // Generate new token and update expiry time
+      const newToken = uuidv4();
+      const newExpiryTime = new Date();
+      newExpiryTime.setHours(newExpiryTime.getHours() + 24);
+      
+      await pool.query(
+        'UPDATE users SET verification_token = $1, verification_expires = $2 WHERE id = $3',
+        [newToken, newExpiryTime, user.id]
+      );
+      
+      // Send new verification email
+      await emailService.sendVerificationEmail(user, newToken);
+      
+      return res.status(400).json({ 
+        error: 'Verification token has expired',
+        message: 'A new verification email has been sent to your email address'
+      });
+    }
+    
+    // Update user as verified and clear verification token
+    await pool.query(
+      'UPDATE users SET is_verified = TRUE, verification_token = NULL, verification_expires = NULL WHERE id = $1',
+      [user.id]
+    );
+    
+    // Send welcome email
+    await emailService.sendWelcomeEmail(user);
+    
+    // Redirect to frontend with success message
+    res.redirect(`${process.env.CLIENT_BASE_URL}/login?verified=true`);
+    
+  } catch (error) {
+    console.error('Error verifying email:', error);
+    res.status(500).json({ error: 'Error verifying email' });
+  }
+});
+
+// Resend verification email endpoint
+app.post('/resend-verification', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+    
+    // Find user by ID
+    const result = await pool.query(`
+      SELECT * FROM users WHERE id = $1
+    `, [userId]);
+    
+    if (result.rows.length === 0) {
+      // Don't reveal if user exists or not for security
+      return res.json({ message: 'If your account exists in our system, a verification email has been sent' });
+    }
+    
+    const user = result.rows[0];
+    
+    // If already verified, no need to send
+    if (user.is_verified) {
+      return res.json({ message: 'Your email is already verified' });
+    }
+    
+    // Generate new token and update expiry time
+    const newToken = uuidv4();
+    const newExpiryTime = new Date();
+    newExpiryTime.setHours(newExpiryTime.getHours() + 24);
+    
+    await pool.query(
+      'UPDATE users SET verification_token = $1, verification_expires = $2 WHERE id = $3',
+      [newToken, newExpiryTime, user.id]
+    );
+    
+    // Send new verification email
+    await emailService.sendVerificationEmail(user, newToken);
+    
+    res.json({ message: 'Verification email has been sent' });
+    
+  } catch (error) {
+    console.error('Error resending verification email:', error);
+    res.status(500).json({ error: 'Error sending verification email' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
   
@@ -1314,6 +1932,15 @@ app.listen(port, () => {
           }
         }
       });
+    }
+  });
+  
+  // Verify email configuration
+  emailService.verifyEmailConfig().then(isConfigValid => {
+    if (isConfigValid) {
+      console.log('Email service configured correctly');
+    } else {
+      console.warn('Email service configuration is invalid. Email features will not work.');
     }
   });
 });
