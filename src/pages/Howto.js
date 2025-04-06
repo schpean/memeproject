@@ -1,8 +1,9 @@
 import React, { useState, useContext } from 'react';
-import '../styles/Howto.css'; // Import the CSS file
+import '../styles/Howto.css';
 import { API_ENDPOINTS } from '../utils/config';
 import AuthContext from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { FaUpload, FaLink, FaBuilding, FaComment, FaExclamationTriangle, FaCity } from 'react-icons/fa';
 
 const Howto = () => {
   const { currentUser, loginWithGoogle } = useContext(AuthContext);
@@ -12,20 +13,34 @@ const Howto = () => {
   const [uploading, setUploading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   
-  // Form state for required fields (simplified to only company, country, and votes)
+  // Form state for required fields
   const [formData, setFormData] = useState({
     company: '',
-    country: '',
-    votes: ''
+    city: '',
+    country: 'Romania' // Default country value
   });
 
   // Predefined options for dropdowns
   const companyOptions = [
-    'Atos', 'Luxcoif', 'Oracle', 'Bitdefender'
+    'Adobe',
+    'Amazon',
+    'Apple',
+    'Capgemini',
+    'Dell',
+    'Deloitte',
+    'Endava (Romania)',
+    'Google', 
+    'Microsoft', 
+    'UiPath', 
+    'Bitdefender', 
+    'Oracle', 
+    'IBM', 
+    'Atos',
+    'Luxoft'
   ];
   
-  const countryOptions = [
-    'Romania', 'Germany', 'France',
+  const cityOptions = [
+    'Bucuresti', 'Cluj-Napoca', 'Timisoara', 'Iasi', 'Brasov', 'Oradea'
   ];
   
   // Add a message state variable
@@ -81,7 +96,7 @@ const Howto = () => {
 
   // Validate all required fields are filled
   const validateForm = () => {
-    const requiredFields = ['company', 'country'];
+    const requiredFields = ['company', 'city', 'country'];
     for (const field of requiredFields) {
       if (!formData[field]) {
         setError(`Please select a ${field}.`);
@@ -141,7 +156,9 @@ const Howto = () => {
         formDataToSend.append('image', file);
         
         // Add all required form fields
+        console.log('Form data being sent:', formData);
         Object.entries(formData).forEach(([key, value]) => {
+          console.log(`Adding form field: ${key} = ${value}`);
           formDataToSend.append(key, value);
         });
         
@@ -225,12 +242,32 @@ const Howto = () => {
       setImageUrl('');
       setFormData({
         company: '',
-        country: ''
+        city: '',
+        country: 'Romania'
       });
+      setMessage('');
       
     } catch (error) {
       console.error('Error uploading meme:', error);
-      setError(error.message || 'Failed to upload meme. Please try again.');
+      
+      // Show more details about the error
+      if (error.message && error.message.includes('Server error')) {
+        try {
+          // Extract and parse the error JSON from the error message
+          const errorMatch = error.message.match(/Server error: \d+ - (.+)$/);
+          if (errorMatch && errorMatch[1]) {
+            const errorJson = JSON.parse(errorMatch[1]);
+            setError(`Upload failed: ${errorJson.error || error.message}`);
+          } else {
+            setError(error.message || 'Failed to upload meme. Please try again.');
+          }
+        } catch (parseError) {
+          console.error('Error parsing error message:', parseError);
+          setError(error.message || 'Failed to upload meme. Please try again.');
+        }
+      } else {
+        setError(error.message || 'Failed to upload meme. Please try again.');
+      }
     } finally {
       setUploading(false);
     }
@@ -248,94 +285,95 @@ const Howto = () => {
   if (!currentUser) {
     return (
       <div className="howto-page login-required">
-        <h1>Login Required</h1>
         <div className="login-message">
-          <p>You must be logged in to create memes.</p>
-          <p>Please log in with your Google account to continue.</p>
+          <h2>Login Required</h2>
+          <p>To create and share memes, you need to be logged in. This helps us maintain a safe and respectful community.</p>
           <button className="login-button" onClick={loginWithGoogle}>
-            Login with Google
+            Log in with Google
           </button>
-          <p className="back-link">
-            <Link to="/">Return to Home</Link>
-          </p>
+          <div className="back-link">
+            <Link to="/browse">Back to browse memes</Link>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Main form for logged in users
   return (
     <div className="howto-page">
       <h1>How to Create Your Meme</h1>
-      <p className="disclaimer">Remember: No real names, keep it legal, have fun!</p>
       
-      <div className="instructions">
-        <h2>Step 1: Choose your meme source</h2>
-        <p>
-          Visit <a href="https://imgflip.com" target="_blank" rel="noopener noreferrer">Imgflip</a> to create or find memes
-        </p>
-        <p>
-          When you find a meme you like, copy the URL (e.g., https://imgflip.com/i/9pv2ly) or download the image.
-        </p>
+      <div className="reminder">
+        <FaExclamationTriangle /> Remember: No real names, keep it legal, have fun!
       </div>
       
-      <div className="upload-section">
-        <h3>Option 1: Upload from your device</h3>
+      <div className="howto-step">
+        <h2>Choose your meme source</h2>
         <p>
-          Please ensure that your image is in JPEG, PNG, or GIF format and does not exceed 5MB in size.
+          Visit <a href="https://imgflip.com" target="_blank" rel="noopener noreferrer" className="imgflip-link">
+            Imgflip
+          </a> to create the next meme. When you are done, copy the URL or download the image.
         </p>
-        <input 
-          type="file" 
-          accept=".jpg, .jpeg, .png, .gif" 
-          onChange={handleFileChange} 
-        />
         
-        <h3>Option 2: Use an Imgflip URL</h3>
-        <p>
-          Paste an Imgflip URL (e.g., https://imgflip.com/i/9pjt7s)
-        </p>
-        <input 
-          type="text" 
-          placeholder="Enter Imgflip URL" 
-          value={imageUrl} 
-          onChange={(e) => {
-            setImageUrl(e.target.value);
-            setFile(null); // Clear file when URL is entered
-          }} 
-        />
-        
-        {/* Preview section */}
-        <div className="preview-section">
-          {(file || imageUrl) && (
-            <div>
-              <h3>Preview</h3>
-              {file && (
-                <img 
-                  src={getFilePreviewUrl()} 
-                  alt="Preview" 
-                  style={{ maxWidth: '300px', maxHeight: '300px' }} 
-                />
-              )}
-              {!file && imageUrl && (
-                <img 
-                  src={transformImgflipUrl(imageUrl)} 
-                  alt="Preview" 
-                  style={{ maxWidth: '300px', maxHeight: '300px' }} 
-                  onError={() => setError('Unable to load image from this URL')}
-                />
-              )}
+        <div className="upload-options">
+          <div className="option-container">
+            <h3><FaUpload /> Option 1: Upload from your device</h3>
+            <div className="file-upload-area">
+              <div className="upload-icon">
+                <FaUpload />
+              </div>
+              <div className="upload-text">Click or drag to upload an image</div>
+              <div className="upload-hint">JPEG, PNG, or GIF format (max 5MB)</div>
+              <input 
+                type="file" 
+                accept="image/jpeg, image/png, image/gif" 
+                onChange={handleFileChange} 
+              />
             </div>
-          )}
+          </div>
+          
+          <div className="option-container">
+            <h3><FaLink /> Option 2: Use an Imgflip URL</h3>
+            <div className="imgflip-instructions">
+              Paste an Imgflip URL (e.g., https://imgflip.com/i/9pv2ly)
+            </div>
+            <input
+              type="text"
+              className="url-input"
+              placeholder="Enter Imgflip URL"
+              value={imageUrl}
+              onChange={(e) => {
+                setImageUrl(e.target.value);
+                setFile(null); // Clear file when URL is entered
+              }}
+            />
+          </div>
         </div>
+        
+        {/* Preview image if available */}
+        {(file || imageUrl) && (
+          <div className="image-preview">
+            <div className="preview-label">Preview:</div>
+            {file ? (
+              <img src={getFilePreviewUrl()} alt="Preview" />
+            ) : imageUrl ? (
+              <img src={transformImgflipUrl(imageUrl)} alt="Preview" />
+            ) : null}
+          </div>
+        )}
       </div>
       
-      <div className="meme-details">
-        <h2>Step 2: Fill in meme details</h2>
+      <div className="howto-step">
+        <h2>Fill in meme details</h2>
         
         <div className="form-group">
-          <label>Company</label>
-          <select 
-            name="company" 
-            value={formData.company} 
+          <label htmlFor="company"><FaBuilding /> Company</label>
+          <select
+            id="company"
+            name="company"
+            className="form-select"
+            value={formData.company}
             onChange={handleFormChange}
           >
             <option value="">Select a company</option>
@@ -346,52 +384,66 @@ const Howto = () => {
         </div>
         
         <div className="form-group">
-          <label>Country</label>
-          <select 
-            name="country" 
-            value={formData.country} 
+          <label htmlFor="city"><FaCity /> City</label>
+          <select
+            id="city"
+            name="city"
+            className="form-select"
+            value={formData.city}
             onChange={handleFormChange}
           >
-            <option value="">Select a country</option>
-            {countryOptions.map(country => (
-              <option key={country} value={country}>{country}</option>
+            <option value="">Select a city</option>
+            {cityOptions.map(city => (
+              <option key={city} value={city}>{city}</option>
             ))}
           </select>
         </div>
         
         <div className="form-group">
-          <label htmlFor="message">Message (optional)</label>
+          <label htmlFor="country"><FaCity /> Country</label>
+          <select
+            id="country"
+            name="country"
+            className="form-select"
+            value={formData.country}
+            onChange={handleFormChange}
+          >
+            <option value="Romania">Romania</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="message"><FaComment /> Message (optional)</label>
           <textarea
             id="message"
+            className="form-textarea"
+            placeholder="Add a caption or message to go with your meme..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Add a message to go with your meme"
-            rows="4"
-          ></textarea>
+          />
         </div>
-      </div>
-      
-      <div className="submission">
-        <button 
-          onClick={handleUpload} 
-          disabled={uploading || (!file && !imageUrl)}
+        
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+        
+        {successMessage && (
+          <div className="success-message">
+            {successMessage}
+          </div>
+        )}
+        
+        <button
+          className="upload-button"
+          onClick={handleUpload}
+          disabled={uploading}
         >
           {uploading ? 'Uploading...' : 'Upload Meme'}
         </button>
-        
-        {error && <p className="error-message">{error}</p>}
-        {successMessage && <p className="success-message">{successMessage}</p>}
       </div>
-      
-      {uploading && (
-        <div className="debug-section">
-          <h3>Debug Information</h3>
-          <pre>
-            {imageUrl && `Transformed URL: ${transformImgflipUrl(imageUrl)}\n`}
-            {file ? `Uploading File: ${file.name}` : imageUrl ? `Uploading URL: ${transformImgflipUrl(imageUrl)}` : 'No file or URL selected'}
-          </pre>
-        </div>
-      )}
     </div>
   );
 };

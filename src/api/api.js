@@ -69,14 +69,18 @@ export const memeApi = {
         throw new Error('User ID not found');
       }
       
+      // Check if meme is already upvoted (toggle functionality)
+      const upvotedMemes = JSON.parse(localStorage.getItem('upvotedMemes') || '[]');
+      const voteType = upvotedMemes.includes(parseInt(id)) || upvotedMemes.includes(id) ? 'down' : 'up';
+      
       const response = await api.post(`/memes/${id}/vote`, { 
         userId: userId,
-        voteType: 'up' 
+        voteType: voteType
       });
       
       return response.data;
     } catch (error) {
-      console.error(`Error upvoting meme ${id}:`, error);
+      console.error(`Error handling vote for meme ${id}:`, error);
       throw error;
     }
   },
@@ -134,6 +138,55 @@ export const commentApi = {
       return response.data;
     } catch (error) {
       console.error(`Error adding comment to meme ${memeId}:`, error);
+      throw error;
+    }
+  },
+  
+  // Upvote a comment (toggle functionality)
+  upvoteComment: async (memeId, commentId) => {
+    try {
+      // Get current user from localStorage
+      const userString = localStorage.getItem('memeUser');
+      if (!userString) {
+        throw new Error('User not logged in');
+      }
+      
+      const user = JSON.parse(userString);
+      const userId = user.uid;
+      
+      if (!userId) {
+        throw new Error('User ID not found');
+      }
+      
+      // Check if comment is already upvoted (toggle functionality)
+      const upvotedComments = JSON.parse(localStorage.getItem('upvotedComments') || '[]');
+      const voteType = upvotedComments.includes(parseInt(commentId)) || upvotedComments.includes(commentId) ? 'down' : 'up';
+      
+      // Log what we're sending for debugging
+      console.log(`Voting ${voteType} on comment ${commentId} for meme ${memeId} with user ID ${userId}`);
+      
+      const response = await api.post(`/memes/${memeId}/comments/${commentId}/vote`, { 
+        userId: userId,
+        voteType: voteType 
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error(`Error voting on comment ${commentId}:`, error);
+      
+      // Only track up votes in storage
+      if (error.response && error.response.status === 400 && 
+          error.response.data && error.response.data.error === 'You have already voted for this comment') {
+        console.log('User already voted for this comment');
+        
+        // Add to local storage to prevent future attempts
+        const upvotedComments = JSON.parse(localStorage.getItem('upvotedComments') || '[]');
+        if (!upvotedComments.includes(commentId)) {
+          upvotedComments.push(commentId);
+          localStorage.setItem('upvotedComments', JSON.stringify(upvotedComments));
+        }
+      }
+      
       throw error;
     }
   }

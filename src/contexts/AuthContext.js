@@ -74,6 +74,18 @@ export const AuthProvider = ({ children }) => {
     return true;
   };
   
+  // Remove upvoted meme (for un-upvoting)
+  const removeUpvotedMeme = (memeId) => {
+    if (!currentUser) return false;
+    
+    if (!upvotedMemes.includes(memeId)) return false;
+    
+    const newUpvotedMemes = upvotedMemes.filter(id => id !== memeId);
+    setUpvotedMemes(newUpvotedMemes);
+    localStorage.setItem('upvotedMemes', JSON.stringify(newUpvotedMemes));
+    return true;
+  };
+  
   // Check if user has upvoted a meme
   const hasUpvoted = (memeId) => {
     return upvotedMemes.includes(memeId);
@@ -214,6 +226,7 @@ export const AuthProvider = ({ children }) => {
     upvotedMemes,
     hasUpvoted,
     addUpvotedMeme,
+    removeUpvotedMeme,
     loginWithGoogle,
     logout
   };

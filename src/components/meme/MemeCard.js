@@ -5,8 +5,8 @@ import { memeApi, commentApi } from '../../api/api';
 import './styles/MemeCard.css';
 import { FaComment, FaArrowUp } from 'react-icons/fa';
 
-const MemeCard = ({ meme, onVote = () => {} }) => {
-  const { currentUser, hasUpvoted, addUpvotedMeme } = useContext(AuthContext);
+const MemeCard = ({ meme, onVote = () => {}, compact = false }) => {
+  const { currentUser, hasUpvoted, addUpvotedMeme, removeUpvotedMeme } = useContext(AuthContext);
   const [commentCount, setCommentCount] = useState(0);
   const [fetchError, setFetchError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,21 +37,21 @@ const MemeCard = ({ meme, onVote = () => {} }) => {
       return;
     }
 
-    if (hasUpvoted(meme.id)) {
-      alert('You have already voted on this meme');
-      return;
-    }
-
     setLoading(true);
     
     try {
+      const isUpvoted = hasUpvoted(meme.id);
       const updatedMeme = await memeApi.upvoteMeme(meme.id);
       
       // Call parent handler with updated meme
       onVote(updatedMeme);
       
-      // Track this upvote in AuthContext
-      addUpvotedMeme(meme.id);
+      // Track this upvote in AuthContext or remove it if un-upvoting
+      if (isUpvoted) {
+        addUpvotedMeme(meme.id);
+      } else {
+        removeUpvotedMeme(meme.id);
+      }
     } catch (error) {
       // Silently handle error
       alert('Failed to register vote. Please try again.');
@@ -106,7 +106,7 @@ const MemeCard = ({ meme, onVote = () => {} }) => {
   };
 
   return (
-    <div className="meme-card">
+    <div className={`meme-card ${compact ? 'compact' : ''}`}>
       <div className="meme-header">
         <div className="meme-info">
           <h3 className="meme-title">{getMemeTitle()}</h3>
@@ -115,7 +115,7 @@ const MemeCard = ({ meme, onVote = () => {} }) => {
               Posted by {meme.username || meme.user?.username || (meme.user_id ? 'unknown user' : 'anonymous')}
             </span>
             <span className="meme-date">{formatDate(meme.createdAt || meme.created_at)}</span>
-            {meme.country && <span className="meme-country">{meme.country}</span>}
+            {meme.city && <span className="meme-city">{meme.city}</span>}
           </div>
         </div>
       </div>
@@ -141,8 +141,8 @@ const MemeCard = ({ meme, onVote = () => {} }) => {
         <button 
           className={`vote-button ${hasUpvoted(meme.id) ? 'voted' : ''} ${!currentUser ? 'disabled' : ''}`} 
           onClick={handleVote}
-          disabled={loading || hasUpvoted(meme.id) || !currentUser}
-          title={!currentUser ? 'Log in to upvote' : hasUpvoted(meme.id) ? 'Already upvoted' : 'Upvote'}
+          disabled={loading || !currentUser}
+          title={!currentUser ? 'Log in to upvote' : hasUpvoted(meme.id) ? 'Click to remove upvote' : 'Upvote'}
         >
           <FaArrowUp className="icon" />
           <span className="vote-count">{meme.votes || 0}</span>

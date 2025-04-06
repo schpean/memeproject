@@ -5,7 +5,8 @@ import CommentsPage from './CommentsPage';
 const MemePage = () => {
   const { id } = useParams();
   
-  return <CommentsPage />;
+  // Pass the ID explicitly to the CommentsPage component
+  return <CommentsPage memeId={id} />;
 };
 
-export default MemePage; 
+export default MemePage;

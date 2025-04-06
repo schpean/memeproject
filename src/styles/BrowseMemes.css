@@ -1,51 +1,195 @@
 .browse-memes {
-  padding: 20px;
-  max-width: 1200px;
+  padding: 15px;
+  max-width: 1300px;
   margin: 0 auto;
 }
 
 .browse-memes h1 {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 1.8rem;
+}
+
+/* Control section that contains filters and sorting */
+.browse-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+/* Company Filter Section Styles */
+.company-filter-section {
+  margin: 0;
+  padding: 15px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.company-filter-section h2 {
+  font-size: 1.2rem;
+  margin-bottom: 12px;
   color: #333;
 }
 
+.company-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.company-button {
+  padding: 6px 14px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.company-button:hover {
+  background-color: #f0f0f0;
+  border-color: #ccc;
+}
+
+.company-button.selected {
+  background-color: #e94560;
+  color: white;
+  border-color: #e94560;
+}
+
+.clear-filter {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.clear-filter button {
+  background-color: transparent;
+  border: none;
+  color: #666;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.clear-filter button:hover {
+  color: #e94560;
+}
+
+/* Sort Section Styles */
+.sort-section {
+  position: relative;
+  padding: 12px 15px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sort-dropdown {
+  position: relative;
+}
+
+.sort-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 15px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #333;
+  width: 100%;
+  justify-content: center;
+}
+
+.sort-button:hover {
+  background-color: #f0f0f0;
+}
+
+.sort-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  overflow: hidden;
+}
+
+.sort-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #eee;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+  color: #555;
+}
+
+.sort-option:last-child {
+  border-bottom: none;
+}
+
+.sort-option:hover {
+  background-color: #f5f5f5;
+}
+
+.sort-option.active {
+  background-color: #f0f0f0;
+  color: #e94560;
+  font-weight: 500;
+}
+
+/* Meme Grid Styles */
 .meme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-  padding: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+  padding: 10px 0;
 }
 
-.meme-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  transition: transform 0.2s ease-in-out;
+/* Responsive Styles */
+@media (min-width: 768px) {
+  .browse-controls {
+    flex-direction: row;
+  }
+
+  .company-filter-section {
+    flex: 3;
+  }
+
+  .sort-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+  
+  .meme-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
 }
 
-.meme-card:hover {
-  transform: translateY(-5px);
-}
-
-.meme-card img {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.meme-info {
-  padding: 15px;
-}
-
-.meme-info p {
-  margin: 8px 0;
-  color: #666;
-}
-
-.meme-info strong {
-  color: #333;
+@media (min-width: 1024px) {
+  .meme-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
 }
 
 .loading {
@@ -53,13 +197,6 @@
   padding: 40px;
   font-size: 1.2em;
   color: #666;
-}
-
-.meme-gallery {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  justify-content: center;
 }
 
 .no-memes-message {
