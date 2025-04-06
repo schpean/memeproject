@@ -169,13 +169,15 @@ export const AuthProvider = ({ children }) => {
             const userData = await response.json();
             
             // Create the full user object with data from both Google and your server
+            // Don't use real Google data, use username and mascot image from server
             const user = {
               uid: userData.id,
               googleId: userData.google_id,
               email: userData.email,
-              displayName: userData.display_name,
+              displayName: userData.username, // Use username instead of real name
               username: userData.username,
-              photoURL: userData.photo_url,
+              photoURL: userData.photo_url, // Will be mascot image from server
+              nickname_changed: userData.nickname_changed || false,
               provider: 'google'
             };
             

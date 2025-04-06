@@ -1,13 +1,34 @@
 import axios from 'axios';
-import { API_BASE_URL } from '../config/config';
+import { API_BASE_URL, API_ENDPOINTS } from '../config/config';
+
+console.log('API Configuration:', { 
+  baseURL: API_BASE_URL,
+  endpoints: API_ENDPOINTS ? 'Available' : 'Not available'
+});
 
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 10000 // 10 second timeout
 });
+
+// Add error handling
+api.interceptors.response.use(
+  response => response,
+  error => {
+    console.error('API Error:', error.message || 'Unknown error');
+    if (error.response) {
+      console.error('Error response:', {
+        status: error.response.status,
+        data: error.response.data
+      });
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Add auth token to requests when available
 api.interceptors.request.use(config => {
@@ -54,7 +75,7 @@ export const memeApi = {
   },
   
   // Upvote a meme
-  upvoteMeme: async (id) => {
+  upvoteMeme: async (id, isUpvoted) => {
     try {
       // Get current user from localStorage
       const userString = localStorage.getItem('memeUser');
@@ -69,9 +90,15 @@ export const memeApi = {
         throw new Error('User ID not found');
       }
       
-      // Check if meme is already upvoted (toggle functionality)
-      const upvotedMemes = JSON.parse(localStorage.getItem('upvotedMemes') || '[]');
-      const voteType = upvotedMemes.includes(parseInt(id)) || upvotedMemes.includes(id) ? 'down' : 'up';
+      // If isUpvoted is passed, use it to determine vote type, otherwise check localStorage
+      let voteType;
+      if (isUpvoted !== undefined) {
+        voteType = isUpvoted ? 'down' : 'up';
+      } else {
+        // Check if meme is already upvoted (toggle functionality)
+        const upvotedMemes = JSON.parse(localStorage.getItem('upvotedMemes') || '[]');
+        voteType = upvotedMemes.includes(parseInt(id)) || upvotedMemes.includes(id) ? 'down' : 'up';
+      }
       
       const response = await api.post(`/memes/${id}/vote`, { 
         userId: userId,
@@ -143,7 +170,7 @@ export const commentApi = {
   },
   
   // Upvote a comment (toggle functionality)
-  upvoteComment: async (memeId, commentId) => {
+  upvoteComment: async (memeId, commentId, isUpvoted) => {
     try {
       // Get current user from localStorage
       const userString = localStorage.getItem('memeUser');
@@ -158,9 +185,15 @@ export const commentApi = {
         throw new Error('User ID not found');
       }
       
-      // Check if comment is already upvoted (toggle functionality)
-      const upvotedComments = JSON.parse(localStorage.getItem('upvotedComments') || '[]');
-      const voteType = upvotedComments.includes(parseInt(commentId)) || upvotedComments.includes(commentId) ? 'down' : 'up';
+      // If isUpvoted is passed, use it to determine vote type, otherwise check localStorage
+      let voteType;
+      if (isUpvoted !== undefined) {
+        voteType = isUpvoted ? 'down' : 'up';
+      } else {
+        // Check if comment is already upvoted (toggle functionality)
+        const upvotedComments = JSON.parse(localStorage.getItem('upvotedComments') || '[]');
+        voteType = upvotedComments.includes(parseInt(commentId)) || upvotedComments.includes(commentId) ? 'down' : 'up';
+      }
       
       // Log what we're sending for debugging
       console.log(`Voting ${voteType} on comment ${commentId} for meme ${memeId} with user ID ${userId}`);
@@ -225,9 +258,87 @@ export const userApi = {
       console.error('Error fetching upvoted memes:', error);
       throw error;
     }
+  },
+  
+  // Update user nickname (can only be done once)
+  updateNickname: async (newNickname) => {
+    try {
+      // Get current user from localStorage
+      const userString = localStorage.getItem('memeUser');
+      if (!userString) {
+        throw new Error('User not logged in');
+      }
+      
+      const user = JSON.parse(userString);
+      const userId = user.uid;
+      
+      if (!userId) {
+        throw new Error('User ID not found');
+      }
+      
+      // Check if nickname has already been changed
+      if (user.nickname_changed) {
+        console.warn('Nickname already changed for user:', userId);
+        throw new Error('You can only change your nickname once');
+      }
+      
+      console.log('Making nickname update request to:', API_ENDPOINTS.updateNickname);
+      console.log('With data:', { userId, newNickname });
+      
+      let response;
+      try {
+        // First try with axios
+        response = await api.post(API_ENDPOINTS.updateNickname, {
+          userId: userId,
+          newNickname: newNickname
+        });
+      } catch (axiosError) {
+        console.error('Axios request failed, trying with fetch:', axiosError);
+        
+        // Fallback to fetch API if axios fails
+        const fetchResponse = await fetch(API_ENDPOINTS.updateNickname, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: userId,
+            newNickname: newNickname
+          })
+        });
+        
+        if (!fetchResponse.ok) {
+          throw new Error(`Fetch request failed with status: ${fetchResponse.status}`);
+        }
+        
+        response = { data: await fetchResponse.json() };
+      }
+      
+      console.log('Nickname update response:', response.data);
+      
+      // Update the user in localStorage with the new nickname
+      const updatedUser = {
+        ...user,
+        username: response.data.username,
+        displayName: response.data.display_name,
+        nickname_changed: true // Ensure this is set properly
+      };
+      
+      console.log('Updated user object with new nickname:', updatedUser);
+      localStorage.setItem('memeUser', JSON.stringify(updatedUser));
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error updating nickname:', error);
+      throw error;
+    }
   }
 };
 
+// Remove duplicate named exports
+// export { memeApi, commentApi, userApi };
+
+// Default export for backward compatibility
 export default {
   memeApi,
   commentApi,

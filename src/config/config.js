@@ -19,5 +19,6 @@ export const API_ENDPOINTS = {
   
   // Auth-related endpoints
   googleAuth: `${API_BASE_URL}/users/google-auth`,
+  updateNickname: `${API_BASE_URL}/users/update-nickname`,
   userUpvotes: (userId) => `${API_BASE_URL}/users/${userId}/upvoted`
 }; 

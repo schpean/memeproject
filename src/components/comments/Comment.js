@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaArrowUp, FaReply, FaMinus, FaPlus } from 'react-icons/fa';
+import { FaArrowUp, FaReply, FaUser, FaFire } from 'react-icons/fa';
 import './styles/Comment.css';
 
 // Function to format dates like "4h ago", "3h ago", etc.
@@ -35,6 +35,15 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
   const [hasUserUpvoted, setHasUserUpvoted] = useState(false);
   const [voteCount, setVoteCount] = useState(comment.votes || 0);
   const [isVoting, setIsVoting] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  // Default image path
+  const defaultAvatar = '/images/mascot_default.jpeg';
+
+  // Handle image loading errors
+  const handleImageError = () => {
+    setAvatarError(true);
+  };
 
   // Check if user has already upvoted this comment
   useEffect(() => {
@@ -67,7 +76,7 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
     try {
       // Call the parent handler to update the vote in the database
       if (onVoteComment) {
-        const updatedComment = await onVoteComment(comment.id);
+        const updatedComment = await onVoteComment(comment.id, hasUserUpvoted);
         if (updatedComment) {
           setVoteCount(updatedComment.votes || voteCount + (hasUserUpvoted ? -1 : 1));
           
@@ -94,8 +103,10 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
     } catch (error) {
       console.error('Error voting on comment:', error);
       
-      // Generic error
-      alert('Failed to vote on comment. Please try again.');
+      // Only show alert if not already voted
+      if (!hasUserUpvoted) {
+        alert('Failed to vote on comment. Please try again.');
+      }
     } finally {
       setIsVoting(false);
     }
@@ -121,29 +132,44 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
     <div className={`reddit-comment ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="comment-vote">
         <button 
-          className={`upvote-button ${hasUserUpvoted ? 'voted' : ''}`}
+          className={`upvote-button ${hasUserUpvoted ? 'voted' : ''} ${voteCount >= 50 ? 'hot' : ''}`}
           onClick={handleUpvote}
           disabled={!currentUser || isVoting}
           aria-label={hasUserUpvoted ? "Remove upvote" : "Upvote"}
           title={hasUserUpvoted ? "Click to remove upvote" : "Upvote"}
         >
-          <FaArrowUp />
+          {voteCount >= 50 ? <FaFire /> : <FaArrowUp />}
         </button>
         <span className="vote-count">{voteCount}</span>
       </div>
       
       <div className="comment-content">
         <div className="comment-header">
-          <div className="comment-author">{comment.username || 'Anonymous'}</div>
-          <div className="comment-dot">•</div>
-          <div className="comment-time">{formatTimeAgo(comment.created_at)}</div>
+          <div className="comment-avatar">
+            {avatarError || !comment.userAvatar ? (
+              <div className="default-avatar">
+                <img 
+                  src={defaultAvatar}
+                  alt="User Avatar"
+                  className="avatar-image"
+                  onError={handleImageError}
+                />
+              </div>
+            ) : (
+              <img 
+                src={comment.userAvatar}
+                alt={comment.username || 'Anonymous'}
+                className="avatar-image"
+                onError={handleImageError}
+              />
+            )}
+          </div>
+          <span className="comment-author">{comment.username || 'Anonymous'}</span>
+          <span className="comment-dot">•</span>
+          <span className="comment-time">{formatTimeAgo(comment.created_at)}</span>
         </div>
         
-        {isCollapsed ? (
-          <button className="expand-button" onClick={toggleCollapse}>
-            <FaPlus /> Expand
-          </button>
-        ) : (
+        {!isCollapsed ? (
           <>
             <div className="comment-text">{comment.content}</div>
             
@@ -154,9 +180,6 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
                 disabled={!currentUser}
               >
                 <FaReply /> Reply
-              </button>
-              <button className="collapse-button" onClick={toggleCollapse}>
-                <FaMinus /> Collapse
               </button>
             </div>
             
@@ -196,7 +219,15 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
               </div>
             )}
           </>
-        )}
+        ) : null}
+        
+        {/* Collapse button that looks like the screenshot */}
+        <button 
+          className="collapse-toggle-button" 
+          onClick={toggleCollapse}
+        >
+          {isCollapsed ? "Collapse" : "− Collapse"}
+        </button>
       </div>
     </div>
   );

@@ -1,100 +1,150 @@
-/* Comment section styles */
+/* Reddit-style comment section */
 .reddit-comment-section {
-  margin-top: 16px;
-  background-color: #ffffff;
+  background-color: white;
   border-radius: 4px;
-  padding: 12px 16px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .comments-header {
   display: flex;
   align-items: center;
   font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 12px;
+  font-weight: 600;
+  color: #1a1a1b;
   padding-bottom: 8px;
   border-bottom: 1px solid #edeff1;
-  color: #1a1a1b;
+  margin: 0 0 10px 0;
 }
 
 .comments-icon {
   margin-right: 6px;
+  color: #878a8c;
   font-size: 14px;
-  color: #787c7e;
 }
 
-/* Comment form styles */
+/* Comment form */
 .comment-form-container {
-  margin-bottom: 16px;
+  margin-bottom: 6px;
 }
 
 .reddit-comment-form {
   display: flex;
   flex-direction: column;
-  border: 1px solid #edeff1;
-  border-radius: 4px;
-  background-color: #f8f9fa;
 }
 
 .reddit-comment-form textarea {
   width: 100%;
-  min-height: 100px;
-  padding: 10px 12px;
-  border: none;
-  border-bottom: 1px solid #edeff1;
-  resize: vertical;
+  min-height: 80px;
+  padding: 8px;
+  border: 1px solid #edeff1;
+  border-radius: 4px;
   font-family: inherit;
-  font-size: 14px;
-  background-color: #fff;
+  font-size: 13px;
+  resize: vertical;
 }
 
 .reddit-comment-form textarea:focus {
+  border-color: #0079d3;
   outline: none;
-  box-shadow: 0 0 0 1px rgba(0, 121, 211, 0.2);
+  box-shadow: 0 0 0 2px rgba(0, 121, 211, 0.2);
 }
 
 .comment-submit {
+  margin-top: 8px;
+  padding: 5px 12px;
   align-self: flex-end;
   background-color: #0079d3;
   color: white;
-  border: none;
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 12px;
   font-weight: 600;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
-  margin: 8px;
 }
 
-.comment-submit:hover:not(:disabled) {
-  background-color: #0061a9;
+.comment-submit:hover {
+  background-color: #0060a8;
 }
 
 .comment-submit:disabled {
-  background-color: #7fbce9;
+  background-color: #cccccc;
   cursor: not-allowed;
 }
 
 .login-prompt {
-  padding: 16px;
+  background-color: #f6f7f8;
+  padding: 12px;
   text-align: center;
-  background-color: #f8f9fa;
-  border: 1px solid #edeff1;
   border-radius: 4px;
-  color: #787c7e;
+  color: #1a1a1b;
   font-size: 14px;
 }
 
-/* Comment list styles */
+/* Comment list */
 .comment-list {
-  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
 }
 
 .no-comments {
-  padding: 20px;
   text-align: center;
-  color: #787c7e;
-  background-color: #f8f9fa;
-  border-radius: 4px;
+  color: #878a8c;
+  padding: 16px;
   font-size: 14px;
+  border: 1px dashed #edeff1;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+}
+
+/* Show more comments button */
+.show-more-comments {
+  margin: 10px auto;
+  padding: 6px 14px;
+  background-color: #f6f7f8;
+  border: 1px solid #edeff1;
+  border-radius: 4px;
+  color: #0079d3;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.show-more-comments:hover {
+  background-color: #ebedef;
+}
+
+/* Additional compact styling for smaller screens */
+@media (max-width: 576px) {
+  .reddit-comment-section {
+    padding: 8px;
+    margin-top: 12px;
+  }
+  
+  .comments-header {
+    font-size: 13px;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+  }
+  
+  .comment-form-container {
+    margin-bottom: 12px;
+  }
+  
+  .reddit-comment-form textarea {
+    min-height: 60px;
+  }
+  
+  .login-prompt {
+    padding: 8px;
+    font-size: 13px;
+  }
+  
+  .no-comments {
+    padding: 12px;
+    font-size: 13px;
+  }
 }
