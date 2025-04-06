@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import MemeCard from '../components/meme/MemeCard';
 import './styles/Home.css';
@@ -13,9 +13,35 @@ const Home = () => {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   
+  const sortDropdownRef = useRef(null);
+  const timeDropdownRef = useRef(null);
+  
   useEffect(() => {
     fetchMemes();
   }, [sortBy, timeFilter]);
+  
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      // Close sort dropdown if click is outside
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setShowSortDropdown(false);
+      }
+      
+      // Close time dropdown if click is outside
+      if (timeDropdownRef.current && !timeDropdownRef.current.contains(event.target)) {
+        setShowTimeDropdown(false);
+      }
+    }
+    
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Remove event listener on cleanup
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   const fetchMemes = async () => {
     setLoading(true);
@@ -155,9 +181,9 @@ const Home = () => {
       <section className="hero-section">
         <div className="hero-content">
           <h1>Expose the Fun. Share the Struggles. Meme Your Workplace!</h1>
-          <p>Review your company the way it deserves—with memes and upvotes.</p>
+          <p>Review your company the way it deserves—with memes and fire.</p>
           <div className="hero-cta-buttons">
-            <Link to="/howto" className="btn btn-primary">Upload a Meme</Link>
+            <Link to="/howto" className="btn btn-primary">Upload a meme review</Link>
             <Link to="/browse" className="btn btn-secondary">Find your company</Link>
           </div>
         </div>
@@ -174,7 +200,7 @@ const Home = () => {
           
           <div className="filter-controls">
             {/* Sort filter dropdown */}
-            <div className="filter-dropdown">
+            <div className="filter-dropdown" ref={sortDropdownRef}>
               <button 
                 className="dropdown-toggle" 
                 onClick={() => setShowSortDropdown(!showSortDropdown)}
@@ -209,7 +235,7 @@ const Home = () => {
             </div>
             
             {/* Time filter dropdown */}
-            <div className="filter-dropdown">
+            <div className="filter-dropdown" ref={timeDropdownRef}>
               <button 
                 className="dropdown-toggle" 
                 onClick={() => setShowTimeDropdown(!showTimeDropdown)}

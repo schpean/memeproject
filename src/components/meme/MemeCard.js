@@ -41,20 +41,24 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false }) => {
     
     try {
       const isUpvoted = hasUpvoted(meme.id);
-      const updatedMeme = await memeApi.upvoteMeme(meme.id);
+      const updatedMeme = await memeApi.upvoteMeme(meme.id, isUpvoted);
       
       // Call parent handler with updated meme
       onVote(updatedMeme);
       
       // Track this upvote in AuthContext or remove it if un-upvoting
       if (isUpvoted) {
-        addUpvotedMeme(meme.id);
-      } else {
         removeUpvotedMeme(meme.id);
+      } else {
+        addUpvotedMeme(meme.id);
       }
     } catch (error) {
-      // Silently handle error
-      alert('Failed to register vote. Please try again.');
+      console.error('Error voting on meme:', error);
+      
+      // Only show alert if not trying to unvote
+      if (!hasUpvoted(meme.id)) {
+        alert('Failed to register vote. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

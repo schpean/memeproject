@@ -13,12 +13,13 @@ const port = process.env.PORT || 1337;
 // Middleware
 app.use(cors({
   origin: ['http://localhost:1338', 'http://localhost:3000'], // Allow both React dev server ports
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true, // Allow cookies if needed
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin']
 }));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
+app.use('/images', express.static(path.join(__dirname, '../public/images')));
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -651,22 +652,23 @@ app.post('/users/google-auth', async (req, res) => {
     );
     
     if (result.rows.length > 0) {
-      // User exists, update last login time and info if needed
+      // User exists, update last login time
       const user = result.rows[0];
       await pool.query(
-        'UPDATE users SET last_login = NOW(), display_name = $1, photo_url = $2 WHERE id = $3',
-        [displayName, photoURL, user.id]
+        'UPDATE users SET last_login = NOW(), photo_url = $1 WHERE id = $2',
+        [getMascotImageUrl(user.username), user.id]
       );
       return res.json(user);
     }
     
-    // User doesn't exist, generate a username
+    // User doesn't exist, generate a unique username
     const username = await generateUniqueUsername(displayName);
     
-    // Create new user
+    // Hide real name by using the username instead of displayName
+    // Use mascot image instead of real profile photo
     result = await pool.query(
       'INSERT INTO users (google_id, email, display_name, photo_url, username) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [googleId, email, displayName, photoURL, username]
+      [googleId, email, username, getMascotImageUrl(username), username]
     );
     
     res.status(201).json(result.rows[0]);
@@ -717,11 +719,49 @@ async function generateUniqueUsername(displayName) {
   return username;
 }
 
+// Helper function to generate a mascot image URL based on username
+function getMascotImageUrl(username) {
+  if (!username) {
+    return '/images/mascot_default.png';
+  }
+  
+  // For production, we would have actual image files for each mascot type/color
+  // For now, just return a default mascot to ensure something always displays
+  return '/images/mascot_default.png';
+  
+  // The code below would be used with actual mascot images:
+  /*
+  // Generate deterministic but unique mascot for each user
+  // Use first character of username to determine mascot type
+  const firstChar = username.charAt(0).toLowerCase();
+  let mascotType = '';
+  
+  if (/[a-e]/.test(firstChar)) {
+    mascotType = 'boss1';
+  } else if (/[f-j]/.test(firstChar)) {
+    mascotType = 'boss2';
+  } else if (/[k-o]/.test(firstChar)) {
+    mascotType = 'boss3';
+  } else if (/[p-t]/.test(firstChar)) {
+    mascotType = 'boss4';
+  } else {
+    mascotType = 'boss5';
+  }
+  
+  // Generate a color based on username
+  const colorIndex = (username.length % 5) + 1; // 1-5
+  
+  return `/images/${mascotType}_${colorIndex}.png`;
+  */
+}
+
 // Add a migration to create the users table if it doesn't exist
 const setupUserTable = async () => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    
+    console.log('Setting up users table...');
     
     // Check if users table exists
     const tableCheck = await client.query(`
@@ -732,6 +772,7 @@ const setupUserTable = async () => {
     `);
     
     if (!tableCheck.rows[0].exists) {
+      console.log('Users table does not exist, creating it...');
       // Create users table
       await client.query(`
         CREATE TABLE users (
@@ -741,18 +782,55 @@ const setupUserTable = async () => {
           display_name TEXT NOT NULL,
           username TEXT UNIQUE NOT NULL,
           photo_url TEXT,
+          nickname_changed BOOLEAN DEFAULT FALSE,
           created_at TIMESTAMP DEFAULT NOW(),
           last_login TIMESTAMP DEFAULT NOW()
         )
       `);
       
       console.log('Users table created successfully');
+    } else {
+      console.log('Users table already exists, checking for required columns...');
+      
+      // Check if nickname_changed column exists
+      const nicknameChangedColumnCheck = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_name = 'users' AND column_name = 'nickname_changed'
+        );
+      `);
+      
+      if (!nicknameChangedColumnCheck.rows[0].exists) {
+        console.log('Adding nickname_changed column to users table...');
+        await client.query(`
+          ALTER TABLE users ADD COLUMN nickname_changed BOOLEAN DEFAULT FALSE;
+        `);
+        console.log('Added nickname_changed column to users table');
+      }
+      
+      // Ensure the users table has the correct structure
+      console.log('Fixing any potential column type issues...');
+      
+      // Fix id column if needed
+      await client.query(`
+        ALTER TABLE users 
+        ALTER COLUMN id SET DATA TYPE INTEGER, 
+        ALTER COLUMN id SET DEFAULT nextval('users_id_seq'::regclass);
+      `).catch(err => {
+        console.log('Note: Could not alter id column, probably already correct:', err.message);
+      });
+      
+      console.log('User table setup complete');
     }
     
     await client.query('COMMIT');
+    console.log('User table schema transaction committed successfully');
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error setting up users table:', error);
+    console.error('Error code:', error.code);
+    console.error('Error details:', error.message);
+    console.error('Stack trace:', error.stack);
   } finally {
     client.release();
   }
@@ -859,6 +937,89 @@ const setupUserVotesTable = async () => {
 // Run the new schema updates
 setupCommentsTable().catch(console.error);
 setupUserVotesTable().catch(console.error);
+
+// Update user nickname
+app.post('/users/update-nickname', async (req, res) => {
+  try {
+    console.log('Received nickname update request:', req.body);
+    const { userId, newNickname } = req.body;
+
+    if (!userId || !newNickname) {
+      console.log('Missing required fields:', { userId, newNickname });
+      return res.status(400).json({ error: 'User ID and new nickname are required' });
+    }
+
+    if (newNickname.length < 3 || newNickname.length > 30) {
+      console.log('Invalid nickname length:', newNickname.length);
+      return res.status(400).json({ error: 'Nickname must be between 3 and 30 characters' });
+    }
+
+    // Convert userId to integer if it's a string
+    let userIdInt;
+    try {
+      userIdInt = parseInt(userId, 10);
+      if (isNaN(userIdInt)) {
+        console.log('Invalid user ID format:', userId);
+        return res.status(400).json({ error: 'Invalid user ID format' });
+      }
+    } catch (parseError) {
+      console.error('Error parsing user ID:', parseError);
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    console.log('Checking user existence for ID:', userIdInt);
+    // Check if the user exists and if they have already changed their nickname
+    const userCheck = await pool.query(
+      'SELECT * FROM users WHERE id = $1',
+      [userIdInt]
+    );
+
+    if (userCheck.rows.length === 0) {
+      console.log('User not found with ID:', userIdInt);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userCheck.rows[0];
+    console.log('Found user:', { id: user.id, username: user.username, nickname_changed: user.nickname_changed });
+    
+    if (user.nickname_changed) {
+      console.log('User already changed nickname:', user.id);
+      return res.status(403).json({ error: 'You can only change your nickname once' });
+    }
+
+    console.log('Checking if nickname is already taken:', newNickname);
+    // Check if the nickname is already taken
+    const nicknameCheck = await pool.query(
+      'SELECT id FROM users WHERE username = $1 AND id != $2',
+      [newNickname, userIdInt]
+    );
+
+    if (nicknameCheck.rows.length > 0) {
+      console.log('Nickname already taken:', newNickname);
+      return res.status(409).json({ error: 'This nickname is already taken' });
+    }
+
+    console.log('Updating user nickname:', { userId: userIdInt, oldUsername: user.username, newNickname });
+    // Update the user's nickname
+    const result = await pool.query(
+      'UPDATE users SET username = $1, display_name = $1, nickname_changed = TRUE WHERE id = $2 RETURNING *',
+      [newNickname, userIdInt]
+    );
+
+    console.log('Nickname updated successfully:', result.rows[0]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating nickname:', error);
+    // Add more detailed error logging
+    if (error.code) {
+      console.error('Error code:', error.code);
+    }
+    if (error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Get comments for a meme
 app.get('/memes/:id/comments', async (req, res) => {
@@ -1080,6 +1241,51 @@ app.get('/memes/:id', async (req, res) => {
   } catch (error) {
     console.error(`Error fetching meme ${id}:`, error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add a status endpoint for debugging
+app.get('/api/status', async (req, res) => {
+  try {
+    // Check database connection
+    const dbConnection = await pool.query('SELECT NOW() as time');
+    
+    // Check if users table exists
+    const usersTable = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'users'
+      ) as exists;
+    `);
+    
+    // Check if nickname_changed column exists
+    const nicknameColumn = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'nickname_changed'
+      ) as exists;
+    `);
+    
+    // Return status information
+    res.json({
+      status: 'ok',
+      time: dbConnection.rows[0].time,
+      tables: {
+        users: usersTable.rows[0].exists,
+        nickname_changed: nicknameColumn.rows[0].exists
+      },
+      environment: {
+        node: process.version,
+        port: port
+      }
+    });
+  } catch (error) {
+    console.error('Error checking status:', error);
+    res.status(500).json({ 
+      status: 'error',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

@@ -10,6 +10,8 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAllComments, setShowAllComments] = useState(false);
+  const INITIAL_COMMENT_COUNT = 5;
   
   // Format comments into a tree structure
   useEffect(() => {
@@ -44,6 +46,9 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
         rootComments.push(commentMap[comment.id]);
       }
     });
+    
+    // Sort comments by votes
+    rootComments.sort((a, b) => (b.votes || 0) - (a.votes || 0));
     
     return rootComments;
   };
@@ -90,7 +95,7 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
   };
   
   // Handle upvoting a comment
-  const handleVoteComment = async (commentId) => {
+  const handleVoteComment = async (commentId, isUpvoted) => {
     if (!currentUser) {
       alert('Please log in to upvote comments');
       return null;
@@ -98,11 +103,14 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
     
     try {
       // Call the API to upvote the comment
-      const updatedComment = await commentApi.upvoteComment(memeId, commentId);
+      const updatedComment = await commentApi.upvoteComment(memeId, commentId, isUpvoted);
       
       // Update the comment in our tree
       const updatedComments = updateCommentInTree(comments, commentId, updatedComment);
-      setComments(updatedComments);
+      
+      // Resort comments after vote changes
+      const sortedComments = [...updatedComments].sort((a, b) => (b.votes || 0) - (a.votes || 0));
+      setComments(sortedComments);
       
       return updatedComment;
     } catch (error) {
@@ -115,9 +123,8 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
         // Find the comment and return it (with votes unchanged) to avoid UI errors
         const comment = findCommentById(comments, commentId);
         if (comment) {
-          // Increment the local vote count for UI feedback, but don't persist it
-          // This is just a visual indicator that the vote was registered previously
-          return { ...comment, votes: (comment.votes || 0) + 1 };
+          // Return the comment with votes unchanged to avoid errors
+          return comment;
         }
       }
       
@@ -200,7 +207,7 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
           replies: [newReply, ...comment.replies]
         };
       } else if (comment.replies && comment.replies.length > 0) {
-        // Check children recursively
+        // Check the replies recursively
         return {
           ...comment,
           replies: addReplyToTree(comment.replies, parentId, newReply)
@@ -225,6 +232,14 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
     
     countComments(commentTree);
     return count;
+  };
+
+  // Get displayed comments (limited or all)
+  const getDisplayedComments = () => {
+    if (showAllComments || comments.length <= INITIAL_COMMENT_COUNT) {
+      return comments;
+    }
+    return comments.slice(0, INITIAL_COMMENT_COUNT);
   };
 
   return (
@@ -262,15 +277,27 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
       {/* Comment List */}
       <div className="comment-list">
         {comments.length > 0 ? (
-          comments.map(comment => (
-            <Comment
-              key={comment.id}
-              comment={comment}
-              onReply={handleReply}
-              onVoteComment={handleVoteComment}
-              currentUser={currentUser}
-            />
-          ))
+          <>
+            {getDisplayedComments().map(comment => (
+              <Comment
+                key={comment.id}
+                comment={comment}
+                onReply={handleReply}
+                onVoteComment={handleVoteComment}
+                currentUser={currentUser}
+              />
+            ))}
+            
+            {/* Show more/less button */}
+            {comments.length > INITIAL_COMMENT_COUNT && (
+              <button 
+                className="show-more-comments" 
+                onClick={() => setShowAllComments(!showAllComments)}
+              >
+                {showAllComments ? 'Show Less' : `Show ${comments.length - INITIAL_COMMENT_COUNT} More Comments`}
+              </button>
+            )}
+          </>
         ) : (
           <div className="no-comments">
             No comments yet. Be the first to comment!
