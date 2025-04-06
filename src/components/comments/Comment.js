@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaArrowUp, FaReply, FaUser, FaFire } from 'react-icons/fa';
 import './styles/Comment.css';
+import { getDicebearAvatarUrl } from '../../utils/avatarUtils';
 
 // Function to format dates like "4h ago", "3h ago", etc.
 const formatTimeAgo = (dateString) => {
@@ -37,8 +38,18 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
   const [isVoting, setIsVoting] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
-  // Default image path
-  const defaultAvatar = '/images/mascot_default.jpeg';
+  // Get avatar URL - use Dicebear as default or fallback
+  const getAvatarUrl = () => {
+    // If there's a valid user avatar and no error, use it
+    if (comment.userAvatar && !avatarError && 
+       (comment.userAvatar.startsWith('http://') || 
+        comment.userAvatar.startsWith('https://'))) {
+      return comment.userAvatar;
+    }
+    
+    // Otherwise generate a Dicebear avatar for this user
+    return getDicebearAvatarUrl(comment.username || 'anonymous');
+  };
 
   // Handle image loading errors
   const handleImageError = () => {
@@ -146,23 +157,12 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
       <div className="comment-content">
         <div className="comment-header">
           <div className="comment-avatar">
-            {avatarError || !comment.userAvatar ? (
-              <div className="default-avatar">
-                <img 
-                  src={defaultAvatar}
-                  alt="User Avatar"
-                  className="avatar-image"
-                  onError={handleImageError}
-                />
-              </div>
-            ) : (
-              <img 
-                src={comment.userAvatar}
-                alt={comment.username || 'Anonymous'}
-                className="avatar-image"
-                onError={handleImageError}
-              />
-            )}
+            <img 
+              src={getAvatarUrl()}
+              alt={comment.username || 'Anonymous'}
+              className="avatar-image"
+              onError={handleImageError}
+            />
           </div>
           <span className="comment-author">{comment.username || 'Anonymous'}</span>
           <span className="comment-dot">•</span>

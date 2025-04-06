@@ -3,8 +3,8 @@ import { API_ENDPOINTS, CLIENT_BASE_URL } from '../utils/config';
 
 const AuthContext = createContext();
 
-// Client ID for Google OAuth
-const GOOGLE_CLIENT_ID = '863081687369-outsbcfj82tusibab06nc717kudre0n1.apps.googleusercontent.com';
+// Client ID for Google OAuth from environment variable
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -207,7 +207,7 @@ export const AuthProvider = ({ children }) => {
                 'Content-Type': 'application/json',
                 'Origin': CLIENT_BASE_URL
               },
-              credentials: 'include', // Include cookies if you need them
+              credentials: 'include', // Include cookies for authentication
               body: JSON.stringify(googleUserData),
             });
             

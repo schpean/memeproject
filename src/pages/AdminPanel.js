@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { API_ENDPOINTS } from '../utils/config';
+import { API_ENDPOINTS } from '../config/config';
 import './styles/AdminPanel.css';
 
 const AdminPanel = () => {
@@ -206,7 +206,7 @@ const AdminPanel = () => {
                   <td>
                     <button 
                       className="view-button"
-                      onClick={() => navigate(`/users/${user.id}`)}
+                      onClick={() => navigate(`/admin/users/${user.id}`)}
                     >
                       View
                     </button>

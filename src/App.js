@@ -11,10 +11,10 @@ import MemePage from './pages/MemePage';
 import CommentsPage from './pages/CommentsPage';
 import AdminPanel from './pages/AdminPanel';
 import PendingMemes from './pages/PendingMemes';
+import UserDetails from './pages/UserDetails';
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationProvider } from './components/common/Notification';
 import VerifyEmail from './components/auth/VerifyEmail';
-import './App.css';
 
 function App() {
   return (
@@ -32,6 +32,7 @@ function App() {
                 <Route path="/meme/:id" element={<MemePage />} />
                 <Route path="/meme/:id/comments" element={<CommentsPage />} />
                 <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/admin/users/:id" element={<UserDetails />} />
                 <Route path="/pending" element={<PendingMemes />} />
                 <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route path="*" element={<NotFound />} />

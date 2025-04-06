@@ -8,42 +8,62 @@ require('dotenv').config();
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const emailService = require('./email');
+const config = require('./config');
 
 const app = express();
-const port = process.env.PORT || 1337;
+const port = config.port;
 
-// CORS configuration with environment variables
-const allowedOrigins = [
-  process.env.CLIENT_BASE_URL || 'http://localhost:1338',
-  'http://localhost:3000',  // React dev server
-  process.env.PRODUCTION_CLIENT_URL,  // Add your production URL when deploying
-  'http://86.120.25.207:1338', // Add IP-based access explicitly
-  'null', // For local file testing
-  '*' // Allow all origins for image resources
-].filter(Boolean); // Remove undefined values
+// Custom CORS middleware to handle credentials properly
+const corsMiddleware = (req, res, next) => {
+  const allowedOrigins = config.corsConfig.allowedOrigins.filter(origin => origin !== '*');
+  const origin = req.headers.origin;
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', config.corsConfig.methods.join(', '));
+    res.header('Access-Control-Allow-Headers', config.corsConfig.allowedHeaders.join(', '));
+  } else if (!origin || origin === 'null') {
+    // Allow requests from file:// protocol or null origin
+    res.header('Access-Control-Allow-Origin', 'null');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', config.corsConfig.methods.join(', '));
+    res.header('Access-Control-Allow-Headers', config.corsConfig.allowedHeaders.join(', '));
+  } else {
+    // For non-matching origins, return a 403 Forbidden
+    return res.status(403).json({ 
+      error: 'CORS Error', 
+      message: 'Origin not allowed', 
+      origin: origin || 'undefined',
+      allowedOrigins: allowedOrigins 
+    });
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  
+  next();
+};
 
-// Middleware
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.indexOf('*') !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS rejected origin:', origin);
-      callback(null, true); // Allow all origins in development
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true, // Allow cookies if needed
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'user-id']
-}));
+// Apply custom CORS middleware
+app.use(corsMiddleware);
 app.use(express.json());
 
 // Add CORS headers for static files
 app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  const allowedOrigins = config.corsConfig.allowedOrigins.filter(origin => origin !== '*');
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  } else {
+    // For image requests without credentials, we can still use wildcard
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET');
   res.header('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
@@ -854,9 +874,7 @@ app.post('/users/google-auth', async (req, res) => {
       return res.status(400).json({ error: 'Google ID and email are required' });
     }
     
-    // Verify the token with Google (optional with the new flow)
-    // Since we're getting the user info directly from Google already
-    // But we can keep basic validation
+    // Verify the token with Google using server-side client secret from config
     if (!token) {
       console.warn('No token provided for validation');
     }
@@ -1000,37 +1018,11 @@ async function generateUniqueUsername(displayName) {
 // Helper function to generate a mascot image URL based on username
 function getMascotImageUrl(username) {
   if (!username) {
-    return '/images/mascot_default.png';
+    return 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=anonymous';
   }
   
-  // For production, we would have actual image files for each mascot type/color
-  // For now, just return a default mascot to ensure something always displays
-  return '/images/mascot_default.png';
-  
-  // The code below would be used with actual mascot images:
-  /*
-  // Generate deterministic but unique mascot for each user
-  // Use first character of username to determine mascot type
-  const firstChar = username.charAt(0).toLowerCase();
-  let mascotType = '';
-  
-  if (/[a-e]/.test(firstChar)) {
-    mascotType = 'boss1';
-  } else if (/[f-j]/.test(firstChar)) {
-    mascotType = 'boss2';
-  } else if (/[k-o]/.test(firstChar)) {
-    mascotType = 'boss3';
-  } else if (/[p-t]/.test(firstChar)) {
-    mascotType = 'boss4';
-  } else {
-    mascotType = 'boss5';
-  }
-  
-  // Generate a color based on username
-  const colorIndex = (username.length % 5) + 1; // 1-5
-  
-  return `/images/${mascotType}_${colorIndex}.png`;
-  */
+  // Generate Dicebear avatar URL with username as seed
+  return `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${encodeURIComponent(username)}`;
 }
 
 // Update user table setup to include role_id
@@ -1690,14 +1682,13 @@ setupUserTable().catch(console.error);
 
 // Add admin routes for user management
 // Get all users with role information (admin only)
-app.get('/admin/users', authorize('admin'), async (req, res) => {
+app.get('/admin/users', authorize(['admin']), async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT u.id, u.username, u.email, u.display_name, u.created_at, u.last_login, 
-             r.name as role, r.id as role_id
+      SELECT u.*, r.name as role
       FROM users u
       LEFT JOIN user_roles r ON u.role_id = r.id
-      ORDER BY u.last_login DESC
+      ORDER BY u.created_at DESC
     `);
     
     res.json(result.rows);
@@ -1707,8 +1698,8 @@ app.get('/admin/users', authorize('admin'), async (req, res) => {
   }
 });
 
-// Get all available roles (admin only)
-app.get('/admin/roles', authorize('admin'), async (req, res) => {
+// Fetch all roles (admin only)
+app.get('/admin/roles', authorize(['admin']), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM user_roles ORDER BY id');
     res.json(result.rows);
@@ -1718,35 +1709,31 @@ app.get('/admin/roles', authorize('admin'), async (req, res) => {
   }
 });
 
-// Update a user's role (admin only)
-app.put('/admin/users/:userId/role', authorize('admin'), async (req, res) => {
-  const { userId } = req.params;
-  const { roleId } = req.body;
-  
-  if (!roleId) {
-    return res.status(400).json({ error: 'Role ID is required' });
-  }
-  
+// Update user role (admin only)
+app.put('/admin/users/:id/role', authorize(['admin']), async (req, res) => {
   try {
-    // Check if user exists
-    const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
-    if (userCheck.rows.length === 0) {
+    const { id } = req.params;
+    const { roleId } = req.body;
+    
+    if (!roleId) {
+      return res.status(400).json({ error: 'Role ID is required' });
+    }
+    
+    // Don't allow changing own role
+    if (req.user.id === parseInt(id)) {
+      return res.status(400).json({ error: 'Cannot change your own role' });
+    }
+    
+    const result = await pool.query(
+      'UPDATE users SET role_id = $1 WHERE id = $2 RETURNING *',
+      [roleId, id]
+    );
+    
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Check if role exists
-    const roleCheck = await pool.query('SELECT id, name FROM user_roles WHERE id = $1', [roleId]);
-    if (roleCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Role not found' });
-    }
-    
-    // Update user's role
-    await pool.query('UPDATE users SET role_id = $1 WHERE id = $2', [roleId, userId]);
-    
-    res.json({ 
-      success: true, 
-      message: `User ${userId} role updated to ${roleCheck.rows[0].name}` 
-    });
+    res.json({ message: 'User role updated successfully', user: result.rows[0] });
   } catch (error) {
     console.error('Error updating user role:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1904,6 +1891,149 @@ app.post('/resend-verification', async (req, res) => {
   } catch (error) {
     console.error('Error resending verification email:', error);
     res.status(500).json({ error: 'Error sending verification email' });
+  }
+});
+
+// Get user statistics with meme count and total upvotes
+app.get('/users/:id/stats', authorize(['admin']), async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Check if user exists
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Get meme count
+    const memeCountResult = await pool.query(
+      'SELECT COUNT(*) as meme_count FROM memes WHERE user_id = $1',
+      [userId]
+    );
+    
+    // Get total upvotes across all memes
+    const totalVotesResult = await pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN votes IS NULL THEN 0 ELSE votes END), 0) as total_votes 
+       FROM memes WHERE user_id = $1`,
+      [userId]
+    );
+    
+    // Get all memes with their votes
+    const memesResult = await pool.query(
+      `SELECT id, message as title, 
+              COALESCE(votes, 0) as votes, 
+              created_at, 
+              approval_status 
+       FROM memes 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+    
+    // Response data
+    const stats = {
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        created_at: user.created_at,
+        last_login: user.last_login,
+        role_id: user.role_id
+      },
+      meme_count: parseInt(memeCountResult.rows[0].meme_count),
+      total_votes: parseInt(totalVotesResult.rows[0].total_votes) || 0,
+      memes: memesResult.rows
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting user stats:', error);
+    res.status(500).json({ error: 'Failed to load user statistics. Please try again.' });
+  }
+});
+
+// Delete a user and all their content (admin only)
+app.delete('/users/:id', authorize(['admin']), async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { id } = req.params;
+    
+    // Don't allow admins to delete themselves
+    if (req.user.id === parseInt(id)) {
+      return res.status(400).json({ error: 'You cannot delete your own account' });
+    }
+    
+    // Start transaction
+    await client.query('BEGIN');
+    
+    // Check if user exists
+    const userCheck = await client.query('SELECT * FROM users WHERE id = $1', [id]);
+    
+    if (userCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Get all meme ids by this user to delete their files
+    const memesResult = await client.query('SELECT id, image_url FROM memes WHERE user_id = $1', [id]);
+    const memeIds = memesResult.rows.map(meme => meme.id);
+    
+    // Delete comments on memes by this user
+    if (memeIds.length > 0) {
+      await client.query(
+        'DELETE FROM comments WHERE meme_id = ANY($1::int[])', 
+        [memeIds]
+      );
+    }
+    
+    // Delete votes on this user's memes
+    if (memeIds.length > 0) {
+      await client.query(
+        'DELETE FROM user_votes WHERE meme_id = ANY($1::int[])', 
+        [memeIds]
+      );
+    }
+    
+    // Delete all comments by this user
+    await client.query('DELETE FROM comments WHERE user_id = $1', [id]);
+    
+    // Delete all votes by this user
+    await client.query('DELETE FROM user_votes WHERE user_id = $1', [id]);
+    
+    // Delete all memes by this user
+    await client.query('DELETE FROM memes WHERE user_id = $1', [id]);
+    
+    // Delete the user
+    await client.query('DELETE FROM users WHERE id = $1', [id]);
+    
+    // Delete user's meme image files
+    memesResult.rows.forEach(meme => {
+      if (meme.image_url) {
+        const filePath = path.join(__dirname, meme.image_url);
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (err) {
+          console.error(`Error deleting file ${filePath}:`, err);
+        }
+      }
+    });
+    
+    // Commit transaction
+    await client.query('COMMIT');
+    
+    res.json({ message: 'User and all associated content successfully deleted' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 

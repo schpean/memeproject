@@ -4,6 +4,7 @@ import AuthContext from '../contexts/AuthContext';
 import { memeApi, commentApi } from '../api/api';
 import CommentSection from '../components/comments/CommentSection';
 import { notify } from '../components/common/Notification';
+import { getAvatarUrl } from '../utils/avatarUtils';
 import './styles/CommentsPage.css';
 import { FaArrowUp, FaShare } from 'react-icons/fa';
 

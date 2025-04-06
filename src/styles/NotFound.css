@@ -1,0 +1,122 @@
+.not-found-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+  min-height: 70vh;
+}
+
+.not-found-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: var(--bg-white);
+  border-radius: var(--border-radius-lg);
+  padding: 2.5rem;
+  box-shadow: 0 10px 25px var(--shadow-color);
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  transform: translateY(0);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.not-found-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px var(--shadow-color);
+}
+
+.error-image-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 1.5rem 0 2.5rem;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 5px 15px var(--shadow-color);
+  transition: transform 0.4s ease;
+}
+
+.error-image-container:hover {
+  transform: scale(1.02) rotate(1deg);
+}
+
+.error-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--border-radius-md);
+  transition: transform 0.5s ease;
+}
+
+.not-found-page h1 {
+  color: var(--primary-color);
+  font-size: 2.8rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+  position: relative;
+}
+
+.not-found-page p {
+  font-size: 1.2rem;
+  color: var(--text-gray);
+  margin-bottom: 2rem;
+  max-width: 600px;
+}
+
+.home-link {
+  display: inline-block;
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0.9rem 2rem;
+  border-radius: 25px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(173, 139, 115, 0.3);
+  margin-top: 1rem;
+}
+
+.home-link:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(173, 139, 115, 0.4);
+}
+
+.error-code {
+  position: absolute;
+  top: -30px;
+  right: -20px;
+  font-size: 8rem;
+  font-weight: 900;
+  color: var(--primary-color);
+  opacity: 0.08;
+  transform: rotate(15deg);
+  z-index: 0;
+}
+
+@media (max-width: 768px) {
+  .not-found-page h1 {
+    font-size: 2.2rem;
+  }
+  
+  .not-found-container {
+    padding: 1.5rem;
+  }
+  
+  .error-image-container {
+    max-width: 350px;
+  }
+  
+  .error-code {
+    font-size: 6rem;
+    top: -20px;
+    right: -10px;
+  }
+} 

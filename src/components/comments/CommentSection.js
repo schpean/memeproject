@@ -3,6 +3,7 @@ import { FaComment } from 'react-icons/fa';
 import Comment from './Comment';
 import AuthContext from '../../contexts/AuthContext';
 import { commentApi } from '../../api/api';
+import { getDicebearAvatarUrl } from '../../utils/avatarUtils';
 import './styles/CommentSection.css';
 
 const CommentSection = ({ memeId, initialComments = [] }) => {
@@ -69,9 +70,11 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
     setIsSubmitting(true);
     
     try {
+      const username = currentUser.username || currentUser.displayName || 'Anonymous';
       const commentData = {
         userId: currentUser.uid,
-        username: currentUser.username || currentUser.displayName || 'Anonymous',
+        username: username,
+        userAvatar: getDicebearAvatarUrl(username),
         content: newComment,
         parentId: null // Root level comment
       };
@@ -175,9 +178,11 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
     }
     
     try {
+      const username = currentUser.username || currentUser.displayName || 'Anonymous';
       const commentData = {
         userId: currentUser.uid,
-        username: currentUser.username || currentUser.displayName || 'Anonymous',
+        username: username,
+        userAvatar: getDicebearAvatarUrl(username),
         content,
         parentId // Store the parent ID for properly building the tree
       };

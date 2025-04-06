@@ -96,7 +96,7 @@ For Gmail, you'll need to:
 
      # Google OAuth
      REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id
-     REACT_APP_GOOGLE_CLIENT_SECRET=your_google_client_secret
+     GOOGLE_CLIENT_SECRET=your_google_client_secret
      ```
 
 3. **Build the Frontend**:

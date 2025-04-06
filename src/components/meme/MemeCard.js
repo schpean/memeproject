@@ -5,7 +5,7 @@ import { memeApi, commentApi } from '../../api/api';
 import { API_BASE_URL } from '../../utils/config';
 import { notify } from '../common/Notification';
 import './styles/MemeCard.css';
-import { FaComment, FaArrowUp, FaShare, FaHourglassHalf, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaComment, FaArrowUp, FaShare, FaHourglassHalf, FaCheck, FaTimes, FaEllipsisH } from 'react-icons/fa';
 
 const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus = false }) => {
   const { currentUser, hasUpvoted, addUpvotedMeme, removeUpvotedMeme, isAdmin, isModerator } = useContext(AuthContext);
@@ -206,6 +206,19 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
     return meme.title || `${meme.company}'s review meme`;
   };
 
+  // Truncate message for compact view
+  const getTruncatedMessage = () => {
+    if (!meme.message) return null;
+    
+    const maxLength = 60; // Maximum characters to show in compact view
+    
+    if (compact && meme.message.length > maxLength) {
+      return meme.message.substring(0, maxLength) + '...';
+    }
+    
+    return meme.message;
+  };
+
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown date';
@@ -274,7 +287,12 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
         />
         {meme.message && (
           <div className="meme-message">
-            {meme.message}
+            {getTruncatedMessage()}
+            {compact && meme.message.length > 60 && (
+              <span className="message-truncated">
+                <FaEllipsisH />
+              </span>
+            )}
           </div>
         )}
       </Link>

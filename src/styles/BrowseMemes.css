@@ -1,6 +1,6 @@
 body {
-  background-color: #121212;
-  color: white;
+  background-color: var(--bg-light) !important;
+  color: var(--text-dark) !important;
 }
 
 .browse-memes {
@@ -12,30 +12,32 @@ body {
 .browse-memes h1 {
   margin-bottom: 2rem;
   text-align: center;
-  color: #fff;
-  font-size: 2rem;
-  text-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+  color: var(--primary-color) !important;
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(173, 139, 115, 0.3);
 }
 
 .browse-controls {
   margin-bottom: 2rem;
-  background-color: #1a1a1a;
-  border-radius: 8px;
+  background-color: var(--bg-white) !important;
+  border-radius: 24px !important;
   padding: 1.5rem;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px var(--shadow-color);
 }
 
 .controls-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .controls-header h2 {
-  color: #fff;
-  font-size: 1.2rem;
+  color: var(--text-dark) !important;
+  font-size: 1.4rem;
   margin: 0;
+  font-weight: 600;
 }
 
 .sort-control {
@@ -46,31 +48,34 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: #333;
+  background-color: var(--accent-color) !important;
   border: none;
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  color: #fff;
+  border-radius: 20px !important;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.95rem;
+  color: var(--text-dark) !important;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px var(--shadow-color);
 }
 
 .sort-button:hover {
-  background-color: #444;
+  background-color: var(--accent-dark) !important;
+  transform: translateY(-2px);
 }
 
 .sort-menu {
   position: absolute;
   top: 100%;
   right: 0;
-  background-color: #333;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  background-color: var(--bg-white) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px var(--shadow-color);
   z-index: 10;
-  min-width: 180px;
+  min-width: 200px;
   margin-top: 0.5rem;
   overflow: hidden;
+  padding: 0.5rem;
 }
 
 .sort-option {
@@ -82,20 +87,21 @@ body {
   background: none;
   border: none;
   padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  color: #fff;
+  font-size: 0.95rem;
+  color: var(--text-dark) !important;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  border-radius: 12px !important;
 }
 
 .sort-option:hover {
-  background-color: #444;
+  background-color: var(--bg-light) !important;
 }
 
 .sort-option.active {
-  background-color: #444;
+  background-color: var(--accent-color) !important;
   font-weight: 600;
-  color: #ff4444;
+  color: var(--primary-color) !important;
 }
 
 /* Company Filter Section */
@@ -104,151 +110,167 @@ body {
 }
 
 .search-wrapper {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .search-box {
   position: relative;
-  width: 300px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 350px;
 }
 
 .search-icon {
   position: absolute;
-  left: 8px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: #888;
-  font-size: 0.85rem;
+  color: var(--text-gray) !important;
+  font-size: 0.9rem;
 }
 
 .company-search {
   width: 100%;
-  padding: 6px 8px 6px 28px;
-  border: none;
-  border-radius: 4px;
-  background-color: #333;
-  color: #fff;
-  font-size: 0.85rem;
-  height: 32px;
+  padding: 0.75rem 1rem 0.75rem 2.5rem !important;
+  border: 2px solid var(--border-light) !important;
+  border-radius: 20px !important;
+  background-color: var(--bg-light) !important;
+  color: var(--text-dark) !important;
+  font-size: 0.95rem;
+  height: auto;
+  transition: all 0.2s ease;
 }
 
 .company-search::placeholder {
-  color: #888;
+  color: var(--text-gray) !important;
 }
 
 .company-search:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(255, 68, 68, 0.5);
+  box-shadow: 0 0 0 3px var(--accent-color) !important;
+  border-color: var(--primary-color) !important;
 }
 
 .clear-search {
   position: absolute;
-  right: 8px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: #888;
+  color: var(--text-gray) !important;
   cursor: pointer;
-  padding: 0;
-  font-size: 0.85rem;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  border-radius: 50% !important;
 }
 
 .clear-search:hover {
-  color: #ff4444;
+  color: var(--primary-color) !important;
+  background-color: var(--bg-light) !important;
 }
 
 .company-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
   margin-bottom: 1.5rem;
 }
 
 .company-card {
-  background-color: #292929;
-  border-radius: 4px;
-  padding: 8px;
+  background-color: var(--accent-color) !important;
+  border-radius: 16px !important;
+  padding: 10px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
   border: 2px solid transparent;
-  height: 34px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 4px var(--shadow-color);
 }
 
 .company-card:hover {
-  background-color: #333;
-  transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  background-color: var(--accent-dark) !important;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px var(--shadow-color);
 }
 
 .company-card.selected {
-  background-color: #333;
-  border-color: #ff4444;
+  background-color: var(--secondary-color) !important;
+  border-color: var(--primary-color) !important;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px var(--shadow-color);
 }
 
 .company-name {
-  color: #fff;
-  font-weight: 500;
-  font-size: 0.9rem;
+  color: var(--text-dark) !important;
+  font-weight: 600;
+  font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding: 0 0.5rem;
 }
 
 .selected-filter {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #333;
-  padding: 0.75rem 1rem;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 0.9rem;
+  background-color: var(--accent-color) !important;
+  padding: 0.9rem 1.2rem;
+  border-radius: 20px !important;
+  color: var(--text-dark) !important;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px var(--shadow-color);
 }
 
 .clear-filter {
-  background-color: #ff4444;
+  background-color: var(--primary-color) !important;
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8rem;
+  border-radius: 16px !important;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .clear-filter:hover {
-  background-color: #e03c3c;
+  background-color: var(--primary-dark) !important;
+  transform: translateY(-1px);
 }
 
 .meme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
+  justify-content: center;
 }
 
 .no-memes-message {
   text-align: center;
   padding: 3rem;
-  background-color: #1a1a1a;
-  border-radius: 8px;
-  color: #fff;
-  margin-top: 2rem;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  background-color: var(--bg-white) !important;
+  border-radius: 24px !important;
+  color: var(--text-dark) !important;
+  margin: 3rem auto;
+  max-width: 600px;
+  box-shadow: 0 4px 12px var(--shadow-color);
 }
 
 .no-memes-message h2 {
   margin-top: 0;
-  color: #ff4444;
+  color: var(--primary-color) !important;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
 }
 
 .no-memes-message p {
-  color: #bbb;
+  color: var(--text-gray) !important;
+  font-size: 1.1rem;
   margin-bottom: 1.5rem;
 }
 

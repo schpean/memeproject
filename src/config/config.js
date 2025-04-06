@@ -1,5 +1,15 @@
 // Configuration settings for the application
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:1337';
+// Use a function to determine the API URL based on the client's origin
+function getApiBaseUrl() {
+  // If we're running from 192.168.0.104, use the corresponding server
+  if (window.location.hostname === '192.168.0.104') {
+    return 'http://86.120.25.207:1337';
+  }
+  // For localhost or other domains
+  return process.env.REACT_APP_API_BASE_URL || 'http://localhost:1337';
+}
+
+export const API_BASE_URL = getApiBaseUrl();
 export const CLIENT_BASE_URL = process.env.REACT_APP_CLIENT_BASE_URL || 'http://localhost:1338';
 
 export const API_ENDPOINTS = {
@@ -20,5 +30,12 @@ export const API_ENDPOINTS = {
   // Auth-related endpoints
   googleAuth: `${API_BASE_URL}/users/google-auth`,
   updateNickname: `${API_BASE_URL}/users/update-nickname`,
-  userUpvotes: (userId) => `${API_BASE_URL}/users/${userId}/upvoted`
+  userUpvotes: (userId) => `${API_BASE_URL}/users/${userId}/upvoted`,
+  
+  // Admin endpoints
+  adminUsers: `${API_BASE_URL}/admin/users`,
+  adminRoles: `${API_BASE_URL}/admin/roles`,
+  updateUserRole: (userId) => `${API_BASE_URL}/admin/users/${userId}/role`,
+  userStats: (userId) => `${API_BASE_URL}/users/${userId}/stats`,
+  deleteUser: (userId) => `${API_BASE_URL}/users/${userId}`
 }; 
