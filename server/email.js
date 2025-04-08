@@ -1,16 +1,8 @@
 const nodemailer = require('nodemailer');
-require('dotenv').config();
+const { emailConfig, urls } = require('./config');
 
-// Create email transporter using SMTP settings from .env
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: process.env.EMAIL_PORT === '465', // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// Create email transporter using SMTP settings from config
+const transporter = nodemailer.createTransport(emailConfig);
 
 // Verify the connection to the email provider
 const verifyEmailConfig = async () => {

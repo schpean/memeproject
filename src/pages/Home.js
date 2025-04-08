@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import MemeCard from '../components/meme/MemeCard';
 import './styles/Home.css';
-import { API_ENDPOINTS } from '../utils/config';
+import { API_ENDPOINTS, POLLING_URL, API_BASE_URL } from '../config/config';
 import { FaFire, FaChartLine, FaClock, FaAngleDown, FaSort, FaCalendarAlt, FaComment, FaArrowUp } from 'react-icons/fa';
 
 const Home = () => {
@@ -12,13 +12,235 @@ const Home = () => {
   const [timeFilter, setTimeFilter] = useState('all'); // 'now', 'today', 'week', 'all'
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [lastTimestamp, setLastTimestamp] = useState(Date.now());
+  const [usingPolling, setUsingPolling] = useState(false);
+  const [refreshFallbackActive, setRefreshFallbackActive] = useState(false);
   
   const sortDropdownRef = useRef(null);
   const timeDropdownRef = useRef(null);
+  const webSocketRef = useRef(null);
+  const pollingIntervalRef = useRef(null);
   
+  // Set up periodic refresh for memes when real-time options fail
+  const setupPeriodicRefresh = () => {
+    console.log('Setting up periodic meme refresh (every 30 seconds)');
+    
+    // Clear any existing intervals
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    // Set flag to prevent further connection attempts
+    setRefreshFallbackActive(true);
+    
+    // Start periodic refresh
+    pollingIntervalRef.current = setInterval(() => {
+      console.log('Performing periodic meme refresh');
+      fetchMemes();
+    }, 30000); // Refresh every 30 seconds
+  };
+  
+  // Set up real-time updates with WebSocket and polling fallback
+  useEffect(() => {
+    // Skip if we're already using the fallback refresh
+    if (refreshFallbackActive) {
+      return;
+    }
+    
+    // Create WebSocket connection
+    const wsUrl = API_ENDPOINTS.websocket;
+    console.log('Attempting WebSocket connection to:', wsUrl);
+    
+    let connectionFailed = false;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 1; // Reduced to quickly move to fallback
+    
+    const ws = new WebSocket(wsUrl);
+    
+    // Set a timeout to detect connection failure
+    const connectionTimeout = setTimeout(() => {
+      if (!wsConnected) {
+        connectionFailed = true;
+        console.log('WebSocket connection timed out, switching to polling');
+        setupPollingFallback();
+      }
+    }, 3000);
+    
+    ws.onopen = () => {
+      console.log('WebSocket connection established');
+      clearTimeout(connectionTimeout);
+      setWsConnected(true);
+      connectionFailed = false;
+      reconnectAttempts = 0;
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('WebSocket message received:', data);
+        
+        // Handle different message types
+        if (data.type === 'connection') {
+          console.log('WebSocket connection confirmed:', data.message);
+        } else if (data.type === 'newMeme') {
+          // Add the new meme to the list if it matches the current filters
+          fetchMemes();
+        } else if (data.type === 'memeUpdated') {
+          // Update the meme in the current list
+          setMemes(prevMemes => 
+            prevMemes.map(meme => 
+              meme.id === data.data.id ? data.data : meme
+            )
+          );
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+    
+    ws.onerror = () => {
+      // Use a simpler error message to avoid the noisy Event object in console
+      console.log('WebSocket connection failed');
+      connectionFailed = true;
+      
+      // Switch to polling immediately after first error
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        console.log('Switching to polling fallback');
+        setupPollingFallback();
+      }
+    };
+    
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+      setWsConnected(false);
+      clearTimeout(connectionTimeout);
+      
+      // Try to reconnect if close wasn't intentional and we haven't switched to fallbacks
+      if (!connectionFailed && !usingPolling && !refreshFallbackActive && 
+          reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        console.log(`Attempting to reconnect WebSocket (${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+        reconnectAttempts++;
+        setTimeout(() => {
+          webSocketRef.current = new WebSocket(wsUrl);
+        }, 2000);
+      } else if (!usingPolling && !refreshFallbackActive) {
+        setupPollingFallback();
+      }
+    };
+    
+    // Store the WebSocket reference
+    webSocketRef.current = ws;
+    
+    const setupPollingFallback = () => {
+      if (usingPolling || refreshFallbackActive) return; // Prevent duplicate setup
+      
+      console.log('Setting up polling fallback for real-time updates');
+      setUsingPolling(true);
+      setWsConnected(false);
+      
+      // Close WebSocket if it's still open
+      if (webSocketRef.current && webSocketRef.current.readyState !== WebSocket.CLOSED) {
+        webSocketRef.current.close();
+      }
+      
+      // Try polling once to check if endpoint exists
+      checkPollingEndpoint();
+    };
+    
+    const checkPollingEndpoint = async () => {
+      try {
+        console.log('Checking if polling endpoint is available...');
+        const response = await fetch(`${POLLING_URL}?since=${lastTimestamp}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            console.log('Polling endpoint not available, using simple refresh fallback');
+            setupPeriodicRefresh();
+            return;
+          }
+          throw new Error(`Polling request failed with status ${response.status}`);
+        }
+        
+        // If we got here, polling works! Start regular polling
+        console.log('Polling endpoint working, starting regular polling');
+        pollForUpdates();
+        pollingIntervalRef.current = setInterval(pollForUpdates, 10000);
+      } catch (error) {
+        console.log('Polling setup failed, falling back to periodic refresh');
+        setupPeriodicRefresh();
+      }
+    };
+    
+    const pollForUpdates = async () => {
+      try {
+        // Only try polling if we haven't disabled it
+        if (refreshFallbackActive) return;
+        
+        const response = await fetch(`${POLLING_URL}?since=${lastTimestamp}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            console.log('Polling endpoint no longer available, switching to periodic refresh');
+            setupPeriodicRefresh();
+            return;
+          }
+          throw new Error('Polling request failed');
+        }
+        
+        const data = await response.json();
+        setLastTimestamp(data.timestamp);
+        
+        if (data.updates && data.updates.length > 0) {
+          console.log(`Received ${data.updates.length} updates via polling`);
+          
+          // Process updates
+          data.updates.forEach(update => {
+            if (update.type === 'newMeme') {
+              fetchMemes();
+            } else if (update.type === 'memeUpdated') {
+              setMemes(prevMemes => 
+                prevMemes.map(meme => 
+                  meme.id === update.data.id ? update.data : meme
+                )
+              );
+            }
+          });
+        }
+      } catch (error) {
+        console.log('Error during polling, will retry');
+      }
+    };
+    
+    // Clean up on unmount
+    return () => {
+      clearTimeout(connectionTimeout);
+      
+      if (webSocketRef.current) {
+        webSocketRef.current.close();
+      }
+      
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [lastTimestamp, usingPolling, refreshFallbackActive]);
+  
+  // Initial fetch of memes
   useEffect(() => {
     fetchMemes();
-  }, [sortBy, timeFilter]);
+    
+    // If we're using the simple refresh fallback, set up the interval
+    if (refreshFallbackActive) {
+      setupPeriodicRefresh();
+    }
+    
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [sortBy, timeFilter, refreshFallbackActive]);
   
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -46,19 +268,41 @@ const Home = () => {
   const fetchMemes = async () => {
     setLoading(true);
     try {
-      let url = API_ENDPOINTS.memes;
+      // Create params for filtering
+      const params = {};
       
-      // Add query parameters for time filtering
-      const params = new URLSearchParams();
-      
+      // Add time filter if not "all"
       if (timeFilter !== 'all') {
-        params.append('time', timeFilter);
+        params.time = timeFilter;
       }
       
-      const queryString = params.toString();
-      if (queryString) {
-        url = `${url}?${queryString}`;
+      // Add sort parameter
+      params.sort = sortBy;
+      
+      // Create URL for filtered memes
+      let url;
+      
+      // Check if filteredMemes helper is available in the API_ENDPOINTS
+      if (typeof API_ENDPOINTS.filteredMemes === 'function') {
+        url = API_ENDPOINTS.filteredMemes(params);
+      } else {
+        // Fallback to manual URL construction
+        url = API_ENDPOINTS.memes;
+        const queryParams = new URLSearchParams();
+        
+        if (timeFilter !== 'all') {
+          queryParams.append('time', timeFilter);
+        }
+        
+        queryParams.append('sort', sortBy);
+        
+        if (queryParams.toString()) {
+          url = `${url}?${queryParams.toString()}`;
+        }
       }
+      
+      console.log(`Fetching memes with time filter: ${timeFilter}, sort: ${sortBy}`);
+      console.log(`API URL: ${url}`);
       
       const response = await fetch(url);
       
@@ -67,78 +311,75 @@ const Home = () => {
       }
       
       const data = await response.json();
+      console.log(`Received ${data.length} memes from server`);
       
-      // Filter locally based on time if server doesn't support time filtering
-      let filteredData = data;
-      
-      if (timeFilter !== 'all' && !url.includes('time=')) {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const weekAgo = new Date(now);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        
-        filteredData = data.filter(meme => {
-          const memeDate = new Date(meme.created_at || meme.createdAt);
-          
-          if (timeFilter === 'now') {
-            return (now - memeDate) < 3600000; // Within the last hour
-          }
-          
-          if (timeFilter === 'today') {
-            return memeDate >= today;
-          }
-          
-          if (timeFilter === 'week') {
-            return memeDate >= weekAgo;
-          }
-          
-          return true;
+      // Log sample data for debugging
+      if (data.length > 0) {
+        const sampleMeme = data[0];
+        console.log('Sample meme:', {
+          id: sampleMeme.id,
+          created_at: sampleMeme.created_at,
+          votes: sampleMeme.votes || 0,
+          message: sampleMeme.message?.substring(0, 20) + '...'
         });
       }
       
-      // Fetch comment counts for memes if sorting by comments
-      let memesWithCommentCounts = filteredData;
+      // Only fetch comment counts if sorting by comments since we need to reorder
+      // For other sort modes, we'll use the server's ordering
+      let sortedData = data;
       
       if (sortBy === 'commented') {
-        memesWithCommentCounts = await Promise.all(
-          filteredData.map(async (meme) => {
+        try {
+          // Create an array of promises for comment fetching
+          const commentFetchPromises = data.map(async (meme) => {
             try {
-              const commentsResponse = await fetch(API_ENDPOINTS.getComments(meme.id));
+              const commentsResponse = await fetch(API_ENDPOINTS.getComments(meme.id), {
+                headers: {
+                  'user-id': localStorage.getItem('memeUser') ? JSON.parse(localStorage.getItem('memeUser')).uid : null
+                }
+              });
+              
               if (!commentsResponse.ok) {
+                console.log(`Non-OK response for meme ${meme.id} comments: ${commentsResponse.status}`);
                 return { ...meme, commentCount: 0 };
               }
+              
               const comments = await commentsResponse.json();
-              return { ...meme, commentCount: comments.length };
+              return { ...meme, commentCount: Array.isArray(comments) ? comments.length : 0 };
             } catch (error) {
               console.error(`Error fetching comments for meme ${meme.id}:`, error);
               return { ...meme, commentCount: 0 };
             }
-          })
-        );
-      }
-      
-      // Apply sorting locally
-      let sortedData = memesWithCommentCounts;
-      
-      switch (sortBy) {
-        case 'upvoted':
-          sortedData = [...memesWithCommentCounts].sort((a, b) => (b.votes || 0) - (a.votes || 0));
-          break;
-        case 'commented':
-          sortedData = [...memesWithCommentCounts].sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
-          break;
-        case 'recent':
-        default:
-          sortedData = [...memesWithCommentCounts].sort((a, b) => 
-            new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt)
+          });
+          
+          // Wait for all promises to resolve with a timeout
+          const results = await Promise.all(
+            commentFetchPromises.map(promise => 
+              Promise.race([
+                promise, 
+                new Promise(resolve => setTimeout(() => resolve({ commentCount: 0 }), 3000))
+              ])
+            )
           );
-          break;
+          
+          // Merge results back with original data
+          const memesWithCommentCounts = data.map((meme, index) => {
+            const result = results[index];
+            return { ...meme, commentCount: result && result.commentCount ? result.commentCount : 0 };
+          });
+          
+          // Sort by comment count
+          sortedData = [...memesWithCommentCounts].sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
+        } catch (error) {
+          console.error('Error fetching comment counts:', error);
+        }
       }
       
-      // Show only first 8 memes for more compact view
+      // Show only first 8 memes
       setMemes(sortedData.slice(0, 8));
     } catch (error) {
       console.error('Error fetching memes:', error);
+      setMemes([]); // Set empty array to show the "No memes found" message
     } finally {
       setLoading(false);
     }

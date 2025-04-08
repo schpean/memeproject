@@ -8,42 +8,147 @@ require('dotenv').config();
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const emailService = require('./email');
+const config = require('./config');
+const WebSocket = require('ws');
+const http = require('http');
 
 const app = express();
-const port = process.env.PORT || 1337;
+const port = config.port;
 
-// CORS configuration with environment variables
-const allowedOrigins = [
-  process.env.CLIENT_BASE_URL || 'http://localhost:1338',
-  'http://localhost:3000',  // React dev server
-  process.env.PRODUCTION_CLIENT_URL,  // Add your production URL when deploying
-  'http://86.120.25.207:1338', // Add IP-based access explicitly
-  'null', // For local file testing
-  '*' // Allow all origins for image resources
-].filter(Boolean); // Remove undefined values
+// Create an HTTP server instance
+const server = http.createServer(app);
 
-// Middleware
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+// Create a WebSocket server
+const wss = new WebSocket.Server({ server });
+
+// WebSocket connection handling
+wss.on('connection', (ws) => {
+  console.log('Client connected to WebSocket');
+  
+  // Send a welcome message
+  ws.send(JSON.stringify({ type: 'connection', message: 'Connected to WebSocket server' }));
+  
+  // Handle messages from clients
+  ws.on('message', (message) => {
+    console.log('Received message:', message);
     
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.indexOf('*') !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS rejected origin:', origin);
-      callback(null, true); // Allow all origins in development
+    // Parse the message (assuming JSON)
+    try {
+      const parsedMessage = JSON.parse(message);
+      
+      // Handle different message types (if needed)
+      if (parsedMessage.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+      }
+    } catch (error) {
+      console.error('Error parsing WebSocket message:', error);
     }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true, // Allow cookies if needed
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'user-id']
-}));
+  });
+  
+  // Handle disconnection
+  ws.on('close', () => {
+    console.log('Client disconnected from WebSocket');
+  });
+});
+
+// Function to broadcast to all connected clients
+const broadcastMessage = (type, data) => {
+  const message = JSON.stringify({ type, data });
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+  
+  // Also store the message in the updates queue for polling clients
+  addToUpdatesQueue({ type, data });
+};
+
+// Store recent updates for polling clients
+const updatesQueue = [];
+const MAX_UPDATES = 100; // Keep last 100 updates
+
+const addToUpdatesQueue = (update) => {
+  // Add timestamp to the update
+  const timestampedUpdate = {
+    ...update,
+    timestamp: Date.now()
+  };
+  
+  // Add to queue and trim if necessary
+  updatesQueue.push(timestampedUpdate);
+  if (updatesQueue.length > MAX_UPDATES) {
+    updatesQueue.shift(); // Remove oldest update
+  }
+};
+
+// Add an HTTP polling endpoint for environments where WebSockets are blocked
+app.get('/api/updates', (req, res) => {
+  // Get the last timestamp from the client
+  const lastTimestamp = parseInt(req.query.since || '0');
+  
+  // Filter updates newer than the provided timestamp
+  const newUpdates = updatesQueue.filter(update => update.timestamp > lastTimestamp);
+  
+  // Return the updates and the current server timestamp
+  res.json({
+    updates: newUpdates,
+    timestamp: Date.now(),
+    message: 'Using HTTP polling fallback instead of WebSockets'
+  });
+});
+
+// Custom CORS middleware to handle credentials properly
+const corsMiddleware = (req, res, next) => {
+  const allowedOrigins = config.corsConfig.allowedOrigins.filter(origin => origin !== '*');
+  const origin = req.headers.origin;
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', config.corsConfig.methods.join(', '));
+    res.header('Access-Control-Allow-Headers', config.corsConfig.allowedHeaders.join(', '));
+  } else if (!origin || origin === 'null') {
+    // Allow requests from file:// protocol or null origin
+    res.header('Access-Control-Allow-Origin', 'null');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', config.corsConfig.methods.join(', '));
+    res.header('Access-Control-Allow-Headers', config.corsConfig.allowedHeaders.join(', '));
+  } else {
+    // For non-matching origins, return a 403 Forbidden
+    return res.status(403).json({ 
+      error: 'CORS Error', 
+      message: 'Origin not allowed', 
+      origin: origin || 'undefined',
+      allowedOrigins: allowedOrigins 
+    });
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  
+  next();
+};
+
+// Apply custom CORS middleware
+app.use(corsMiddleware);
 app.use(express.json());
 
 // Add CORS headers for static files
 app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  const allowedOrigins = config.corsConfig.allowedOrigins.filter(origin => origin !== '*');
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  } else {
+    // For image requests without credentials, we can still use wildcard
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET');
   res.header('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
@@ -123,11 +228,17 @@ const authorize = (roles = []) => {
 // Get all memes or filter by company or city
 app.get('/memes', async (req, res) => {
   try {
+    // Fix future dates before proceeding with the query
+    await fixAllFutureDates();
+    
     // Get all memes or filter by company or city
     let conditions = [];
     let params = [];
     
-    const { company, city } = req.query;
+    const { company, city, time, sort } = req.query;
+    
+    // Log the filter parameters for debugging
+    console.log(`Request for memes with filters: time=${time || 'all'}, sort=${sort || 'recent'}`);
     
     if (company) {
       conditions.push(`company = $${params.length + 1}`);
@@ -137,6 +248,39 @@ app.get('/memes', async (req, res) => {
     if (city) {
       conditions.push(`city = $${params.length + 1}`);
       params.push(city);
+    }
+    
+    // Time filtering on the server side with improved date handling
+    const now = new Date();
+    console.log(`Current server time: ${now.toISOString()}`);
+    
+    // Always ensure we don't show future memes
+    conditions.push(`created_at <= $${params.length + 1}`);
+    params.push(now.toISOString());
+    
+    if (time) {
+      if (time === 'now') {
+        // Last hour
+        const hourAgo = new Date(now);
+        hourAgo.setHours(hourAgo.getHours() - 1);
+        conditions.push(`created_at >= $${params.length + 1}`);
+        params.push(hourAgo.toISOString());
+        console.log(`Time filter: now (${hourAgo.toISOString()})`);
+      } else if (time === 'today') {
+        // Today
+        const today = new Date(now);
+        today.setHours(0, 0, 0, 0);
+        conditions.push(`created_at >= $${params.length + 1}`);
+        params.push(today.toISOString());
+        console.log(`Time filter: today (${today.toISOString()})`);
+      } else if (time === 'week') {
+        // Last week
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        conditions.push(`created_at >= $${params.length + 1}`);
+        params.push(weekAgo.toISOString());
+        console.log(`Time filter: week (${weekAgo.toISOString()})`);
+      }
     }
     
     // Only show approved memes by default for regular users
@@ -169,10 +313,33 @@ app.get('/memes', async (req, res) => {
     // Build the WHERE clause if we have conditions
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     
+    // Determine sorting order with improved stability (add id to sort for consistent results)
+    let orderClause = 'ORDER BY created_at DESC, id DESC';
+    if (sort === 'upvoted') {
+      orderClause = 'ORDER BY votes DESC, created_at DESC, id DESC';
+    } else if (sort === 'commented') {
+      // We don't have comment count in the database, so we'll sort by created_at as fallback
+      orderClause = 'ORDER BY created_at DESC, id DESC';
+    }
+    
+    console.log(`Query: SELECT * FROM memes ${whereClause} ${orderClause}`);
+    console.log('Params:', params);
+    
     const result = await pool.query(
-      `SELECT * FROM memes ${whereClause} ORDER BY created_at DESC`,
+      `SELECT * FROM memes ${whereClause} ${orderClause}`,
       params
     );
+    
+    console.log(`Found ${result.rows.length} memes matching the criteria`);
+    
+    // For debugging, log some sample dates
+    if (result.rows.length > 0) {
+      console.log('Sample meme dates:');
+      for (let i = 0; i < Math.min(3, result.rows.length); i++) {
+        const meme = result.rows[i];
+        console.log(`- Meme ${meme.id}: ${meme.created_at}, Votes: ${meme.votes || 0}`);
+      }
+    }
     
     res.json(result.rows);
   } catch (error) {
@@ -180,6 +347,46 @@ app.get('/memes', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Immediately fix all future dates in the database
+async function fixAllFutureDates() {
+  const client = await pool.connect();
+  try {
+    const now = new Date();
+    console.log(`Checking for future dates (current time: ${now.toISOString()})...`);
+    
+    // Find and fix memes with future dates
+    const result = await client.query(
+      `UPDATE memes SET created_at = $1 WHERE created_at > $1 RETURNING id, created_at`,
+      [now.toISOString()]
+    );
+    
+    if (result.rows.length > 0) {
+      console.log(`Fixed ${result.rows.length} memes with future dates:`);
+      result.rows.forEach(meme => {
+        console.log(`- Fixed meme ${meme.id}: set to ${now.toISOString()}`);
+      });
+    }
+    
+    return result.rows.length;
+  } catch (error) {
+    console.error('Error fixing future dates:', error);
+    return 0;
+  } finally {
+    client.release();
+  }
+}
+
+// Run the fix on startup
+(async function() {
+  try {
+    console.log('Running startup check for future dates...');
+    const fixedCount = await fixAllFutureDates();
+    console.log(`Startup check complete. Fixed ${fixedCount} memes with future dates.`);
+  } catch (error) {
+    console.error('Error during startup date fix:', error);
+  }
+})();
 
 // Get pending memes for approval (admin and moderator only)
 app.get('/memes/pending', authorize(['admin', 'moderator']), async (req, res) => {
@@ -227,14 +434,13 @@ app.put('/memes/:id/approval', authorize(['admin', 'moderator']), async (req, re
 // Create a new meme with simplified fields
 app.post('/memes', upload.single('image'), async (req, res) => {
   try {
-    const { company, city, country, message, userId, username } = req.body;
+    const { company, city, message, userId, username } = req.body;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : req.body.image_url;
     
     console.log('---DETAILED MEME REQUEST INFO---');
     console.log('- Full request body:', req.body);
     console.log('- Company:', company);
     console.log('- City:', city);
-    console.log('- Country:', country);
     console.log('- Has image:', !!req.file);
     console.log('- Image URL:', imageUrl);
     console.log('- Message:', message);
@@ -285,7 +491,6 @@ app.post('/memes', upload.single('image'), async (req, res) => {
     console.log('Inserting meme into database with parameters:');
     console.log('- Company:', company);
     console.log('- City:', city);
-    console.log('- Country:', country || 'Romania');
     console.log('- Image URL:', imageUrl);
     console.log('- Message:', message || null);
     console.log('- User ID:', userIdInt);
@@ -312,11 +517,10 @@ app.post('/memes', upload.single('image'), async (req, res) => {
       
       // Try to insert the meme
       const result = await pool.query(
-        'INSERT INTO memes (company, city, country, image_url, message, user_id, username, approval_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        'INSERT INTO memes (company, city, image_url, message, user_id, username, approval_status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
         [
           company || '', 
           city || '', 
-          country || 'Romania', // Always provide a fallback value for country
           imageUrl || '', 
           message || null, 
           userIdInt, 
@@ -325,6 +529,13 @@ app.post('/memes', upload.single('image'), async (req, res) => {
         ]
       );
       console.log('Meme creation successful, returning result');
+      
+      // Broadcast the new meme to all connected clients
+      if (result.rows.length > 0) {
+        const newMeme = result.rows[0];
+        broadcastMessage('newMeme', newMeme);
+      }
+      
       res.status(201).json(result.rows[0]);
     } catch (dbError) {
       console.error('Database error while creating meme:', dbError);
@@ -367,12 +578,10 @@ app.post('/memes', upload.single('image'), async (req, res) => {
           // Retry the insert
           console.log('Retrying meme creation...');
           const retryResult = await pool.query(
-            'INSERT INTO memes (company, city, country, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            'INSERT INTO memes (company, city, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [
               company || '', 
               city || '', 
-              country || 'Romania', // Always provide a fallback value for country
-              country || 'Romania', 
               imageUrl || '', 
               message || null, 
               userIdInt, 
@@ -405,7 +614,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
           // Retry the insert with default country value
           console.log('Retrying meme creation with default country...');
           const retryResult = await pool.query(
-            'INSERT INTO memes (company, city, country, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            'INSERT INTO memes (company, city, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [
               company || '', 
               city || '', 
@@ -497,6 +706,10 @@ app.post('/memes/:id/vote', async (req, res) => {
         }
         
         await client.query('COMMIT');
+        
+        // Broadcast the updated meme
+        broadcastMessage('memeUpdated', result.rows[0]);
+        
         res.json(result.rows[0]);
       } else {
         // User wants to remove upvote (downvote)
@@ -523,6 +736,10 @@ app.post('/memes/:id/vote', async (req, res) => {
         }
         
         await client.query('COMMIT');
+        
+        // Broadcast the updated meme
+        broadcastMessage('memeUpdated', result.rows[0]);
+        
         res.json(result.rows[0]);
       }
     } catch (error) {
@@ -674,7 +891,7 @@ const fixMissingColumns = async () => {
       await client.query(`ALTER TABLE memes ADD COLUMN city TEXT DEFAULT 'Unknown'`);
       console.log('✅ Added city column to memes table');
     }
-
+    
     // Check if the company column exists
     const companyColumnCheck = await client.query(`
       SELECT EXISTS (
@@ -689,26 +906,6 @@ const fixMissingColumns = async () => {
       await client.query(`ALTER TABLE memes ADD COLUMN company TEXT DEFAULT 'Unknown'`);
       console.log('✅ Added company column to memes table');
     }
-    
-    // Check if the country column exists
-    const countryColumnCheck = await client.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_name = 'memes' AND column_name = 'country'
-      );
-    `);
-    
-    // Add country column if it doesn't exist
-    if (!countryColumnCheck.rows[0].exists) {
-      console.log('❌ Missing column "country" in memes table, adding it now...');
-      await client.query(`ALTER TABLE memes ADD COLUMN country TEXT DEFAULT 'Romania'`);
-      console.log('✅ Added country column to memes table');
-    }
-    
-    // Always ensure country column allows NULL values and has default value
-    await client.query(`ALTER TABLE memes ALTER COLUMN country DROP NOT NULL`);
-    await client.query(`ALTER TABLE memes ALTER COLUMN country SET DEFAULT 'Romania'`);
-    console.log('✅ Made country column nullable with default value "Romania"');
     
     // Check if the approval_status column exists
     const approvalStatusColumnCheck = await client.query(`
@@ -786,7 +983,7 @@ const setupMemeTable = async () => {
     `);
     
     if (!tableCheck.rows[0].exists) {
-      // Create memes table
+      // Create memes table - Removed country column
       await client.query(`
         CREATE TABLE memes (
           id SERIAL PRIMARY KEY,
@@ -854,9 +1051,7 @@ app.post('/users/google-auth', async (req, res) => {
       return res.status(400).json({ error: 'Google ID and email are required' });
     }
     
-    // Verify the token with Google (optional with the new flow)
-    // Since we're getting the user info directly from Google already
-    // But we can keep basic validation
+    // Verify the token with Google using server-side client secret from config
     if (!token) {
       console.warn('No token provided for validation');
     }
@@ -1000,37 +1195,11 @@ async function generateUniqueUsername(displayName) {
 // Helper function to generate a mascot image URL based on username
 function getMascotImageUrl(username) {
   if (!username) {
-    return '/images/mascot_default.png';
+    return 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=anonymous';
   }
   
-  // For production, we would have actual image files for each mascot type/color
-  // For now, just return a default mascot to ensure something always displays
-  return '/images/mascot_default.png';
-  
-  // The code below would be used with actual mascot images:
-  /*
-  // Generate deterministic but unique mascot for each user
-  // Use first character of username to determine mascot type
-  const firstChar = username.charAt(0).toLowerCase();
-  let mascotType = '';
-  
-  if (/[a-e]/.test(firstChar)) {
-    mascotType = 'boss1';
-  } else if (/[f-j]/.test(firstChar)) {
-    mascotType = 'boss2';
-  } else if (/[k-o]/.test(firstChar)) {
-    mascotType = 'boss3';
-  } else if (/[p-t]/.test(firstChar)) {
-    mascotType = 'boss4';
-  } else {
-    mascotType = 'boss5';
-  }
-  
-  // Generate a color based on username
-  const colorIndex = (username.length % 5) + 1; // 1-5
-  
-  return `/images/${mascotType}_${colorIndex}.png`;
-  */
+  // Generate Dicebear avatar URL with username as seed
+  return `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${encodeURIComponent(username)}`;
 }
 
 // Update user table setup to include role_id
@@ -1690,14 +1859,13 @@ setupUserTable().catch(console.error);
 
 // Add admin routes for user management
 // Get all users with role information (admin only)
-app.get('/admin/users', authorize('admin'), async (req, res) => {
+app.get('/admin/users', authorize(['admin']), async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT u.id, u.username, u.email, u.display_name, u.created_at, u.last_login, 
-             r.name as role, r.id as role_id
+      SELECT u.*, r.name as role
       FROM users u
       LEFT JOIN user_roles r ON u.role_id = r.id
-      ORDER BY u.last_login DESC
+      ORDER BY u.created_at DESC
     `);
     
     res.json(result.rows);
@@ -1707,8 +1875,8 @@ app.get('/admin/users', authorize('admin'), async (req, res) => {
   }
 });
 
-// Get all available roles (admin only)
-app.get('/admin/roles', authorize('admin'), async (req, res) => {
+// Fetch all roles (admin only)
+app.get('/admin/roles', authorize(['admin']), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM user_roles ORDER BY id');
     res.json(result.rows);
@@ -1718,35 +1886,31 @@ app.get('/admin/roles', authorize('admin'), async (req, res) => {
   }
 });
 
-// Update a user's role (admin only)
-app.put('/admin/users/:userId/role', authorize('admin'), async (req, res) => {
-  const { userId } = req.params;
-  const { roleId } = req.body;
-  
-  if (!roleId) {
-    return res.status(400).json({ error: 'Role ID is required' });
-  }
-  
+// Update user role (admin only)
+app.put('/admin/users/:id/role', authorize(['admin']), async (req, res) => {
   try {
-    // Check if user exists
-    const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
-    if (userCheck.rows.length === 0) {
+    const { id } = req.params;
+    const { roleId } = req.body;
+    
+    if (!roleId) {
+      return res.status(400).json({ error: 'Role ID is required' });
+    }
+    
+    // Don't allow changing own role
+    if (req.user.id === parseInt(id)) {
+      return res.status(400).json({ error: 'Cannot change your own role' });
+    }
+    
+    const result = await pool.query(
+      'UPDATE users SET role_id = $1 WHERE id = $2 RETURNING *',
+      [roleId, id]
+    );
+    
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Check if role exists
-    const roleCheck = await pool.query('SELECT id, name FROM user_roles WHERE id = $1', [roleId]);
-    if (roleCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Role not found' });
-    }
-    
-    // Update user's role
-    await pool.query('UPDATE users SET role_id = $1 WHERE id = $2', [roleId, userId]);
-    
-    res.json({ 
-      success: true, 
-      message: `User ${userId} role updated to ${roleCheck.rows[0].name}` 
-    });
+    res.json({ message: 'User role updated successfully', user: result.rows[0] });
   } catch (error) {
     console.error('Error updating user role:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1907,8 +2071,152 @@ app.post('/resend-verification', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Get user statistics with meme count and total upvotes
+app.get('/users/:id/stats', authorize(['admin']), async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Check if user exists
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Get meme count
+    const memeCountResult = await pool.query(
+      'SELECT COUNT(*) as meme_count FROM memes WHERE user_id = $1',
+      [userId]
+    );
+    
+    // Get total upvotes across all memes
+    const totalVotesResult = await pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN votes IS NULL THEN 0 ELSE votes END), 0) as total_votes 
+       FROM memes WHERE user_id = $1`,
+      [userId]
+    );
+    
+    // Get all memes with their votes
+    const memesResult = await pool.query(
+      `SELECT id, message as title, 
+              COALESCE(votes, 0) as votes, 
+              created_at, 
+              approval_status 
+       FROM memes 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+    
+    // Response data
+    const stats = {
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        created_at: user.created_at,
+        last_login: user.last_login,
+        role_id: user.role_id
+      },
+      meme_count: parseInt(memeCountResult.rows[0].meme_count),
+      total_votes: parseInt(totalVotesResult.rows[0].total_votes) || 0,
+      memes: memesResult.rows
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting user stats:', error);
+    res.status(500).json({ error: 'Failed to load user statistics. Please try again.' });
+  }
+});
+
+// Delete a user and all their content (admin only)
+app.delete('/users/:id', authorize(['admin']), async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { id } = req.params;
+    
+    // Don't allow admins to delete themselves
+    if (req.user.id === parseInt(id)) {
+      return res.status(400).json({ error: 'You cannot delete your own account' });
+    }
+    
+    // Start transaction
+    await client.query('BEGIN');
+    
+    // Check if user exists
+    const userCheck = await client.query('SELECT * FROM users WHERE id = $1', [id]);
+    
+    if (userCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Get all meme ids by this user to delete their files
+    const memesResult = await client.query('SELECT id, image_url FROM memes WHERE user_id = $1', [id]);
+    const memeIds = memesResult.rows.map(meme => meme.id);
+    
+    // Delete comments on memes by this user
+    if (memeIds.length > 0) {
+      await client.query(
+        'DELETE FROM comments WHERE meme_id = ANY($1::int[])', 
+        [memeIds]
+      );
+    }
+    
+    // Delete votes on this user's memes
+    if (memeIds.length > 0) {
+      await client.query(
+        'DELETE FROM user_votes WHERE meme_id = ANY($1::int[])', 
+        [memeIds]
+      );
+    }
+    
+    // Delete all comments by this user
+    await client.query('DELETE FROM comments WHERE user_id = $1', [id]);
+    
+    // Delete all votes by this user
+    await client.query('DELETE FROM user_votes WHERE user_id = $1', [id]);
+    
+    // Delete all memes by this user
+    await client.query('DELETE FROM memes WHERE user_id = $1', [id]);
+    
+    // Delete the user
+    await client.query('DELETE FROM users WHERE id = $1', [id]);
+    
+    // Delete user's meme image files
+    memesResult.rows.forEach(meme => {
+      if (meme.image_url) {
+        const filePath = path.join(__dirname, meme.image_url);
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (err) {
+          console.error(`Error deleting file ${filePath}:`, err);
+        }
+      }
+    });
+    
+    // Commit transaction
+    await client.query('COMMIT');
+    
+    res.json({ message: 'User and all associated content successfully deleted' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Use HTTP server with WebSocket support
+server.listen(port, () => {
+  console.log(`Server running on port ${port} with WebSocket support`);
   
   // Test database connection at startup
   pool.query('SELECT NOW()', (err, res) => {

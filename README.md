@@ -61,152 +61,104 @@ For Gmail, you'll need to:
 ## Deployment Guide
 
 ### Prerequisites
-- A domain name (e.g., bossme.me)
-- Web server (Nginx or Apache)
-- PostgreSQL database server
-- Node.js and npm
-- SSL certificate (recommended for production)
+- AWS Account
+- Domain name (bossme.me)
+- AWS Lightsail instance ($10 plan recommended)
+- AWS SES configured for email
 
 ### Deployment Steps
 
-1. **Update Google OAuth Configuration**:
-   - Go to the [Google Cloud Console](https://console.cloud.google.com/)
-   - Navigate to APIs & Services > Credentials
-   - Update the authorized JavaScript origins and redirect URIs:
-     - Add your production domain (https://bossme.me)
-     - Add the callback URL (https://bossme.me/auth/google/callback)
-
-2. **Prepare Environment Variables**:
-   - Create `.env` file based on `.env.example`
-   - Update for production:
-     ```
-     # Database settings
-     DB_USER=postgres
-     DB_PASSWORD=your_secure_password
-     DB_HOST=localhost
-     DB_PORT=5432
-     DB_NAME=meme_db
-     PORT=1337
-
-     # Production URLs
-     REACT_APP_API_BASE_URL=https://api.bossme.me  # or https://bossme.me/api
-     REACT_APP_CLIENT_BASE_URL=https://bossme.me
-     CLIENT_BASE_URL=https://bossme.me
-     PRODUCTION_CLIENT_URL=https://bossme.me
-
-     # Google OAuth
-     REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id
-     REACT_APP_GOOGLE_CLIENT_SECRET=your_google_client_secret
-     ```
-
-3. **Build the Frontend**:
-   ```
-   npm run build
-   ```
+1. **Prepare Your Application**
+   ```bash
+   # Make the deployment script executable
+   chmod +x deploy.sh
    
-4. **Set Up Web Server**:
-   
-   Example Nginx configuration for both frontend and API:
-   ```
-   # Frontend - bossme.me
-   server {
-       listen 80;
-       server_name bossme.me www.bossme.me;
-       
-       # Redirect to HTTPS
-       return 301 https://$host$request_uri;
-   }
-   
-   server {
-       listen 443 ssl;
-       server_name bossme.me www.bossme.me;
-       
-       ssl_certificate /path/to/certificate.crt;
-       ssl_certificate_key /path/to/certificate.key;
-       
-       root /var/www/bossme/build;
-       index index.html;
-       
-       # Always serve index.html for any non-API request
-       location / {
-           try_files $uri $uri/ /index.html;
-       }
-       
-       # Proxy API requests to the Node.js server
-       location /api/ {
-           proxy_pass http://localhost:1337/;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
-           proxy_set_header Host $host;
-           proxy_cache_bypass $http_upgrade;
-       }
-       
-       # Serve uploaded files
-       location /uploads/ {
-           alias /var/www/bossme/server/uploads/;
-           add_header Access-Control-Allow-Origin *;
-       }
-   }
-   
-   # API subdomain - api.bossme.me
-   server {
-       listen 80;
-       server_name api.bossme.me;
-       
-       # Redirect to HTTPS
-       return 301 https://$host$request_uri;
-   }
-   
-   server {
-       listen 443 ssl;
-       server_name api.bossme.me;
-       
-       ssl_certificate /path/to/certificate.crt;
-       ssl_certificate_key /path/to/certificate.key;
-       
-       location / {
-           proxy_pass http://localhost:1337;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
-           proxy_set_header Host $host;
-           proxy_cache_bypass $http_upgrade;
-       }
-   }
+   # Run the deployment script
+   ./deploy.sh
    ```
 
-5. **Start Backend Server with PM2** (keeps it running):
-   ```
-   npm install -g pm2
-   cd server
-   pm2 start server.js --name meme-api
-   pm2 save
-   pm2 startup
+2. **Set Up AWS Lightsail Instance**
+   - Create a new instance with Ubuntu
+   - Choose the $10 plan (1 GB RAM, 2 vCPUs, 40 GB SSD)
+   - Select your preferred region
+   - Choose Ubuntu 20.04 LTS
+   - Create instance
+
+3. **Configure Your Instance**
+   ```bash
+   # Connect to your instance
+   ssh -i your-key.pem ubuntu@your-instance-ip
+
+   # Update system
+   sudo apt update && sudo apt upgrade -y
+
+   # Install Node.js
+   curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+   sudo apt install -y nodejs
+
+   # Install PostgreSQL
+   sudo apt install -y postgresql postgresql-contrib
+
+   # Create database and user
+   sudo -u postgres psql
+   CREATE DATABASE meme_db;
+   CREATE USER your_production_db_user WITH PASSWORD 'your_secure_production_password';
+   GRANT ALL PRIVILEGES ON DATABASE meme_db TO your_production_db_user;
+   \q
+
+   # Create application directory
+   mkdir -p /home/ubuntu/bossme
    ```
 
-6. **Database Backup Strategy** (recommended):
-   ```
-   # Create a backup script (backup.sh)
-   #!/bin/bash
-   DB_NAME="meme_db"
-   BACKUP_DIR="/var/backups/postgres"
-   DATE=$(date +%Y-%m-%d_%H-%M-%S)
-   
-   mkdir -p $BACKUP_DIR
-   pg_dump $DB_NAME > $BACKUP_DIR/$DB_NAME-$DATE.sql
-   
-   # Keep only the last 7 backups
-   ls -t $BACKUP_DIR/*.sql | tail -n +8 | xargs rm -f
+4. **Deploy Your Application**
+   ```bash
+   # From your local machine, upload the deployment package
+   scp -i your-key.pem -r deploy/* ubuntu@your-instance-ip:/home/ubuntu/bossme/
+
+   # On the instance, set up the service
+   sudo mv /home/ubuntu/bossme/bossme.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable bossme
+   sudo systemctl start bossme
    ```
 
-7. **File Uploads**:
-   - Ensure the `uploads` directory exists and has proper permissions:
+5. **Configure Domain**
+   - Go to your domain registrar
+   - Add an A record pointing to your Lightsail instance IP
+   - Add a CNAME record for www subdomain
+   - Wait for DNS propagation (can take up to 48 hours)
+
+6. **Set Up SSL**
+   ```bash
+   # Install Certbot
+   sudo apt install -y certbot python3-certbot-nginx
+
+   # Get SSL certificate
+   sudo certbot --nginx -d bossme.me -d www.bossme.me
    ```
-   mkdir -p /var/www/bossme/server/uploads
-   chown -R www-data:www-data /var/www/bossme/server/uploads
-   chmod -R 755 /var/www/bossme/server/uploads
+
+7. **Monitor Your Application**
+   ```bash
+   # Check application status
+   sudo systemctl status bossme
+
+   # View logs
+   sudo journalctl -u bossme -f
    ```
+
+### Environment Variables
+Make sure to update the following in your `.env.production`:
+- Database credentials
+- Google OAuth credentials
+- AWS SES credentials
+- JWT and session secrets
+- Domain settings
+
+### Maintenance
+- Regular backups of the database
+- Monitor disk space and memory usage
+- Keep Node.js and npm packages updated
+- Monitor error logs
 
 ## Troubleshooting
 

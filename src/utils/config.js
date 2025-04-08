@@ -2,10 +2,23 @@
 export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:1337';
 export const CLIENT_BASE_URL = process.env.REACT_APP_CLIENT_BASE_URL || 'http://localhost:1338';
 
+// Use same HTTP port for WebSocket to avoid firewall issues
+// This should work even if actual WebSocket connections are blocked
+const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+const wsBaseURL = API_BASE_URL.replace(/^https?:\/\//, `${wsProtocol}://`);
+export const WS_URL = `${wsBaseURL}/ws`;
+
+// Fallback HTTP polling URL for environments where WebSockets are blocked
+export const POLLING_URL = `${API_BASE_URL}/api/updates`;
+
 export const API_ENDPOINTS = {
   // Base endpoints
   memes: `${API_BASE_URL}/memes`,
   users: `${API_BASE_URL}/users`,
+  
+  // WebSocket endpoint with polling fallback
+  websocket: WS_URL,
+  polling: POLLING_URL,
   
   // Meme-related endpoints
   getMeme: (id) => `${API_BASE_URL}/memes/${id}`,

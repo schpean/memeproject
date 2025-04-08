@@ -3,44 +3,51 @@
 }
 
 .login-button {
-  background-color: #ff5722;
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--primary-color) !important;
+  color: white !important;
   border: none;
   border-radius: 4px;
-  padding: 8px 16px;
+  padding: 0.6rem 1.2rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px var(--shadow-color) !important;
 }
 
 .login-button:hover {
-  background-color: #e64a19;
+  background-color: var(--primary-dark) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px var(--shadow-color) !important;
 }
 
 .user-profile {
   display: flex;
   align-items: center;
+  padding: 0.5rem;
   cursor: pointer;
-  padding: 5px 10px;
-  border-radius: 20px;
+  border-radius: 4px;
   transition: background-color 0.2s;
 }
 
 .user-profile:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-light) !important;
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 2rem;
+  height: 2rem;
   border-radius: 50%;
   object-fit: cover;
-  margin-right: 8px;
+  margin-right: 0.5rem;
+  border: 2px solid var(--border-light) !important;
 }
 
 .user-name {
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  color: var(--text-dark) !important;
   max-width: 120px;
   white-space: nowrap;
   overflow: hidden;
@@ -50,13 +57,13 @@
 /* Dropdown User Menu (replaces modal overlay) */
 .user-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 0.5rem);
   right: 0;
-  background: white;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  background-color: var(--bg-white) !important;
   border-radius: 8px;
-  min-width: 200px;
-  z-index: 100;
+  width: 220px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  z-index: 1000;
   overflow: hidden;
   animation: dropdown-fade 0.2s ease-in-out;
 }
@@ -69,35 +76,35 @@
 .dropdown-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: 0.75rem 1rem;
+  color: var(--text-dark) !important;
   text-decoration: none;
-  color: #333;
-  font-size: 14px;
+  width: 100%;
   border: none;
   background: none;
-  width: 100%;
   text-align: left;
   cursor: pointer;
+  font-size: 0.9rem;
   transition: background-color 0.2s;
 }
 
 .dropdown-item:hover {
-  background-color: #f5f5f5;
+  background-color: var(--bg-light) !important;
 }
 
 /* Verification alert styles */
 .verification-alert {
-  padding: 12px 16px;
-  background-color: #fff3e0;
-  border-left: 3px solid #ff9800;
-  margin-bottom: 8px;
+  background-color: rgba(255, 87, 34, 0.1);
+  border-radius: 4px;
+  margin: 0.75rem;
+  padding: 0.75rem;
+  border-left: 3px solid var(--primary-color);
 }
 
 .verification-alert p {
-  margin: 0 0 10px 0;
-  color: #e65100;
-  font-size: 14px;
-  font-weight: 500;
+  color: var(--text-dark);
+  margin: 0 0 0.5rem;
+  font-weight: 600;
 }
 
 .verification-buttons {
@@ -107,23 +114,23 @@
 }
 
 .verification-link {
-  color: #2196f3;
-  background-color: rgba(33, 150, 243, 0.1);
+  color: var(--secondary-color);
+  background-color: rgba(108, 92, 231, 0.1);
   text-align: center;
 }
 
 .verification-link:hover {
-  background-color: rgba(33, 150, 243, 0.2);
+  background-color: rgba(108, 92, 231, 0.2);
 }
 
 .resend-link {
-  color: #ff5722;
-  background-color: rgba(255, 87, 34, 0.1);
+  color: var(--primary-color);
+  background-color: rgba(255, 68, 68, 0.1);
   text-align: center;
 }
 
 .resend-link:hover {
-  background-color: rgba(255, 87, 34, 0.2);
+  background-color: rgba(255, 68, 68, 0.2);
 }
 
 @media (max-width: 768px) {
@@ -442,6 +449,8 @@
   font-size: 14px;
   font-weight: 600;
   transition: all 0.2s ease;
+  color: white !important;
+  background-color: var(--primary-color) !important;
 }
 
 .auth-button .auth-icon {
@@ -450,7 +459,6 @@
 
 .auth-icon {
   margin-right: 0.5rem;
-  font-size: 1rem;
 }
 
 /* Modal Overlay */

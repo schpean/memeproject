@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoginButton from '../auth/LoginButton';
 import './Header.css';
-import { FaUserCircle, FaAngleDown } from 'react-icons/fa';
+import { FaAngleDown } from 'react-icons/fa';
+import { getAvatarUrl } from '../../utils/avatarUtils';
+import NicknameModal from '../auth/NicknameModal';
 
 function Header() {
   const { currentUser, isAdmin, isModerator } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [animateLogo, setAnimateLogo] = useState(false);
   const menuRef = useRef(null);
   
   // Close menu when clicking outside
@@ -24,13 +28,33 @@ function Header() {
     };
   }, []);
   
+  // Animate logo on page load
+  useEffect(() => {
+    // Add a small delay to make the animation more noticeable
+    const timer = setTimeout(() => {
+      setAnimateLogo(true);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
   const toggleMenu = () => setMenuOpen(!menuOpen);
+  
+  const openNicknameModal = () => {
+    setShowNicknameModal(true);
+    setMenuOpen(false);
+  };
   
   return (
     <header className="header">
       <div className="container">
         <Link to="/" className="logo">
-          bossme.me
+          <div className="logo-container">
+            <span className="logo-text">boss</span>
+            <span className="logo-text">me</span>
+            <span className="logo-dot">.</span>
+            <span className={`logo-me ${animateLogo ? 'animate' : ''}`}>me</span>
+          </div>
         </Link>
         <div className="header-right">
           <nav className="main-nav">
@@ -44,21 +68,27 @@ function Header() {
             {currentUser ? (
               <div className="user-menu-container" ref={menuRef}>
                 <button className="user-menu-button" onClick={toggleMenu}>
-                  <FaUserCircle className="user-icon" />
+                  <img 
+                    src={getAvatarUrl(currentUser.username, currentUser.photoURL)} 
+                    alt={currentUser.username} 
+                    className="user-icon" 
+                  />
                   <span className="username">{currentUser.username || currentUser.displayName}</span>
                   <FaAngleDown className={`dropdown-icon ${menuOpen ? 'open' : ''}`} />
                 </button>
                 
                 {menuOpen && (
                   <div className="user-dropdown-menu">
-                    <div className="user-info">
-                      <FaUserCircle className="user-avatar" />
-                      <div className="user-details">
-                        <span className="user-name">{currentUser.displayName}</span>
-                      </div>
-                    </div>
-                    
                     <div className="menu-items">
+                      {!currentUser.nickname_changed && (
+                        <button 
+                          className="menu-item nickname-link" 
+                          onClick={openNicknameModal}
+                        >
+                          Change Nickname
+                        </button>
+                      )}
+                      
                       {(isAdmin || isModerator) && (
                         <Link to="/pending" className="menu-item pending-link" onClick={toggleMenu}>
                           Pending Approval
@@ -71,9 +101,15 @@ function Header() {
                         </Link>
                       )}
                       
-                      <LoginButton className="menu-item logout-item" />
+                      <LoginButton className="menu-item logout-item" hideUsername={true} />
                     </div>
                   </div>
+                )}
+                
+                {showNicknameModal && (
+                  <NicknameModal 
+                    onClose={() => setShowNicknameModal(false)}
+                  />
                 )}
               </div>
             ) : (

@@ -4,6 +4,7 @@
   padding: 10px 0;
   border-bottom: 1px solid #edeff1;
   position: relative;
+  align-items: flex-start;
 }
 
 .reddit-comment:last-child {
@@ -13,45 +14,60 @@
 /* Voting section */
 .comment-vote {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 32px;
-  margin-right: 10px;
-}
-
-.upvote-button,
-.downvote-button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 2px;
-  font-size: 12px;
-  color: #8a8d91;
-  display: flex;
   align-items: center;
   justify-content: center;
+  margin-right: 10px;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background-color: transparent;
+  border: 1px solid #e6e6e6;
+  transition: all 0.2s ease;
+  margin-top: 2px;
+  cursor: pointer;
+  padding: 0 6px;
+  gap: 2px; /* Smaller gap between icon and count */
+}
+
+.comment-vote:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-color: #d4d4d4;
+}
+
+.comment-vote:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.comment-vote.voted {
+  border-color: rgba(255, 69, 0, 0.2);
+  background-color: rgba(255, 69, 0, 0.05);
+}
+
+.comment-vote .upvote-icon {
+  font-size: 11px;
+  color: #8a8d91;
   transition: color 0.2s ease;
 }
 
-.upvote-button:hover,
-.downvote-button:hover {
-  color: #1a1a1b;
+.comment-vote:hover .upvote-icon {
+  color: #ff4500;
 }
 
-.upvote-button.voted {
+.comment-vote.voted .upvote-icon {
   color: #ff4500;
 }
 
 /* Hot comment (50+ votes) styles */
-.upvote-button.hot {
+.comment-vote.hot .upvote-icon {
   color: #f97316;
 }
 
-.upvote-button.hot.voted {
+.comment-vote.hot.voted .upvote-icon {
   color: #ef4444;
 }
 
-.upvote-button.hot svg {
+.comment-vote.hot .upvote-icon {
   filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.4));
   animation: flame 2s infinite alternate;
 }
@@ -65,18 +81,6 @@
     transform: scale(1.15);
     filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.7));
   }
-}
-
-.downvote-button.active {
-  color: #7193ff;
-}
-
-.vote-count {
-  font-size: 11px;
-  font-weight: 600;
-  margin: 2px 0;
-  color: #1a1a1b;
-  text-align: center;
 }
 
 /* Comment content */
@@ -111,6 +115,7 @@
   justify-content: center;
 }
 
+/* Comment header with improved alignment */
 .comment-header {
   display: flex;
   align-items: center;
@@ -214,9 +219,10 @@
 /* Reply form */
 .reply-form {
   margin-top: 8px;
-  background-color: #f6f7f8;
+  background-color: transparent;
   border-radius: 4px;
   padding: 8px;
+  border: 1px solid #edeff1;
 }
 
 .reply-form textarea {
@@ -246,26 +252,26 @@
 
 .reply-actions button {
   padding: 4px 10px;
+  border: 1px solid #edeff1;
   border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .reply-actions button[type="button"] {
   background-color: transparent;
-  border: 1px solid #edeff1;
   color: #878a8c;
 }
 
 .reply-actions button[type="button"]:hover {
-  background-color: #f6f7f8;
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .submit-reply {
   background-color: #0079d3;
   color: white;
-  border: none;
+  font-weight: 600;
 }
 
 .submit-reply:hover {
