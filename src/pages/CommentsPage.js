@@ -4,9 +4,9 @@ import AuthContext from '../contexts/AuthContext';
 import { memeApi, commentApi } from '../api/api';
 import CommentSection from '../components/comments/CommentSection';
 import { notify } from '../components/common/Notification';
-import { getAvatarUrl } from '../utils/avatarUtils';
+import { formatCount } from '../utils/format';
 import './styles/CommentsPage.css';
-import { FaArrowUp, FaShare } from 'react-icons/fa';
+import { FaArrowUp, FaShare, FaArrowLeft } from 'react-icons/fa';
 
 // Accept optional memeId prop, but still use params if not provided
 const CommentsPage = ({ memeId: propMemeId }) => {
@@ -23,26 +23,40 @@ const CommentsPage = ({ memeId: propMemeId }) => {
 
   // Fetch meme and its comments
   useEffect(() => {
+    let isMounted = true;
     const fetchMemeData = async () => {
       try {
         setLoading(true);
         const memeData = await memeApi.getMemeById(id);
+        
+        // Prevent state updates if component unmounted
+        if (!isMounted) return;
         setMeme(memeData);
         
         // Fetch comments after getting meme
         const commentsData = await commentApi.getComments(id);
+        if (!isMounted) return;
         setComments(commentsData);
         
         setError(null);
       } catch (error) {
         console.error('Error loading meme data:', error);
-        setError('Failed to load the meme. Please try again later.');
+        if (isMounted) {
+          setError('Failed to load the meme. Please try again later.');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMemeData();
+    
+    // Cleanup function to prevent state updates if component unmounts
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   // Handle voting
@@ -52,14 +66,13 @@ const CommentsPage = ({ memeId: propMemeId }) => {
       return;
     }
 
+    if (!meme || !meme.id) {
+      console.error('Cannot vote: meme data is not available');
+      return;
+    }
+
     try {
       const isUpvoted = hasUpvoted(meme.id);
-      
-      // Don't show alert when already voted, just handle silently
-      if (isUpvoted) {
-        console.log('User has already upvoted this meme, attempting to remove vote');
-      }
-      
       const updatedMeme = await memeApi.upvoteMeme(meme.id, isUpvoted);
       setMeme(updatedMeme);
       
@@ -78,18 +91,13 @@ const CommentsPage = ({ memeId: propMemeId }) => {
           alert('Please log in to upvote memes');
         } else if (error.response.status === 404) {
           alert('This meme cannot be found');
-        } else if (hasUpvoted(meme.id)) {
-          // Silently handle unvote errors
-          console.log('Unvote error handled silently');
-        } else {
+        } else if (!hasUpvoted(meme.id)) {
           // Only show alerts for upvote errors
           alert('Unable to upvote. Please try again later.');
         }
-      } else {
+      } else if (!hasUpvoted(meme.id)) {
         // Only show alerts for network errors when trying to upvote
-        if (!hasUpvoted(meme.id)) {
-          alert('Network error. Please check your connection and try again.');
-        }
+        alert('Network error. Please check your connection and try again.');
       }
     }
   };
@@ -108,12 +116,10 @@ const CommentsPage = ({ memeId: propMemeId }) => {
       textArea.style.top = '-999999px';
       document.body.appendChild(textArea);
       
-      notify(`Share this link: ${shareUrl}`, 'info');
-      
-      textArea.focus();
-      textArea.select();
-      
       try {
+        textArea.focus();
+        textArea.select();
+        
         // Use document.execCommand as fallback
         const successful = document.execCommand('copy');
         if (successful) {
@@ -127,9 +133,9 @@ const CommentsPage = ({ memeId: propMemeId }) => {
         console.error('Fallback clipboard copy failed:', err);
         // Only show alert if execCommand throws an error
         alert(`Copy this link to share: ${shareUrl}`);
+      } finally {
+        document.body.removeChild(textArea);
       }
-      
-      document.body.removeChild(textArea);
     };
     
     // Try the Clipboard API first (modern browsers in secure context)
@@ -138,14 +144,14 @@ const CommentsPage = ({ memeId: propMemeId }) => {
         .then(() => {
           notify('Link copied to clipboard!', 'success');
         })
-        .catch(err => {
-          console.error('Clipboard API failed:', err);
+        .catch(() => {
           // Fall back to the manual method
+          notify(`Share this link: ${shareUrl}`, 'info');
           showShareNotification();
         });
     } else {
       // Fallback for browsers without Clipboard API support
-      console.log('Clipboard API not available, using fallback');
+      notify(`Share this link: ${shareUrl}`, 'info');
       showShareNotification();
     }
   };
@@ -197,6 +203,18 @@ const CommentsPage = ({ memeId: propMemeId }) => {
     return imageUrl || '/placeholder-meme.jpg';
   };
 
+  const renderVoteButton = () => (
+    <button 
+      className={`vote-button ${hasUpvoted(meme?.id) ? 'voted' : ''}`} 
+      onClick={handleVote}
+      disabled={!currentUser}
+      title={!currentUser ? 'Log in to upvote' : hasUpvoted(meme?.id) ? 'Click to remove upvote' : 'Upvote'}
+    >
+      <FaArrowUp className="icon" />
+      <span className="vote-count">{formatCount(meme?.votes || 0)}</span>
+    </button>
+  );
+
   if (loading) {
     return (
       <div className="comments-page loading">
@@ -230,15 +248,7 @@ const CommentsPage = ({ memeId: propMemeId }) => {
       <div className="meme-detail">
         <div className="meme-header">
           <div className="votes-sidebar">
-            <button 
-              className={`vote-button ${hasUpvoted(meme.id) ? 'voted' : ''} ${!currentUser ? 'disabled' : ''}`} 
-              onClick={handleVote}
-              disabled={hasUpvoted(meme.id) || !currentUser}
-              title={!currentUser ? 'Log in to upvote' : hasUpvoted(meme.id) ? 'Already upvoted' : 'Upvote'}
-            >
-              <FaArrowUp className="icon" />
-            </button>
-            <span className="vote-count">{meme.votes || 0}</span>
+            {renderVoteButton()}
           </div>
           
           <div className="meme-info">
@@ -273,14 +283,24 @@ const CommentsPage = ({ memeId: propMemeId }) => {
         </div>
         
         <div className="meme-actions">
-          <button 
-            className="share-button" 
-            onClick={handleShare}
-            title="Share this meme"
-          >
-            <FaShare className="icon" />
-            <span>Share</span>
-          </button>
+          <div className="meme-actions-left">
+            {renderVoteButton()}
+          </div>
+          
+          <div className="meme-actions-center">
+            {/* Center content - could be a comment count */}
+          </div>
+          
+          <div className="meme-actions-right">
+            <button 
+              className="share-button" 
+              onClick={handleShare}
+              title="Share this meme"
+            >
+              <FaShare className="icon" />
+              <span>Share</span>
+            </button>
+          </div>
         </div>
       </div>
       
@@ -288,9 +308,9 @@ const CommentsPage = ({ memeId: propMemeId }) => {
       <CommentSection memeId={meme.id} initialComments={comments} />
       
       <div className="navigation-links">
-        <Link to="/browse" className="back-link">Back to Browse</Link>
-        <Link to={`/company/${meme.company}`} className="company-link">
-          More from {meme.company}
+        <Link to="/browse" className="back-link">
+          <FaArrowLeft className="back-icon" />
+          <span>Browse</span>
         </Link>
       </div>
     </div>

@@ -1,7 +1,9 @@
 .header {
   background-color: var(--bg-white) !important;
   box-shadow: 0 2px 4px var(--shadow-color) !important;
-  padding: 1rem 0;
+  padding: 0.6rem 0; 
+  position: relative;
+  z-index: 10;
 }
 
 .header .container {
@@ -14,15 +16,65 @@
 }
 
 .logo {
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
-  color: var(--primary-color) !important;
+  color: #ad8b73 !important;
   text-decoration: none;
   transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  position: relative;
+  letter-spacing: 0.2px;
+  z-index: 15;
 }
 
 .logo:hover {
   opacity: 0.8;
+}
+
+/* Logo animation styling */
+.logo-container {
+  display: flex;
+  align-items: baseline;
+  position: relative;
+  height: 1.5rem;
+  z-index: 15;
+}
+
+.logo-text {
+  display: inline-block;
+}
+
+.logo-dot {
+  display: inline-block;
+  position: relative;
+  transform-origin: center;
+  z-index: 2;
+  margin: 0 1px;
+  line-height: 1.5;
+  margin-bottom: -1px;
+}
+
+.logo-me {
+  display: inline-block;
+  position: relative;
+  transform-origin: 0 70%;
+  transition: transform 0.6s cubic-bezier(0.68, -0.85, 0.27, 20.55);
+  margin-left: 2 px;
+}
+
+/* When animating, add a strong inertia effect */
+@keyframes logo-bounce {
+  0% { transform: rotate(0deg) translateY(0); }
+  40% { transform: rotate(130deg) translateY(0); } /* Swing much further to the left */
+  65% { transform: rotate(70deg) translateY(0); }  /* Swing back right */
+  80% { transform: rotate(105deg) translateY(0); } /* Swing left again */
+  90% { transform: rotate(85deg) translateY(0); }  /* Slight bounce right */
+  100% { transform: rotate(90deg) translateY(0); } /* Settle at 90 degrees */
+}
+
+.logo-me.animate {
+  animation: logo-bounce 1.2s cubic-bezier(0.22, 0.68, 0.32, 1.65) forwards;
 }
 
 .header-right {
@@ -45,9 +97,9 @@
   color: var(--text-dark) !important;
   text-decoration: none;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   transition: all 0.2s;
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.9rem;
   border-radius: 4px;
   background-color: var(--bg-white) !important;
   box-shadow: 0 1px 3px var(--shadow-color) !important;
@@ -112,7 +164,15 @@
 }
 
 .auth-section {
-  margin-left: 1.5rem;
+  margin-left: 1.2rem;
+  display: flex;
+  align-items: center;
+  height: 2.2rem; /* Fixed height to maintain consistent spacing */
+}
+
+.auth-section .login-button {
+  margin: 0;
+  height: 100%;
   display: flex;
   align-items: center;
 }
@@ -127,7 +187,7 @@
   border: none;
   display: flex;
   align-items: center;
-  padding: 0.4rem;
+  padding: 0.3rem;
   cursor: pointer;
   color: var(--text-dark);
   font-weight: 500;
@@ -141,8 +201,8 @@
 }
 
 .user-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.3rem;
+  height: 1.3rem;
   margin-right: 0.2rem;
   border-radius: 50%;
 }

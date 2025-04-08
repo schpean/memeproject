@@ -11,6 +11,7 @@ function Header() {
   const { currentUser, isAdmin, isModerator } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [animateLogo, setAnimateLogo] = useState(false);
   const menuRef = useRef(null);
   
   // Close menu when clicking outside
@@ -27,6 +28,16 @@ function Header() {
     };
   }, []);
   
+  // Animate logo on page load
+  useEffect(() => {
+    // Add a small delay to make the animation more noticeable
+    const timer = setTimeout(() => {
+      setAnimateLogo(true);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
   const toggleMenu = () => setMenuOpen(!menuOpen);
   
   const openNicknameModal = () => {
@@ -38,7 +49,12 @@ function Header() {
     <header className="header">
       <div className="container">
         <Link to="/" className="logo">
-          bossme.me
+          <div className="logo-container">
+            <span className="logo-text">boss</span>
+            <span className="logo-text">me</span>
+            <span className="logo-dot">.</span>
+            <span className={`logo-me ${animateLogo ? 'animate' : ''}`}>me</span>
+          </div>
         </Link>
         <div className="header-right">
           <nav className="main-nav">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaArrowUp, FaReply, FaUser, FaFire } from 'react-icons/fa';
 import './styles/Comment.css';
 import { getDicebearAvatarUrl } from '../../utils/avatarUtils';
+import { formatCount } from '../../utils/format';
 
 // Function to format dates like "4h ago", "3h ago", etc.
 const formatTimeAgo = (dateString) => {
@@ -141,18 +142,16 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
 
   return (
     <div className={`reddit-comment ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="comment-vote">
-        <button 
-          className={`upvote-button ${hasUserUpvoted ? 'voted' : ''} ${voteCount >= 50 ? 'hot' : ''}`}
-          onClick={handleUpvote}
-          disabled={!currentUser || isVoting}
-          aria-label={hasUserUpvoted ? "Remove upvote" : "Upvote"}
-          title={hasUserUpvoted ? "Click to remove upvote" : "Upvote"}
-        >
-          {voteCount >= 50 ? <FaFire /> : <FaArrowUp />}
-        </button>
-        <span className="vote-count">{voteCount}</span>
-      </div>
+      <button 
+        className={`comment-vote ${hasUserUpvoted ? 'voted' : ''} ${voteCount >= 50 ? 'hot' : ''}`}
+        onClick={handleUpvote}
+        disabled={!currentUser || isVoting}
+        aria-label={hasUserUpvoted ? "Remove upvote" : "Upvote"}
+        title={hasUserUpvoted ? "Click to remove upvote" : "Upvote"}
+      >
+        {voteCount >= 50 ? <FaFire className="upvote-icon" /> : <FaArrowUp className="upvote-icon" />}
+        <span className="vote-count">{formatCount(voteCount)}</span>
+      </button>
       
       <div className="comment-content">
         <div className="comment-header">

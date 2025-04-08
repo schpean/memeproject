@@ -9,9 +9,94 @@ const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const emailService = require('./email');
 const config = require('./config');
+const WebSocket = require('ws');
+const http = require('http');
 
 const app = express();
 const port = config.port;
+
+// Create an HTTP server instance
+const server = http.createServer(app);
+
+// Create a WebSocket server
+const wss = new WebSocket.Server({ server });
+
+// WebSocket connection handling
+wss.on('connection', (ws) => {
+  console.log('Client connected to WebSocket');
+  
+  // Send a welcome message
+  ws.send(JSON.stringify({ type: 'connection', message: 'Connected to WebSocket server' }));
+  
+  // Handle messages from clients
+  ws.on('message', (message) => {
+    console.log('Received message:', message);
+    
+    // Parse the message (assuming JSON)
+    try {
+      const parsedMessage = JSON.parse(message);
+      
+      // Handle different message types (if needed)
+      if (parsedMessage.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+      }
+    } catch (error) {
+      console.error('Error parsing WebSocket message:', error);
+    }
+  });
+  
+  // Handle disconnection
+  ws.on('close', () => {
+    console.log('Client disconnected from WebSocket');
+  });
+});
+
+// Function to broadcast to all connected clients
+const broadcastMessage = (type, data) => {
+  const message = JSON.stringify({ type, data });
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+  
+  // Also store the message in the updates queue for polling clients
+  addToUpdatesQueue({ type, data });
+};
+
+// Store recent updates for polling clients
+const updatesQueue = [];
+const MAX_UPDATES = 100; // Keep last 100 updates
+
+const addToUpdatesQueue = (update) => {
+  // Add timestamp to the update
+  const timestampedUpdate = {
+    ...update,
+    timestamp: Date.now()
+  };
+  
+  // Add to queue and trim if necessary
+  updatesQueue.push(timestampedUpdate);
+  if (updatesQueue.length > MAX_UPDATES) {
+    updatesQueue.shift(); // Remove oldest update
+  }
+};
+
+// Add an HTTP polling endpoint for environments where WebSockets are blocked
+app.get('/api/updates', (req, res) => {
+  // Get the last timestamp from the client
+  const lastTimestamp = parseInt(req.query.since || '0');
+  
+  // Filter updates newer than the provided timestamp
+  const newUpdates = updatesQueue.filter(update => update.timestamp > lastTimestamp);
+  
+  // Return the updates and the current server timestamp
+  res.json({
+    updates: newUpdates,
+    timestamp: Date.now(),
+    message: 'Using HTTP polling fallback instead of WebSockets'
+  });
+});
 
 // Custom CORS middleware to handle credentials properly
 const corsMiddleware = (req, res, next) => {
@@ -143,11 +228,17 @@ const authorize = (roles = []) => {
 // Get all memes or filter by company or city
 app.get('/memes', async (req, res) => {
   try {
+    // Fix future dates before proceeding with the query
+    await fixAllFutureDates();
+    
     // Get all memes or filter by company or city
     let conditions = [];
     let params = [];
     
-    const { company, city } = req.query;
+    const { company, city, time, sort } = req.query;
+    
+    // Log the filter parameters for debugging
+    console.log(`Request for memes with filters: time=${time || 'all'}, sort=${sort || 'recent'}`);
     
     if (company) {
       conditions.push(`company = $${params.length + 1}`);
@@ -157,6 +248,39 @@ app.get('/memes', async (req, res) => {
     if (city) {
       conditions.push(`city = $${params.length + 1}`);
       params.push(city);
+    }
+    
+    // Time filtering on the server side with improved date handling
+    const now = new Date();
+    console.log(`Current server time: ${now.toISOString()}`);
+    
+    // Always ensure we don't show future memes
+    conditions.push(`created_at <= $${params.length + 1}`);
+    params.push(now.toISOString());
+    
+    if (time) {
+      if (time === 'now') {
+        // Last hour
+        const hourAgo = new Date(now);
+        hourAgo.setHours(hourAgo.getHours() - 1);
+        conditions.push(`created_at >= $${params.length + 1}`);
+        params.push(hourAgo.toISOString());
+        console.log(`Time filter: now (${hourAgo.toISOString()})`);
+      } else if (time === 'today') {
+        // Today
+        const today = new Date(now);
+        today.setHours(0, 0, 0, 0);
+        conditions.push(`created_at >= $${params.length + 1}`);
+        params.push(today.toISOString());
+        console.log(`Time filter: today (${today.toISOString()})`);
+      } else if (time === 'week') {
+        // Last week
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        conditions.push(`created_at >= $${params.length + 1}`);
+        params.push(weekAgo.toISOString());
+        console.log(`Time filter: week (${weekAgo.toISOString()})`);
+      }
     }
     
     // Only show approved memes by default for regular users
@@ -189,10 +313,33 @@ app.get('/memes', async (req, res) => {
     // Build the WHERE clause if we have conditions
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     
+    // Determine sorting order with improved stability (add id to sort for consistent results)
+    let orderClause = 'ORDER BY created_at DESC, id DESC';
+    if (sort === 'upvoted') {
+      orderClause = 'ORDER BY votes DESC, created_at DESC, id DESC';
+    } else if (sort === 'commented') {
+      // We don't have comment count in the database, so we'll sort by created_at as fallback
+      orderClause = 'ORDER BY created_at DESC, id DESC';
+    }
+    
+    console.log(`Query: SELECT * FROM memes ${whereClause} ${orderClause}`);
+    console.log('Params:', params);
+    
     const result = await pool.query(
-      `SELECT * FROM memes ${whereClause} ORDER BY created_at DESC`,
+      `SELECT * FROM memes ${whereClause} ${orderClause}`,
       params
     );
+    
+    console.log(`Found ${result.rows.length} memes matching the criteria`);
+    
+    // For debugging, log some sample dates
+    if (result.rows.length > 0) {
+      console.log('Sample meme dates:');
+      for (let i = 0; i < Math.min(3, result.rows.length); i++) {
+        const meme = result.rows[i];
+        console.log(`- Meme ${meme.id}: ${meme.created_at}, Votes: ${meme.votes || 0}`);
+      }
+    }
     
     res.json(result.rows);
   } catch (error) {
@@ -200,6 +347,46 @@ app.get('/memes', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Immediately fix all future dates in the database
+async function fixAllFutureDates() {
+  const client = await pool.connect();
+  try {
+    const now = new Date();
+    console.log(`Checking for future dates (current time: ${now.toISOString()})...`);
+    
+    // Find and fix memes with future dates
+    const result = await client.query(
+      `UPDATE memes SET created_at = $1 WHERE created_at > $1 RETURNING id, created_at`,
+      [now.toISOString()]
+    );
+    
+    if (result.rows.length > 0) {
+      console.log(`Fixed ${result.rows.length} memes with future dates:`);
+      result.rows.forEach(meme => {
+        console.log(`- Fixed meme ${meme.id}: set to ${now.toISOString()}`);
+      });
+    }
+    
+    return result.rows.length;
+  } catch (error) {
+    console.error('Error fixing future dates:', error);
+    return 0;
+  } finally {
+    client.release();
+  }
+}
+
+// Run the fix on startup
+(async function() {
+  try {
+    console.log('Running startup check for future dates...');
+    const fixedCount = await fixAllFutureDates();
+    console.log(`Startup check complete. Fixed ${fixedCount} memes with future dates.`);
+  } catch (error) {
+    console.error('Error during startup date fix:', error);
+  }
+})();
 
 // Get pending memes for approval (admin and moderator only)
 app.get('/memes/pending', authorize(['admin', 'moderator']), async (req, res) => {
@@ -247,14 +434,13 @@ app.put('/memes/:id/approval', authorize(['admin', 'moderator']), async (req, re
 // Create a new meme with simplified fields
 app.post('/memes', upload.single('image'), async (req, res) => {
   try {
-    const { company, city, country, message, userId, username } = req.body;
+    const { company, city, message, userId, username } = req.body;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : req.body.image_url;
     
     console.log('---DETAILED MEME REQUEST INFO---');
     console.log('- Full request body:', req.body);
     console.log('- Company:', company);
     console.log('- City:', city);
-    console.log('- Country:', country);
     console.log('- Has image:', !!req.file);
     console.log('- Image URL:', imageUrl);
     console.log('- Message:', message);
@@ -305,7 +491,6 @@ app.post('/memes', upload.single('image'), async (req, res) => {
     console.log('Inserting meme into database with parameters:');
     console.log('- Company:', company);
     console.log('- City:', city);
-    console.log('- Country:', country || 'Romania');
     console.log('- Image URL:', imageUrl);
     console.log('- Message:', message || null);
     console.log('- User ID:', userIdInt);
@@ -332,11 +517,10 @@ app.post('/memes', upload.single('image'), async (req, res) => {
       
       // Try to insert the meme
       const result = await pool.query(
-        'INSERT INTO memes (company, city, country, image_url, message, user_id, username, approval_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        'INSERT INTO memes (company, city, image_url, message, user_id, username, approval_status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
         [
           company || '', 
           city || '', 
-          country || 'Romania', // Always provide a fallback value for country
           imageUrl || '', 
           message || null, 
           userIdInt, 
@@ -345,6 +529,13 @@ app.post('/memes', upload.single('image'), async (req, res) => {
         ]
       );
       console.log('Meme creation successful, returning result');
+      
+      // Broadcast the new meme to all connected clients
+      if (result.rows.length > 0) {
+        const newMeme = result.rows[0];
+        broadcastMessage('newMeme', newMeme);
+      }
+      
       res.status(201).json(result.rows[0]);
     } catch (dbError) {
       console.error('Database error while creating meme:', dbError);
@@ -387,12 +578,10 @@ app.post('/memes', upload.single('image'), async (req, res) => {
           // Retry the insert
           console.log('Retrying meme creation...');
           const retryResult = await pool.query(
-            'INSERT INTO memes (company, city, country, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            'INSERT INTO memes (company, city, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [
               company || '', 
               city || '', 
-              country || 'Romania', // Always provide a fallback value for country
-              country || 'Romania', 
               imageUrl || '', 
               message || null, 
               userIdInt, 
@@ -425,7 +614,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
           // Retry the insert with default country value
           console.log('Retrying meme creation with default country...');
           const retryResult = await pool.query(
-            'INSERT INTO memes (company, city, country, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            'INSERT INTO memes (company, city, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [
               company || '', 
               city || '', 
@@ -517,6 +706,10 @@ app.post('/memes/:id/vote', async (req, res) => {
         }
         
         await client.query('COMMIT');
+        
+        // Broadcast the updated meme
+        broadcastMessage('memeUpdated', result.rows[0]);
+        
         res.json(result.rows[0]);
       } else {
         // User wants to remove upvote (downvote)
@@ -543,6 +736,10 @@ app.post('/memes/:id/vote', async (req, res) => {
         }
         
         await client.query('COMMIT');
+        
+        // Broadcast the updated meme
+        broadcastMessage('memeUpdated', result.rows[0]);
+        
         res.json(result.rows[0]);
       }
     } catch (error) {
@@ -694,7 +891,7 @@ const fixMissingColumns = async () => {
       await client.query(`ALTER TABLE memes ADD COLUMN city TEXT DEFAULT 'Unknown'`);
       console.log('✅ Added city column to memes table');
     }
-
+    
     // Check if the company column exists
     const companyColumnCheck = await client.query(`
       SELECT EXISTS (
@@ -709,26 +906,6 @@ const fixMissingColumns = async () => {
       await client.query(`ALTER TABLE memes ADD COLUMN company TEXT DEFAULT 'Unknown'`);
       console.log('✅ Added company column to memes table');
     }
-    
-    // Check if the country column exists
-    const countryColumnCheck = await client.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_name = 'memes' AND column_name = 'country'
-      );
-    `);
-    
-    // Add country column if it doesn't exist
-    if (!countryColumnCheck.rows[0].exists) {
-      console.log('❌ Missing column "country" in memes table, adding it now...');
-      await client.query(`ALTER TABLE memes ADD COLUMN country TEXT DEFAULT 'Romania'`);
-      console.log('✅ Added country column to memes table');
-    }
-    
-    // Always ensure country column allows NULL values and has default value
-    await client.query(`ALTER TABLE memes ALTER COLUMN country DROP NOT NULL`);
-    await client.query(`ALTER TABLE memes ALTER COLUMN country SET DEFAULT 'Romania'`);
-    console.log('✅ Made country column nullable with default value "Romania"');
     
     // Check if the approval_status column exists
     const approvalStatusColumnCheck = await client.query(`
@@ -806,7 +983,7 @@ const setupMemeTable = async () => {
     `);
     
     if (!tableCheck.rows[0].exists) {
-      // Create memes table
+      // Create memes table - Removed country column
       await client.query(`
         CREATE TABLE memes (
           id SERIAL PRIMARY KEY,
@@ -2037,8 +2214,9 @@ app.delete('/users/:id', authorize(['admin']), async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Use HTTP server with WebSocket support
+server.listen(port, () => {
+  console.log(`Server running on port ${port} with WebSocket support`);
   
   // Test database connection at startup
   pool.query('SELECT NOW()', (err, res) => {

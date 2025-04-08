@@ -4,6 +4,7 @@ import AuthContext from '../../contexts/AuthContext';
 import { memeApi, commentApi } from '../../api/api';
 import { API_BASE_URL } from '../../utils/config';
 import { notify } from '../common/Notification';
+import { formatCount } from '../../utils/format';
 import './styles/MemeCard.css';
 import { FaComment, FaArrowUp, FaShare, FaHourglassHalf, FaCheck, FaTimes, FaEllipsisH } from 'react-icons/fa';
 
@@ -298,53 +299,59 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
       </Link>
       
       <div className="meme-actions">
-        <button 
-          className={`vote-button ${hasUpvoted(meme.id) ? 'voted' : ''} ${!currentUser ? 'disabled' : ''}`} 
-          onClick={handleVote}
-          disabled={loading || !currentUser}
-          title={!currentUser ? 'Log in to upvote' : hasUpvoted(meme.id) ? 'Click to remove upvote' : 'Upvote'}
-        >
-          <FaArrowUp className="icon" />
-          <span className="vote-count">{meme.votes || 0}</span>
-        </button>
+        <div className="meme-actions-left">
+          <button 
+            className={`vote-button ${hasUpvoted(meme.id) ? 'voted' : ''} ${!currentUser ? 'disabled' : ''}`} 
+            onClick={handleVote}
+            disabled={loading || !currentUser}
+            title={!currentUser ? 'Log in to upvote' : hasUpvoted(meme.id) ? 'Click to remove upvote' : 'Upvote'}
+          >
+            <FaArrowUp className="icon" />
+            <span className="vote-count">{formatCount(meme.votes || 0)}</span>
+          </button>
+        </div>
         
-        <Link to={`/meme/${meme.id}`} className="comment-button">
-          <FaComment className="icon" />
-          <span>Comments{!fetchError && commentCount > 0 ? ` (${commentCount})` : ''}</span>
-        </Link>
+        <div className="meme-actions-center">
+          <Link to={`/meme/${meme.id}`} className="comment-button">
+            <FaComment className="icon" />
+            <span>Comments{!fetchError && commentCount > 0 ? ` (${commentCount})` : ''}</span>
+          </Link>
+        </div>
         
-        <button 
-          className="share-button" 
-          onClick={handleShare}
-          title="Share this meme"
-        >
-          <FaShare className="icon" />
-          <span>Share</span>
-        </button>
-        
-        {showApprovalStatus && (isAdmin || isModerator) && meme.approval_status === 'pending' && (
-          <>
-            <button 
-              className="approve-button" 
-              onClick={(e) => handleApprove(e, 'approved')}
-              disabled={loading}
-              title="Approve this meme"
-            >
-              <FaCheck className="icon" />
-              <span>Approve</span>
-            </button>
-            
-            <button 
-              className="reject-button" 
-              onClick={(e) => handleApprove(e, 'rejected')}
-              disabled={loading}
-              title="Reject this meme"
-            >
-              <FaTimes className="icon" />
-              <span>Reject</span>
-            </button>
-          </>
-        )}
+        <div className="meme-actions-right">
+          <button 
+            className="share-button" 
+            onClick={handleShare}
+            title="Share this meme"
+          >
+            <FaShare className="icon" />
+            <span>Share</span>
+          </button>
+          
+          {showApprovalStatus && (isAdmin || isModerator) && meme.approval_status === 'pending' && (
+            <>
+              <button 
+                className="approve-button" 
+                onClick={(e) => handleApprove(e, 'approved')}
+                disabled={loading}
+                title="Approve this meme"
+              >
+                <FaCheck className="icon" />
+                <span>Approve</span>
+              </button>
+              
+              <button 
+                className="reject-button" 
+                onClick={(e) => handleApprove(e, 'rejected')}
+                disabled={loading}
+                title="Reject this meme"
+              >
+                <FaTimes className="icon" />
+                <span>Reject</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

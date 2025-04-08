@@ -15,13 +15,13 @@ const Howto = () => {
   
   // Form state for required fields
   const [formData, setFormData] = useState({
-    company: '',
-    city: '',
-    country: 'Romania' // Default country value
+    company: 'bossme.me', // Set bossme.me as default
+    city: 'N/A' // Set N/A as default city since bossme.me is the default company
   });
 
   // Predefined options for dropdowns
   const companyOptions = [
+    'bossme.me', // Add bossme.me as the first option
     'Adobe',
     'Amazon',
     'Apple',
@@ -53,6 +53,15 @@ const Howto = () => {
       ...prevData,
       [name]: value
     }));
+    
+    // If changing company to bossme.me, set city to a default value
+    if (name === 'company' && value === 'bossme.me') {
+      setFormData(prevData => ({
+        ...prevData,
+        [name]: value,
+        city: 'N/A' // Set a default value for city when bossme.me is selected
+      }));
+    }
   };
 
   const handleFileChange = (event) => {
@@ -96,13 +105,18 @@ const Howto = () => {
 
   // Validate all required fields are filled
   const validateForm = () => {
-    const requiredFields = ['company', 'city', 'country'];
-    for (const field of requiredFields) {
-      if (!formData[field]) {
-        setError(`Please select a ${field}.`);
-        return false;
-      }
+    // Check if company is provided
+    if (!formData.company) {
+      setError('Please select a company.');
+      return false;
     }
+    
+    // If company is not bossme.me, require city
+    if (formData.company !== 'bossme.me' && !formData.city) {
+      setError('Please select a city.');
+      return false;
+    }
+    
     return true;
   };
 
@@ -241,9 +255,8 @@ const Howto = () => {
       setFile(null);
       setImageUrl('');
       setFormData({
-        company: '',
-        city: '',
-        country: 'Romania'
+        company: 'bossme.me',
+        city: 'N/A'
       });
       setMessage('');
       
@@ -384,42 +397,37 @@ const Howto = () => {
             value={formData.company}
             onChange={handleFormChange}
           >
-            <option value="">Select a company</option>
             {companyOptions.map(company => (
-              <option key={company} value={company}>{company}</option>
+              <option key={company} value={company} className={company === 'bossme.me' ? 'bossme-option' : ''}>
+                {company === 'bossme.me' ? 'bossme.me' : company}
+              </option>
             ))}
           </select>
+          {formData.company === 'bossme.me' && (
+            <div className="bossme-description">
+              <em>memes that don't fit any company</em>
+            </div>
+          )}
         </div>
         
-        <div className="form-group">
-          <label htmlFor="city"><FaCity /> City</label>
-          <select
-            id="city"
-            name="city"
-            className="form-select"
-            value={formData.city}
-            onChange={handleFormChange}
-          >
-            <option value="">Select a city</option>
-            {cityOptions.map(city => (
-              <option key={city} value={city}>{city}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="country"><FaCity /> Country</label>
-          <select
-            id="country"
-            name="country"
-            className="form-select"
-            value={formData.country}
-            onChange={handleFormChange}
-          >
-            <option value="Romania">Romania</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
+        {/* Only show city field if bossme.me is not selected */}
+        {formData.company !== 'bossme.me' && (
+          <div className="form-group">
+            <label htmlFor="city"><FaCity /> City</label>
+            <select
+              id="city"
+              name="city"
+              className="form-select"
+              value={formData.city}
+              onChange={handleFormChange}
+            >
+              <option value="">Select a city</option>
+              {cityOptions.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          </div>
+        )}
         
         <div className="form-group">
           <label htmlFor="message"><FaComment /> Message (optional)</label>

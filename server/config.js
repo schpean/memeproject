@@ -28,7 +28,8 @@ const corsConfig = {
     'http://bossme.me',         // Without port
     'https://bossme.me',        // Secure without port
     'http://192.168.0.104:1338', // Local IP address
-    'null' // For local file testing
+    'null', // For local file testing
+    'http://localhost:1338' // Explicitly add localhost:1338
   ].filter(Boolean),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,

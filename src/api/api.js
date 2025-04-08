@@ -20,12 +20,16 @@ const api = axios.create({
 api.interceptors.response.use(
   response => response,
   error => {
-    console.error('API Error:', error.message || 'Unknown error');
-    if (error.response) {
-      console.error('Error response:', {
-        status: error.response.status,
-        data: error.response.data
-      });
+    // Avoid logging 401s for authentication routes as they're expected
+    const isAuthRoute = error.config?.url?.includes('/auth/');
+    if (!isAuthRoute || error.response?.status !== 401) {
+      console.error('API Error:', error.message || 'Unknown error');
+      if (error.response) {
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
     }
     return Promise.reject(error);
   }
@@ -38,7 +42,34 @@ api.interceptors.request.use(config => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-});
+}, error => Promise.reject(error));
+
+// Helper function to parse user data from localStorage
+const getCurrentUser = () => {
+  try {
+    const userString = localStorage.getItem('memeUser');
+    if (!userString) return null;
+    
+    const user = JSON.parse(userString);
+    if (!user || !user.uid) return null;
+    
+    return user;
+  } catch (error) {
+    console.error('Error parsing user data:', error);
+    return null;
+  }
+};
+
+// Helper function to safely parse array from localStorage
+const getSavedArray = (key, defaultValue = []) => {
+  try {
+    const savedData = localStorage.getItem(key);
+    return savedData ? JSON.parse(savedData) : defaultValue;
+  } catch (error) {
+    console.error(`Error parsing ${key} from localStorage:`, error);
+    return defaultValue;
+  }
+};
 
 // Meme-related API calls
 export const memeApi = {
@@ -55,6 +86,9 @@ export const memeApi = {
   
   // Get a single meme by ID
   getMemeById: async (id) => {
+    if (!id) {
+      throw new Error('Meme ID is required');
+    }
     try {
       const response = await api.get(`/memes/${id}`);
       return response.data;
@@ -66,6 +100,9 @@ export const memeApi = {
   
   // Create a new meme
   createMeme: async (memeData) => {
+    if (!memeData) {
+      throw new Error('Meme data is required');
+    }
     try {
       const response = await api.post('/memes', memeData);
       return response.data;
@@ -77,73 +114,50 @@ export const memeApi = {
   
   // Upvote a meme
   upvoteMeme: async (id, isUpvoted) => {
+    if (!id) {
+      throw new Error('Meme ID is required');
+    }
+    
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User not logged in');
+    }
+    
+    // Determine vote type based on current upvote status
+    const voteType = isUpvoted !== undefined 
+      ? (isUpvoted ? 'down' : 'up') 
+      : (getSavedArray('upvotedMemes').includes(Number(id)) || getSavedArray('upvotedMemes').includes(id) ? 'down' : 'up');
+    
     try {
-      // Get current user from localStorage
-      const userString = localStorage.getItem('memeUser');
-      if (!userString) {
-        throw new Error('User not logged in');
-      }
+      const response = await api.post(`/memes/${id}/vote`, { 
+        userId: user.uid,
+        voteType: voteType
+      });
       
-      const user = JSON.parse(userString);
-      const userId = user.uid;
-      
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-      
-      // If isUpvoted is passed, use it to determine vote type, otherwise check localStorage
-      let voteType;
-      if (isUpvoted !== undefined) {
-        voteType = isUpvoted ? 'down' : 'up';
-      } else {
-        // Check if meme is already upvoted (toggle functionality)
-        const upvotedMemes = JSON.parse(localStorage.getItem('upvotedMemes') || '[]');
-        voteType = upvotedMemes.includes(parseInt(id)) || upvotedMemes.includes(id) ? 'down' : 'up';
-      }
-      
-      try {
-        const response = await api.post(`/memes/${id}/vote`, { 
-          userId: userId,
-          voteType: voteType
-        });
-        
-        return response.data;
-      } catch (error) {
-        // Handle 400 errors gracefully
-        if (error.response && error.response.status === 400) {
-          console.log('Vote status error:', error.response.data.error);
-          
-          // If trying to upvote but already voted, return the meme with current votes
-          if (voteType === 'up' && error.response.data.error === 'You have already voted for this meme') {
-            // Update local storage to reflect server state
-            const upvotedMemes = JSON.parse(localStorage.getItem('upvotedMemes') || '[]');
-            if (!upvotedMemes.includes(id)) {
-              upvotedMemes.push(id);
-              localStorage.setItem('upvotedMemes', JSON.stringify(upvotedMemes));
-            }
-            
-            // Get the current meme data
-            const memeResponse = await api.get(`/memes/${id}`);
-            return memeResponse.data;
-          }
-          
-          // If trying to unvote but never voted, return the meme with current votes
-          if (voteType === 'down' && error.response.data.error === 'You have not voted for this meme yet') {
-            // Update local storage to reflect server state
-            const upvotedMemes = JSON.parse(localStorage.getItem('upvotedMemes') || '[]');
-            const updatedUpvotes = upvotedMemes.filter(memeId => memeId != id);
-            localStorage.setItem('upvotedMemes', JSON.stringify(updatedUpvotes));
-            
-            // Get the current meme data
-            const memeResponse = await api.get(`/memes/${id}`);
-            return memeResponse.data;
-          }
-        }
-        
-        // Re-throw other errors
-        throw error;
-      }
+      return response.data;
     } catch (error) {
+      // Handle known error cases
+      if (error.response?.status === 400) {
+        const errorMessage = error.response.data.error;
+        const isAlreadyVoted = errorMessage === 'You have already voted for this meme';
+        const isNeverVoted = errorMessage === 'You have not voted for this meme yet';
+        
+        if ((voteType === 'up' && isAlreadyVoted) || (voteType === 'down' && isNeverVoted)) {
+          // Update localStorage to match server state
+          const upvotedMemes = getSavedArray('upvotedMemes');
+          
+          if (voteType === 'up' && !upvotedMemes.includes(id)) {
+            localStorage.setItem('upvotedMemes', JSON.stringify([...upvotedMemes, id]));
+          } else if (voteType === 'down') {
+            localStorage.setItem('upvotedMemes', JSON.stringify(upvotedMemes.filter(memeId => memeId != id)));
+          }
+          
+          // Get current meme data
+          const memeResponse = await api.get(`/memes/${id}`);
+          return memeResponse.data;
+        }
+      }
+      
       console.error(`Error handling vote for meme ${id}:`, error);
       throw error;
     }
@@ -165,6 +179,9 @@ export const memeApi = {
 export const commentApi = {
   // Get comments for a meme
   getComments: async (memeId) => {
+    if (!memeId) {
+      throw new Error('Meme ID is required');
+    }
     try {
       const response = await api.get(`/memes/${memeId}/comments`);
       return response.data;
@@ -176,28 +193,26 @@ export const commentApi = {
   
   // Add a comment to a meme
   addComment: async (memeId, commentData) => {
+    if (!memeId) {
+      throw new Error('Meme ID is required');
+    }
+    if (!commentData) {
+      throw new Error('Comment data is required');
+    }
+    
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User not logged in');
+    }
+    
+    // Add userId and username to comment data
+    const enrichedCommentData = {
+      ...commentData,
+      userId: user.uid,
+      username: user.username || user.displayName || 'Anonymous'
+    };
+    
     try {
-      // Get current user from localStorage
-      const userString = localStorage.getItem('memeUser');
-      if (!userString) {
-        throw new Error('User not logged in');
-      }
-      
-      const user = JSON.parse(userString);
-      const userId = user.uid;
-      const username = user.username;
-      
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-      
-      // Add userId and username to comment data
-      const enrichedCommentData = {
-        ...commentData,
-        userId,
-        username
-      };
-      
       const response = await api.post(`/memes/${memeId}/comments`, enrichedCommentData);
       return response.data;
     } catch (error) {
@@ -206,57 +221,26 @@ export const commentApi = {
     }
   },
   
-  // Upvote a comment (toggle functionality)
-  upvoteComment: async (memeId, commentId, isUpvoted) => {
+  // Upvote a comment
+  upvoteComment: async (memeId, commentId, isRemovingVote = false) => {
+    if (!memeId || !commentId) {
+      throw new Error('Meme ID and Comment ID are required');
+    }
+    
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User not logged in');
+    }
+    
     try {
-      // Get current user from localStorage
-      const userString = localStorage.getItem('memeUser');
-      if (!userString) {
-        throw new Error('User not logged in');
-      }
-      
-      const user = JSON.parse(userString);
-      const userId = user.uid;
-      
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-      
-      // If isUpvoted is passed, use it to determine vote type, otherwise check localStorage
-      let voteType;
-      if (isUpvoted !== undefined) {
-        voteType = isUpvoted ? 'down' : 'up';
-      } else {
-        // Check if comment is already upvoted (toggle functionality)
-        const upvotedComments = JSON.parse(localStorage.getItem('upvotedComments') || '[]');
-        voteType = upvotedComments.includes(parseInt(commentId)) || upvotedComments.includes(commentId) ? 'down' : 'up';
-      }
-      
-      // Log what we're sending for debugging
-      console.log(`Voting ${voteType} on comment ${commentId} for meme ${memeId} with user ID ${userId}`);
-      
-      const response = await api.post(`/memes/${memeId}/comments/${commentId}/vote`, { 
-        userId: userId,
-        voteType: voteType 
+      const response = await api.post(`/memes/${memeId}/comments/${commentId}/vote`, {
+        userId: user.uid,
+        voteType: isRemovingVote ? 'down' : 'up'
       });
       
       return response.data;
     } catch (error) {
-      console.error(`Error voting on comment ${commentId}:`, error);
-      
-      // Only track up votes in storage
-      if (error.response && error.response.status === 400 && 
-          error.response.data && error.response.data.error === 'You have already voted for this comment') {
-        console.log('User already voted for this comment');
-        
-        // Add to local storage to prevent future attempts
-        const upvotedComments = JSON.parse(localStorage.getItem('upvotedComments') || '[]');
-        if (!upvotedComments.includes(commentId)) {
-          upvotedComments.push(commentId);
-          localStorage.setItem('upvotedComments', JSON.stringify(upvotedComments));
-        }
-      }
-      
+      console.error(`Error upvoting comment ${commentId} on meme ${memeId}:`, error);
       throw error;
     }
   }
@@ -265,9 +249,14 @@ export const commentApi = {
 // User-related API calls
 export const userApi = {
   // Get current user profile
-  getProfile: async () => {
+  getCurrentProfile: async () => {
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User not logged in');
+    }
+    
     try {
-      const response = await api.get('/users/profile');
+      const response = await api.get(`/users/${user.uid}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -275,92 +264,31 @@ export const userApi = {
     }
   },
   
-  // Update user profile
-  updateProfile: async (userData) => {
+  // Get all users (admin only)
+  getAllUsers: async () => {
     try {
-      const response = await api.put('/users/profile', userData);
+      const response = await api.get('/users');
       return response.data;
     } catch (error) {
-      console.error('Error updating user profile:', error);
+      console.error('Error fetching users:', error);
       throw error;
     }
   },
   
-  // Get user's upvoted memes
-  getUpvotedMemes: async () => {
-    try {
-      const response = await api.get('/users/upvoted');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching upvoted memes:', error);
-      throw error;
+  // Update user permissions (admin only)
+  updateUserPermissions: async (userId, permissions) => {
+    if (!userId) {
+      throw new Error('User ID is required');
     }
-  },
-  
-  // Update user nickname (can only be done once)
-  updateNickname: async (newNickname) => {
+    if (!permissions) {
+      throw new Error('Permissions data is required');
+    }
+    
     try {
-      // Get current user from localStorage
-      const userString = localStorage.getItem('memeUser');
-      if (!userString) {
-        throw new Error('User not logged in');
-      }
-      
-      const user = JSON.parse(userString);
-      const userId = user.uid;
-      
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-      
-      // Check if nickname has already been changed
-      if (user.nickname_changed) {
-        console.warn('Nickname already changed for this user');
-        throw new Error('You can only change your nickname once');
-      }
-      
-      let response;
-      try {
-        // First try with axios
-        response = await api.post(API_ENDPOINTS.updateNickname, {
-          userId: userId,
-          newNickname: newNickname
-        });
-      } catch (axiosError) {
-        console.error('Request failed, trying alternative method');
-        
-        // Fallback to fetch API if axios fails
-        const fetchResponse = await fetch(API_ENDPOINTS.updateNickname, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            userId: userId,
-            newNickname: newNickname
-          })
-        });
-        
-        if (!fetchResponse.ok) {
-          throw new Error(`Request failed with status: ${fetchResponse.status}`);
-        }
-        
-        response = { data: await fetchResponse.json() };
-      }
-      
-      // Update the user in localStorage with the new nickname
-      const updatedUser = {
-        ...user,
-        username: response.data.username,
-        displayName: response.data.display_name,
-        nickname_changed: true // Ensure this is set properly
-      };
-      
-      localStorage.setItem('memeUser', JSON.stringify(updatedUser));
-      
+      const response = await api.put(`/users/${userId}/permissions`, permissions);
       return response.data;
     } catch (error) {
-      console.error('Error updating nickname');
+      console.error(`Error updating permissions for user ${userId}:`, error);
       throw error;
     }
   }

@@ -13,11 +13,14 @@
   padding: 0.6rem 1.2rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px var(--shadow-color) !important;
 }
 
 .login-button:hover {
   background-color: var(--primary-dark) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px var(--shadow-color) !important;
 }
 
 .user-profile {
@@ -455,9 +458,7 @@
 }
 
 .auth-icon {
-  margin-right: 0.75rem;
-  font-size: 1rem;
-  color: var(--text-gray) !important;
+  margin-right: 0.5rem;
 }
 
 /* Modal Overlay */

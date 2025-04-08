@@ -6,6 +6,9 @@
   overflow: hidden;
   transition: box-shadow 0.3s;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
 }
 
 .meme-card:hover {
@@ -110,9 +113,27 @@
 
 .meme-actions {
   display: flex;
+  justify-content: space-between;
   padding: 0.4rem;
   border-top: 1px solid #f0f0f0;
   background-color: #f8f9fa;
+  margin-top: auto;
+}
+
+.meme-actions-left {
+  display: flex;
+  align-items: center;
+}
+
+.meme-actions-center {
+  display: flex;
+  align-items: center;
+}
+
+.meme-actions-right {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 /* Add compact mode styles */

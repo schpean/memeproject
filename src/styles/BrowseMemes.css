@@ -38,6 +38,13 @@ body {
   font-size: 1.4rem;
   margin: 0;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controls-header h2 svg {
+  color: var(--primary-color) !important;
 }
 
 .sort-control {
@@ -104,7 +111,7 @@ body {
   color: var(--primary-color) !important;
 }
 
-/* Company Filter Section */
+/* Enhanced Company Filter Section */
 .company-filter-section {
   padding-top: 0;
 }
@@ -169,11 +176,19 @@ body {
   background-color: var(--bg-light) !important;
 }
 
+.company-grid-container {
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  border-radius: 20px;
+  background-color: var(--bg-light) !important;
+  padding: 12px;
+  box-shadow: inset 0 0 8px var(--shadow-color);
+}
+
 .company-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 12px;
-  margin-bottom: 1.5rem;
 }
 
 .company-card {
@@ -184,11 +199,13 @@ body {
   cursor: pointer;
   transition: all 0.3s ease;
   border: 2px solid transparent;
-  min-height: 40px;
+  min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 4px var(--shadow-color);
+  position: relative;
+  overflow: hidden;
 }
 
 .company-card:hover {
@@ -212,6 +229,36 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 0 0.5rem;
+}
+
+.company-card.show-more {
+  background-color: var(--primary-color-light) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: bold;
+  color: var(--primary-color) !important;
+  border: 2px dashed var(--primary-color-light) !important;
+}
+
+.company-card.show-more:hover {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.company-card.show-more:hover .company-name {
+  color: white !important;
+}
+
+.company-card.show-more svg {
+  font-size: 0.8rem;
+  color: var(--primary-color);
+  transition: all 0.3s ease;
+}
+
+.company-card.show-more:hover svg {
+  color: white;
 }
 
 .selected-filter {
@@ -318,5 +365,148 @@ body {
   
   .browse-memes h1 {
     font-size: 1.5rem;
+  }
+}
+
+/* Compact company filter styling */
+.company-filter-section.compact {
+  padding-top: 0;
+}
+
+.company-grid-container {
+  margin-bottom: 1rem;
+  overflow: hidden;
+  border-radius: 20px;
+  background-color: var(--bg-light) !important;
+  padding: 8px 12px;
+  box-shadow: inset 0 0 8px var(--shadow-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.company-grid.single-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  flex: 1;
+}
+
+.company-nav {
+  background-color: var(--accent-color);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-dark);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+.company-nav:hover:not(:disabled) {
+  background-color: var(--accent-dark);
+  transform: translateY(-2px);
+}
+
+.company-nav:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-indicator {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-gray);
+  margin-bottom: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .company-grid.single-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .company-grid.single-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .company-nav {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Add styling for the bossme.me card */
+
+/* Special styling for bossme.me card */
+.company-card.bossme-card {
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--primary-color) 100%);
+  border: 2px solid var(--primary-color);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.company-card.bossme-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.company-card.bossme-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.3), transparent 70%);
+  pointer-events: none;
+}
+
+.company-card.bossme-card .company-name {
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.bossme-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Style when bossme.me is selected - lighter gradient */
+.company-card.bossme-card.selected {
+  background: linear-gradient(135deg, #d4a06c 0%, #ad8b73 100%);
+  box-shadow: 0 0 0 3px var(--primary-color), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Bossme.me description in selected filter */
+.bossme-description {
+  font-size: 0.85rem;
+  color: var(--text-gray);
+  margin-top: 5px;
+  font-style: italic;
+  max-width: 600px;
+}
+
+/* Responsive adjustment for selected filter with description */
+@media (max-width: 768px) {
+  .selected-filter {
+    padding-bottom: 1.2rem;
+  }
+  
+  .bossme-description {
+    margin-bottom: 8px;
   }
 } 
