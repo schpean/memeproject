@@ -1,6 +1,11 @@
 // Configuration settings for the application
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:1337';
-export const CLIENT_BASE_URL = process.env.REACT_APP_CLIENT_BASE_URL || 'http://localhost:1338';
+export const API_BASE_URL = process.env.NODE_ENV === 'production'
+    ? (process.env.REACT_APP_API_BASE_URL || 'https://bossme.me')
+    : (process.env.REACT_APP_API_BASE_URL || 'http://localhost:1337');
+
+export const CLIENT_BASE_URL = process.env.NODE_ENV === 'production'
+    ? (process.env.REACT_APP_CLIENT_BASE_URL || 'https://bossme.me')
+    : (process.env.REACT_APP_CLIENT_BASE_URL || 'http://localhost:1337');
 
 // Use same HTTP port for WebSocket to avoid firewall issues
 // This should work even if actual WebSocket connections are blocked

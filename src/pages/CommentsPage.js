@@ -190,7 +190,9 @@ const CommentsPage = ({ memeId: propMemeId }) => {
     // Handle server-relative URLs (those starting with /uploads/)
     if (imageUrl && imageUrl.startsWith('/uploads/')) {
       // Get base URL from environment or use default
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:1337';
+      const apiBaseUrl = process.env.NODE_ENV === 'production'
+        ? (process.env.REACT_APP_API_BASE_URL || 'https://bossme.me')
+        : (process.env.REACT_APP_API_BASE_URL || 'http://localhost:1337');
       return `${apiBaseUrl}${imageUrl}`;
     }
     

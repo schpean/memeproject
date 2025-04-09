@@ -229,7 +229,7 @@ export const AuthProvider = ({ children }) => {
             };
             
             // Send Google data to our server for JWT and account creation/verification
-            const serverLoginResponse = await fetch(`${API_ENDPOINTS.auth}/google`, {
+            const serverLoginResponse = await fetch(`${API_ENDPOINTS.googleAuth}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'

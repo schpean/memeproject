@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  app:
+    image: yourusername/memewebsite:latest
+    ports:
+      - "1337:1337"
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=ubuntu
+      - DB_PASSWORD=iMenTABlexpr
+      - DB_NAME=meme_db
+      - PORT=1337
+      # Local development URLs (comment these and uncomment production URLs when deploying)
+      - REACT_APP_API_BASE_URL=http://localhost:1337
+      - REACT_APP_CLIENT_BASE_URL=http://localhost:1337
+      - CLIENT_BASE_URL=http://localhost:1337
+      # Production URLs (uncomment these and comment out local URLs when deploying)
+      # - REACT_APP_API_BASE_URL=https://bossme.me
+      # - REACT_APP_CLIENT_BASE_URL=https://bossme.me
+      # - CLIENT_BASE_URL=https://bossme.me
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=ubuntu
+      - POSTGRES_PASSWORD=iMenTABlexpr
+      - POSTGRES_DB=meme_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ubuntu -d meme_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data: 

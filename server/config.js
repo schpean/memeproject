@@ -19,17 +19,18 @@ const googleConfig = {
 // CORS configuration
 const corsConfig = {
   allowedOrigins: [
-    process.env.CLIENT_BASE_URL || 'http://localhost:1338',
-    'http://localhost:3000',  // React dev server
+    process.env.CLIENT_BASE_URL || 'https://bossme.me',
+    process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : null,  // React dev server
+    process.env.NODE_ENV === 'development' ? 'http://localhost:1337' : null,  // Local development
     process.env.PRODUCTION_CLIENT_URL,  // Add your production URL when deploying
-    'http://86.120.25.207:1338', // Add IP-based access explicitly
-    'http://bossme.me:1338',    // Add domain-based access
-    'https://bossme.me:1338',   // Secure version
+    'http://86.120.25.207:1337', // Add IP-based access explicitly
+    'http://bossme.me:1337',    // Add domain-based access
+    'https://bossme.me:1337',   // Secure version
     'http://bossme.me',         // Without port
     'https://bossme.me',        // Secure without port
-    'http://192.168.0.104:1338', // Local IP address
+    'http://192.168.0.104:1337', // Local IP address
     'null', // For local file testing
-    'http://localhost:1338' // Explicitly add localhost:1338
+    'http://localhost:1337' // Explicitly add localhost:1337
   ].filter(Boolean),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
@@ -50,7 +51,7 @@ const emailConfig = {
 
 // Server URLs
 const urls = {
-  client: process.env.CLIENT_BASE_URL || 'http://localhost:1338',
+  client: process.env.CLIENT_BASE_URL || 'https://bossme.me',
   production: process.env.PRODUCTION_CLIENT_URL
 };
 
