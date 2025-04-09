@@ -1,16 +1,18 @@
 // Configuration settings for the application
 // Use a function to determine the API URL based on the client's origin
-function getApiBaseUrl() {
-  // If we're running from 192.168.0.104, use the corresponding server
-  if (window.location.hostname === '192.168.0.104') {
-    return 'http://86.120.25.207:1337';
+export const getApiBaseUrl = () => {
+  // For production
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.REACT_APP_API_BASE_URL || 'https://bossme.me';
   }
-  // For localhost or other domains
+  // For development
   return process.env.REACT_APP_API_BASE_URL || 'http://localhost:1337';
-}
+};
 
 export const API_BASE_URL = getApiBaseUrl();
-export const CLIENT_BASE_URL = process.env.REACT_APP_CLIENT_BASE_URL || 'http://localhost:1338';
+export const CLIENT_BASE_URL = process.env.NODE_ENV === 'production' 
+    ? (process.env.REACT_APP_CLIENT_BASE_URL || 'https://bossme.me')
+    : (process.env.REACT_APP_CLIENT_BASE_URL || 'http://localhost:1337');
 
 // Create WebSocket URL from the API base URL
 const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Workflow Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .warning {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Docker Workflow Guide</h1>
+    
+    <div class="section">
+        <h2>Table of Contents</h2>
+        <ol>
+            <li><a href="#prerequisites">Prerequisites</a></li>
+            <li><a href="#local-dev">Local Development</a></li>
+            <li><a href="#deployment">Deployment Process</a></li>
+            <li><a href="#nginx-config">Nginx Configuration</a></li>
+            <li><a href="#ssl-config">SSL Configuration</a></li>
+            <li><a href="#versioning">Version Control</a></li>
+            <li><a href="#maintenance">Maintenance</a></li>
+            <li><a href="#troubleshooting">Troubleshooting</a></li>
+        </ol>
+    </div>
+
+    <div id="prerequisites" class="section">
+        <h2>1. Prerequisites</h2>
+        <ul>
+            <li>Docker installed on your local machine</li>
+            <li>Docker Hub account (or other Docker registry)</li>
+            <li>AWS EC2 instance with Docker installed</li>
+        </ul>
+    </div>
+
+    <div id="local-dev" class="section">
+        <h2>2. Local Development</h2>
+        
+        <h3>2.1 Build the Image</h3>
+        <pre>
+# Build the image locally
+docker build -t yourusername/memewebsite:latest .
+        </pre>
+
+        <h3>2.2 Test Locally</h3>
+        <pre>
+# Start the containers
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+        </pre>
+
+        <h3>2.3 Local Environment</h3>
+        <ul>
+            <li>Web interface: <code>http://localhost:1337</code></li>
+            <li>API endpoints: <code>http://localhost:1337/api/*</code></li>
+            <li>WebSocket: <code>ws://localhost:1337/ws</code></li>
+        </ul>
+
+        <div class="note">
+            <strong>Note:</strong> Local development uses the following configuration:
+            <pre>
+REACT_APP_API_BASE_URL=http://localhost:1337
+REACT_APP_CLIENT_BASE_URL=http://localhost:1337
+CLIENT_BASE_URL=http://localhost:1337
+            </pre>
+        </div>
+    </div>
+
+    <div id="deployment" class="section">
+        <h2>3. Deployment Process</h2>
+
+        <h3>3.1 Push to Docker Hub</h3>
+        <pre>
+# Login to Docker Hub
+docker login
+
+# Push your image
+docker push yourusername/memewebsite:latest
+        </pre>
+
+        <h3>3.2 EC2 Instance Setup</h3>
+        <pre>
+# SSH into your EC2 instance
+ssh -i your-key.pem ubuntu@your-ec2-ip
+
+# Install Docker and Docker Compose
+sudo apt update
+sudo apt install -y docker.io docker-compose
+sudo usermod -aG docker ubuntu
+newgrp docker
+        </pre>
+
+        <h3>3.3 Deploy to EC2</h3>
+        <pre>
+# Pull the latest image
+docker pull yourusername/memewebsite:latest
+
+# Start the containers
+docker-compose up -d
+        </pre>
+
+        <div class="warning">
+            <strong>Important:</strong> Make sure to update the environment variables in docker-compose.yml for production:
+            <pre>
+REACT_APP_API_BASE_URL=https://bossme.me
+REACT_APP_CLIENT_BASE_URL=https://bossme.me
+CLIENT_BASE_URL=https://bossme.me
+            </pre>
+        </div>
+    </div>
+
+    <div id="nginx-config" class="section">
+        <h2>4. Nginx Configuration</h2>
+
+        <h3>4.1 Why Nginx is Required</h3>
+        <p>Nginx serves several crucial purposes in your deployment:</p>
+        <ul>
+            <li><strong>SSL Termination:</strong> Handles SSL/TLS encryption, relieving your application from certificate management</li>
+            <li><strong>Reverse Proxy:</strong> Routes traffic to your Docker containers while hiding internal architecture</li>
+            <li><strong>Performance:</strong> Optimized for serving static content and handling concurrent connections</li>
+            <li><strong>Security:</strong> Provides an additional security layer between the internet and your application</li>
+        </ul>
+
+        <h3>4.2 Install Nginx</h3>
+        <pre>
+# Install Nginx
+sudo apt update
+sudo apt install -y nginx
+
+# Check Nginx status
+sudo systemctl status nginx
+        </pre>
+
+        <h3>4.3 Basic Nginx Configuration</h3>
+        <pre>
+# Create a new configuration file
+sudo nano /etc/nginx/sites-available/bossme.me
+        </pre>
+
+        <p>Add the following configuration:</p>
+        <pre>
+server {
+    listen 80;
+    server_name bossme.me www.bossme.me;
+
+    # Logging
+    access_log /var/log/nginx/bossme.access.log;
+    error_log /var/log/nginx/bossme.error.log;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Content-Type-Options "nosniff";
+
+    # Proxy settings
+    location / {
+        proxy_pass http://localhost:1337;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Static file caching
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+}
+        </pre>
+
+        <h3>4.4 Enable the Site</h3>
+        <pre>
+# Create symbolic link
+sudo ln -s /etc/nginx/sites-available/bossme.me /etc/nginx/sites-enabled/
+
+# Test configuration
+sudo nginx -t
+
+# Restart Nginx
+sudo systemctl restart nginx
+        </pre>
+
+        <h3>4.5 Performance Tuning</h3>
+        <p>Edit the main Nginx configuration:</p>
+        <pre>
+sudo nano /etc/nginx/nginx.conf
+        </pre>
+
+        <p>Add these optimizations:</p>
+        <pre>
+# Worker processes
+worker_processes auto;
+
+# Event settings
+events {
+    worker_connections 1024;
+    multi_accept on;
+    use epoll;
+}
+
+# HTTP settings
+http {
+    # Basic settings
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    # Buffer size settings
+    client_body_buffer_size 10K;
+    client_header_buffer_size 1k;
+    client_max_body_size 8m;
+    large_client_header_buffers 2 1k;
+
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+}
+        </pre>
+
+        <div class="note">
+            <strong>Note:</strong> After making changes to Nginx configuration, always test it with <code>sudo nginx -t</code> before restarting.
+        </div>
+
+        <div class="warning">
+            <strong>Security Considerations:</strong>
+            <ul>
+                <li>Keep Nginx updated to the latest version</li>
+                <li>Regularly review and update security headers</li>
+                <li>Monitor Nginx logs for suspicious activity</li>
+                <li>Consider implementing rate limiting for API endpoints</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="ssl-config" class="section">
+        <h2>5. SSL Configuration with Certbot</h2>
+
+        <h3>5.1 Install Certbot</h3>
+        <pre>
+# Install Certbot and Nginx plugin
+sudo apt update
+sudo apt install -y certbot python3-certbot-nginx
+        </pre>
+
+        <h3>5.2 Configure Nginx as Reverse Proxy</h3>
+        <pre>
+# Install Nginx
+sudo apt install -y nginx
+
+# Create Nginx configuration
+sudo nano /etc/nginx/sites-available/bossme.me
+        </pre>
+
+        <p>Add the following configuration:</p>
+        <pre>
+server {
+    listen 80;
+    server_name bossme.me www.bossme.me;
+
+    location / {
+        proxy_pass http://localhost:1337;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+        </pre>
+
+        <h3>5.3 Enable the Site and Obtain SSL Certificate</h3>
+        <pre>
+# Enable the site
+sudo ln -s /etc/nginx/sites-available/bossme.me /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+# Obtain SSL certificate
+sudo certbot --nginx -d bossme.me -d www.bossme.me
+        </pre>
+
+        <h3>5.4 Update Docker Compose for SSL</h3>
+        <p>Modify your docker-compose.yml to work with Nginx:</p>
+        <pre>
+version: '3.8'
+services:
+  app:
+    image: yourusername/memewebsite:latest
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=1337
+      - REACT_APP_API_BASE_URL=https://bossme.me
+      - REACT_APP_CLIENT_BASE_URL=https://bossme.me
+      - CLIENT_BASE_URL=https://bossme.me
+    networks:
+      - app-network
+    # Remove port mapping as Nginx will handle it
+    # ports:
+    #   - "1337:1337"
+
+  postgres:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=ubuntu
+      - POSTGRES_PASSWORD=your_password
+      - POSTGRES_DB=meme_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ubuntu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+        </pre>
+
+        <h3>5.5 Auto-renewal of SSL Certificates</h3>
+        <pre>
+# Test auto-renewal
+sudo certbot renew --dry-run
+
+# Add to crontab for automatic renewal
+sudo crontab -e
+        </pre>
+
+        <p>Add this line to run renewal twice daily:</p>
+        <pre>
+0 0,12 * * * certbot renew --quiet
+        </pre>
+
+        <div class="note">
+            <strong>Note:</strong> Make sure your domain's DNS records point to your EC2 instance's IP address.
+        </div>
+
+        <div class="warning">
+            <strong>Security Notes:</strong>
+            <ul>
+                <li>Always use HTTPS in production</li>
+                <li>Keep your SSL certificates up to date</li>
+                <li>Configure your EC2 security group to allow traffic on ports 80 and 443</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="versioning" class="section">
+        <h2>6. Version Control with Docker Tags</h2>
+        <pre>
+# Build with version tag
+docker build -t yourusername/memewebsite:v1.0.0 .
+
+# Push versioned image
+docker push yourusername/memewebsite:v1.0.0
+        </pre>
+
+        <div class="note">
+            <strong>Note:</strong> Use specific version tags in production instead of 'latest' for better stability.
+        </div>
+    </div>
+
+    <div id="maintenance" class="section">
+        <h2>7. Maintenance</h2>
+
+        <h3>7.1 View Logs</h3>
+        <pre>
+# View all logs
+docker-compose logs -f
+
+# View specific service logs
+docker-compose logs -f app
+docker-compose logs -f postgres
+        </pre>
+
+        <h3>7.2 Restart Services</h3>
+        <pre>
+# Restart all services
+docker-compose restart
+
+# Restart specific service
+docker-compose restart app
+        </pre>
+
+        <h3>7.3 Clean Up</h3>
+        <pre>
+# Remove old containers and images
+docker-compose down
+docker system prune -a
+        </pre>
+    </div>
+
+    <div id="troubleshooting" class="section">
+        <h2>8. Troubleshooting</h2>
+
+        <h3>8.1 Common Issues</h3>
+        <ul>
+            <li>Container won't start: Check logs with <code>docker-compose logs app</code></li>
+            <li>Database issues: Check logs with <code>docker-compose logs postgres</code></li>
+            <li>Reset everything: <code>docker-compose down -v && docker system prune -a</code></li>
+            <li>SSL issues: Check Nginx logs with <code>sudo tail -f /var/log/nginx/error.log</code></li>
+            <li>Nginx configuration issues: Test with <code>sudo nginx -t</code></li>
+        </ul>
+
+        <div class="warning">
+            <strong>Security Notes:</strong>
+            <ul>
+                <li>Never commit sensitive data in Docker images</li>
+                <li>Use environment variables for secrets</li>
+                <li>Regularly update base images for security patches</li>
+                <li>Use specific version tags instead of 'latest' in production</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html> 

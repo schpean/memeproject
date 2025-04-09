@@ -190,12 +190,12 @@ const authorize = (roles = []) => {
     }
 
     try {
-      // Get user and their role
+      // Get user and their role - use google_id instead of id
       const result = await pool.query(`
         SELECT u.*, r.name as role_name 
         FROM users u
         LEFT JOIN user_roles r ON u.role_id = r.id
-        WHERE u.id = $1
+        WHERE u.google_id = $1
       `, [userId]);
       
       if (result.rows.length === 0) {
@@ -465,21 +465,11 @@ app.post('/memes', upload.single('image'), async (req, res) => {
     }
 
     console.log('Creating meme with user attribution:', username);
-    // Convert userId to integer if needed
-    let userIdInt;
-    try {
-      userIdInt = userId ? parseInt(userId, 10) : null;
-      // If NaN, set to null
-      if (isNaN(userIdInt)) {
-        console.log('Warning: userId could not be parsed as integer, using null instead');
-        userIdInt = null;
-      }
-    } catch (parseError) {
-      console.error('Error parsing userId:', parseError);
-      userIdInt = null;
-    }
     
-    console.log('Using userIdInt:', userIdInt);
+    // Use userId directly as string, no need to parse as integer
+    const userIdStr = userId ? String(userId) : null;
+    
+    console.log('Using userIdStr:', userIdStr);
     
     // Check if uploads directory exists
     const uploadsDir = path.join(__dirname, 'uploads');
@@ -493,7 +483,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
     console.log('- City:', city);
     console.log('- Image URL:', imageUrl);
     console.log('- Message:', message || null);
-    console.log('- User ID:', userIdInt);
+    console.log('- User ID:', userIdStr);
     console.log('- Username:', username);
     
     try {
@@ -504,8 +494,8 @@ app.post('/memes', upload.single('image'), async (req, res) => {
           SELECT u.*, r.name as role_name 
           FROM users u
           LEFT JOIN user_roles r ON u.role_id = r.id
-          WHERE u.id = $1
-        `, [userIdInt]);
+          WHERE u.google_id = $1
+        `, [userIdStr]);
         
         if (userResult.rows.length > 0 && 
            (userResult.rows[0].role_name === 'admin' || userResult.rows[0].role_name === 'moderator')) {
@@ -523,7 +513,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
           city || '', 
           imageUrl || '', 
           message || null, 
-          userIdInt, 
+          userIdStr, 
           username || 'anonymous',
           approvalStatus
         ]
@@ -584,7 +574,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
               city || '', 
               imageUrl || '', 
               message || null, 
-              userIdInt, 
+              userIdStr, 
               username || 'anonymous'
             ]
           );
@@ -597,62 +587,23 @@ app.post('/memes', upload.single('image'), async (req, res) => {
         } finally {
           client.release();
         }
-      } else if (dbError.code === '23502' && dbError.message.includes('column "country"')) {
-        // Handle NOT NULL violation for country column
-        console.log('Detected NOT NULL constraint violation for country column, attempting fix...');
-        
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-          
-          // Make country column nullable
-          await client.query(`ALTER TABLE memes ALTER COLUMN country DROP NOT NULL`);
-          console.log('Made country column nullable');
-          
-          await client.query('COMMIT');
-          
-          // Retry the insert with default country value
-          console.log('Retrying meme creation with default country...');
-          const retryResult = await pool.query(
-            'INSERT INTO memes (company, city, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [
-              company || '', 
-              city || '', 
-              'Romania', // Default country 
-              imageUrl || '', 
-              message || null, 
-              userIdInt, 
-              username || 'anonymous'
-            ]
-          );
-          console.log('Retry successful, returning result');
-          return res.status(201).json(retryResult.rows[0]);
-        } catch (retryError) {
-          await client.query('ROLLBACK');
-          console.error('Error during retry after fixing NOT NULL constraint:', retryError);
-          throw retryError;
-        } finally {
-          client.release();
-        }
-      } else {
-        // For other DB errors, rethrow
-        if (dbError.code) {
-          console.error('Error code:', dbError.code);
-        }
-        if (dbError.stack) {
-          console.error('Stack trace:', dbError.stack);
-        }
-        throw dbError;
       }
+      
+      // Return a more detailed error response
+      res.status(500).json({ 
+        error: 'Failed to create meme',
+        details: dbError.message,
+        code: dbError.code
+      });
     }
   } catch (error) {
     console.error('Error creating meme:', error);
-    console.error('Error type:', error.name);
-    console.error('Error message:', error.message);
-    if (error.code) {
-      console.error('Error code:', error.code);
-    }
-    res.status(500).json({ error: 'Failed to create meme', details: error.message });
+    res.status(500).json({ 
+      error: 'Failed to create meme',
+      details: error.message,
+      type: error.name,
+      code: error.code
+    });
   }
 });
 
@@ -675,10 +626,19 @@ app.post('/memes/:id/vote', async (req, res) => {
     try {
       await client.query('BEGIN');
       
+      // Get the user's database ID from their Google ID
+      const userCheck = await client.query('SELECT id FROM users WHERE google_id = $1', [userId]);
+      if (userCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const dbUserId = userCheck.rows[0].id;
+      
       // Check if user has already voted for this meme
       const voteCheck = await client.query(
         'SELECT id FROM user_votes WHERE user_id = $1 AND meme_id = $2',
-        [userId, id]
+        [dbUserId, id]
       );
       
       if (voteType === 'up') {
@@ -691,7 +651,7 @@ app.post('/memes/:id/vote', async (req, res) => {
         // Record the user's vote
         await client.query(
           'INSERT INTO user_votes (user_id, meme_id) VALUES ($1, $2)',
-          [userId, id]
+          [dbUserId, id]
         );
         
         // Increment meme votes
@@ -721,7 +681,7 @@ app.post('/memes/:id/vote', async (req, res) => {
         // Delete the user's vote
         await client.query(
           'DELETE FROM user_votes WHERE user_id = $1 AND meme_id = $2',
-          [userId, id]
+          [dbUserId, id]
         );
         
         // Decrement meme votes
@@ -983,7 +943,7 @@ const setupMemeTable = async () => {
     `);
     
     if (!tableCheck.rows[0].exists) {
-      // Create memes table - Removed country column
+      // Create memes table - Changed user_id to TEXT
       await client.query(`
         CREATE TABLE memes (
           id SERIAL PRIMARY KEY,
@@ -992,7 +952,7 @@ const setupMemeTable = async () => {
           image_url TEXT NOT NULL,
           message TEXT,
           votes INTEGER DEFAULT 0,
-          user_id INTEGER,
+          user_id TEXT,
           username TEXT,
           created_at TIMESTAMP DEFAULT NOW()
         )
@@ -1010,9 +970,24 @@ const setupMemeTable = async () => {
       
       if (!userIdColumnCheck.rows[0].exists) {
         await client.query(`
-          ALTER TABLE memes ADD COLUMN user_id INTEGER;
+          ALTER TABLE memes ADD COLUMN user_id TEXT;
         `);
         console.log('Added user_id column to memes table');
+      } else {
+        // Check if user_id is INTEGER and change it to TEXT if needed
+        const userIdTypeCheck = await client.query(`
+          SELECT data_type 
+          FROM information_schema.columns 
+          WHERE table_name = 'memes' AND column_name = 'user_id'
+        `);
+        
+        if (userIdTypeCheck.rows.length > 0 && userIdTypeCheck.rows[0].data_type === 'integer') {
+          console.log('Converting user_id column from INTEGER to TEXT...');
+          await client.query(`
+            ALTER TABLE memes ALTER COLUMN user_id TYPE TEXT;
+          `);
+          console.log('Successfully converted user_id column to TEXT');
+        }
       }
       
       const usernameColumnCheck = await client.query(`
@@ -1504,9 +1479,48 @@ const setupUserVotesTable = async () => {
   }
 };
 
+// Create comment_votes table to track comment votes
+const setupCommentVotesTable = async () => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Check if comment_votes table exists
+    const tableCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'comment_votes'
+      );
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      // Create comment_votes table
+      await client.query(`
+        CREATE TABLE comment_votes (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER REFERENCES users(id),
+          comment_id INTEGER REFERENCES comments(id),
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(user_id, comment_id)
+        )
+      `);
+      
+      console.log('Comment votes table created successfully');
+    }
+    
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error setting up comment votes table:', error);
+  } finally {
+    client.release();
+  }
+};
+
 // Run the new schema updates
 setupCommentsTable().catch(console.error);
 setupUserVotesTable().catch(console.error);
+setupCommentVotesTable().catch(console.error);
 
 // Update user nickname
 app.post('/users/update-nickname', async (req, res) => {
@@ -1523,23 +1537,10 @@ app.post('/users/update-nickname', async (req, res) => {
       return res.status(400).json({ error: 'Nickname must be between 3 and 30 characters' });
     }
 
-    // Convert userId to integer if it's a string
-    let userIdInt;
-    try {
-      userIdInt = parseInt(userId, 10);
-      if (isNaN(userIdInt)) {
-        console.log('Invalid user ID format');
-        return res.status(400).json({ error: 'Invalid user ID format' });
-      }
-    } catch (parseError) {
-      console.error('Error parsing user ID');
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
     // Check if the user exists and if they have already changed their nickname
     const userCheck = await pool.query(
-      'SELECT * FROM users WHERE id = $1',
-      [userIdInt]
+      'SELECT * FROM users WHERE google_id = $1',
+      [userId]
     );
 
     if (userCheck.rows.length === 0) {
@@ -1557,7 +1558,7 @@ app.post('/users/update-nickname', async (req, res) => {
     // Check if the nickname is already taken
     const nicknameCheck = await pool.query(
       'SELECT id FROM users WHERE username = $1 AND id != $2',
-      [newNickname, userIdInt]
+      [newNickname, user.id]
     );
 
     if (nicknameCheck.rows.length > 0) {
@@ -1568,7 +1569,7 @@ app.post('/users/update-nickname', async (req, res) => {
     // Update the user's nickname
     const result = await pool.query(
       'UPDATE users SET username = $1, display_name = $1, nickname_changed = TRUE WHERE id = $2 RETURNING *',
-      [newNickname, userIdInt]
+      [newNickname, user.id]
     );
 
     res.json(result.rows[0]);
@@ -1663,6 +1664,14 @@ app.post('/memes/:id/comments', async (req, res) => {
       return res.status(404).json({ error: 'Meme not found' });
     }
 
+    // Get the user's database ID from their Google ID
+    const userCheck = await pool.query('SELECT id FROM users WHERE google_id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const dbUserId = userCheck.rows[0].id;
+
     // If parentId is provided, verify it exists
     if (parentId) {
       const parentCheck = await pool.query('SELECT id FROM comments WHERE id = $1', [parentId]);
@@ -1674,7 +1683,7 @@ app.post('/memes/:id/comments', async (req, res) => {
     // Insert with parentId if it's a reply, otherwise null
     const result = await pool.query(
       'INSERT INTO comments (meme_id, user_id, username, content, parent_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, userId, username, content, parentId || null]
+      [id, dbUserId, username, content, parentId || null]
     );
     
     res.status(201).json(result.rows[0]);
@@ -1703,6 +1712,15 @@ app.post('/memes/:memeId/comments/:commentId/vote', async (req, res) => {
     try {
       await client.query('BEGIN');
       
+      // Get the user's database ID from their Google ID
+      const userCheck = await client.query('SELECT id FROM users WHERE google_id = $1', [userId]);
+      if (userCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const dbUserId = userCheck.rows[0].id;
+      
       // Check if comment exists
       const commentCheck = await client.query(
         'SELECT * FROM comments WHERE id = $1 AND meme_id = $2',
@@ -1717,7 +1735,7 @@ app.post('/memes/:memeId/comments/:commentId/vote', async (req, res) => {
       // Check if user has already voted for this comment
       const voteCheck = await client.query(
         'SELECT id FROM comment_votes WHERE user_id = $1 AND comment_id = $2',
-        [userId, commentId]
+        [dbUserId, commentId]
       );
       
       if (voteType === 'up') {
@@ -1730,7 +1748,7 @@ app.post('/memes/:memeId/comments/:commentId/vote', async (req, res) => {
         // Record the user's vote
         await client.query(
           'INSERT INTO comment_votes (user_id, comment_id) VALUES ($1, $2)',
-          [userId, commentId]
+          [dbUserId, commentId]
         );
         
         // Increment comment votes
@@ -1751,7 +1769,7 @@ app.post('/memes/:memeId/comments/:commentId/vote', async (req, res) => {
         // Delete the user's vote
         await client.query(
           'DELETE FROM comment_votes WHERE user_id = $1 AND comment_id = $2',
-          [userId, commentId]
+          [dbUserId, commentId]
         );
         
         // Decrement comment votes
@@ -1931,7 +1949,7 @@ app.get('/users/me', async (req, res) => {
              r.name as role
       FROM users u
       LEFT JOIN user_roles r ON u.role_id = r.id
-      WHERE u.id = $1
+      WHERE u.google_id = $1
     `, [userId]);
     
     if (result.rows.length === 0) {
@@ -2212,6 +2230,14 @@ app.delete('/users/:id', authorize(['admin']), async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, '../build')));
+
+// Handle React routing, return all requests to React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../build', 'index.html'));
 });
 
 // Use HTTP server with WebSocket support
