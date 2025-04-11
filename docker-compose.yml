@@ -5,32 +5,26 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "1337:1337"
+    network_mode: "host"  # Folosim host network mode
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0
-      - DB_HOST=postgres
+      - DB_HOST=localhost  # Modificat pentru că postgres va fi accesibil pe localhost
       - DB_PORT=5432
       - DB_USER=ubuntu
       - DB_PASSWORD=iMenTABlexpr
       - DB_NAME=meme_db
       - PORT=1337
-      # Local development URLs (comment these and uncomment production URLs when deploying)
-      - REACT_APP_API_BASE_URL=http://localhost:1337
-      - REACT_APP_CLIENT_BASE_URL=http://localhost:1337
-      - CLIENT_BASE_URL=http://localhost:1337
-      # Production URLs (uncomment these and comment out local URLs when deploying)
-      # - REACT_APP_API_BASE_URL=https://bossme.me
-      # - REACT_APP_CLIENT_BASE_URL=https://bossme.me
-      # - CLIENT_BASE_URL=https://bossme.me
+      # Production URLs
+      - REACT_APP_API_BASE_URL=https://bossme.me
+      - REACT_APP_CLIENT_BASE_URL=https://bossme.me
+      - CLIENT_BASE_URL=https://bossme.me
+      - PUBLIC_URL=https://bossme.me
     env_file:
       - .env
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - app-network
     restart: unless-stopped
 
   postgres:
@@ -40,11 +34,11 @@ services:
       - POSTGRES_PASSWORD=iMenTABlexpr
       - POSTGRES_DB=meme_db
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"  # Restricționăm accesul la localhost
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - app-network
+      - postgres_network  # Rețea separată pentru postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ubuntu -d meme_db"]
       interval: 5s
@@ -53,7 +47,7 @@ services:
     restart: unless-stopped
 
 networks:
-  app-network:
+  postgres_network:  # Doar pentru postgres
     driver: bridge
 
 volumes:
