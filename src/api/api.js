@@ -264,6 +264,31 @@ export const userApi = {
     }
   },
   
+  // Adaugă funcția updateNickname
+  updateNickname: async (newNickname) => {
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User not logged in');
+    }
+    
+    if (!newNickname || newNickname.trim().length < 3) {
+      throw new Error('Nickname must be at least 3 characters');
+    }
+    
+    try {
+      const response = await api.post(API_ENDPOINTS.updateNickname, {
+        userId: user.uid,
+        newNickname: newNickname
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        throw new Error(error.response.data.error || 'Failed to update nickname');
+      }
+      throw error;
+    }
+  },
+  
   // Get all users (admin only)
   getAllUsers: async () => {
     try {
