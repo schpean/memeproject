@@ -190,16 +190,19 @@ const authorize = (roles = []) => {
     }
 
     try {
-      // Get user and their role - use google_id instead of id
+      // Get user and their role - use google_id instead of id and exclude deleted users
       const result = await pool.query(`
         SELECT u.*, r.name as role_name 
         FROM users u
         LEFT JOIN user_roles r ON u.role_id = r.id
-        WHERE u.google_id = $1
+        WHERE u.google_id = $1 AND (u.is_deleted IS NULL OR u.is_deleted = FALSE)
       `, [userId]);
       
       if (result.rows.length === 0) {
-        return res.status(401).json({ error: 'Unauthorized - User not found' });
+        return res.status(401).json({ 
+          error: 'Unauthorized - User not found or account has been deleted',
+          redirectToLogin: true 
+        });
       }
       
       const user = result.rows[0];
@@ -439,8 +442,16 @@ app.post('/memes', upload.single('image'), async (req, res) => {
     
     if (userId) {
       try {
-        const userCheck = await pool.query('SELECT id, username FROM users WHERE google_id = $1', [userId]);
+        const userCheck = await pool.query('SELECT id, username, is_deleted FROM users WHERE google_id = $1', [userId]);
         if (userCheck.rows.length > 0) {
+          // Verifică dacă utilizatorul este marcat ca șters
+          if (userCheck.rows[0].is_deleted) {
+            return res.status(403).json({ 
+              error: 'Account is deactivated', 
+              message: 'Your account has been deactivated and cannot post new content.'
+            });
+          }
+          
           dbUserId = userCheck.rows[0].id;
           currentUsername = userCheck.rows[0].username;
           console.log('Found numeric user ID:', dbUserId);
@@ -612,6 +623,23 @@ app.post('/memes/:id/vote', async (req, res) => {
       return res.status(400).json({ error: 'Invalid vote type. Must be "up" or "down"' });
     }
     
+    // Verificăm dacă utilizatorul este anonimizat/marcat ca șters
+    const userStatusCheck = await pool.query(
+      'SELECT is_deleted FROM users WHERE google_id = $1',
+      [userId]
+    );
+    
+    if (userStatusCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (userStatusCheck.rows[0].is_deleted) {
+      return res.status(403).json({ 
+        error: 'Account deactivated',
+        message: 'Your account has been deactivated and cannot perform this action.'
+      });
+    }
+    
     // Begin transaction
     const client = await pool.connect();
     try {
@@ -733,13 +761,37 @@ app.post('/users/google-auth', async (req, res) => {
       console.warn('No token provided for validation');
     }
     
+    // Verificăm dacă acest Google ID aparține unui cont marcat ca șters
+    const deletedCheck = await pool.query(
+      'SELECT * FROM users WHERE google_id = $1 AND is_deleted = TRUE',
+      [googleId]
+    );
+    
+    if (deletedCheck.rows.length > 0) {
+      return res.status(403).json({ 
+        error: 'Account deactivated', 
+        message: 'This account has been deactivated. Please contact the administrator for assistance.'
+      });
+    }
+    
     // Check if user already exists
-    let result = await pool.query(`
-      SELECT u.*, r.name as role_name 
-      FROM users u
-      LEFT JOIN user_roles r ON u.role_id = r.id
-      WHERE u.google_id = $1
-    `, [googleId]);
+    let result = await pool.query(
+      'SELECT * FROM users WHERE google_id = $1 AND (is_deleted IS NULL OR is_deleted = FALSE)',
+      [googleId]
+    );
+    
+    // Check if this email is blacklisted (was previously deleted)
+    const emailCheck = await pool.query(
+      'SELECT * FROM users WHERE email = $1 AND is_deleted = TRUE',
+      [email]
+    );
+
+    if (emailCheck.rows.length > 0) {
+      // Acest email a fost anterior asociat cu un cont anonim/șters
+      return res.status(403).json({ 
+        error: 'This email address cannot be used for registration as it was previously associated with a deleted account.' 
+      });
+    }
     
     if (result.rows.length > 0) {
       // User exists, update last login time
@@ -912,6 +964,15 @@ app.post('/users/update-nickname', async (req, res) => {
       return res.status(403).json({ error: 'You can only change your nickname once' });
     }
 
+    // Verificăm dacă utilizatorul este anonimizat/marcat ca șters
+    if (user.is_deleted) {
+      console.log('User is marked as deleted');
+      return res.status(403).json({ 
+        error: 'Account deactivated', 
+        message: 'Your account has been deactivated and cannot be updated.'
+      });
+    }
+
     // Check if the nickname is already taken
     const nicknameCheck = await pool.query(
       'SELECT id FROM users WHERE username = $1 AND id != $2',
@@ -1053,9 +1114,17 @@ app.post('/memes/:id/comments', async (req, res) => {
     }
 
     // Obține ID-ul numeric al utilizatorului și username-ul actual din baza de date
-    const userCheck = await pool.query('SELECT id, username FROM users WHERE google_id = $1', [userId]);
+    const userCheck = await pool.query('SELECT id, username, is_deleted FROM users WHERE google_id = $1', [userId]);
     if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Verifică dacă utilizatorul este marcat ca șters
+    if (userCheck.rows[0].is_deleted) {
+      return res.status(403).json({ 
+        error: 'Account is deactivated', 
+        message: 'Your account has been deactivated and cannot post new comments.'
+      });
     }
     
     // Folosim ID-ul numeric intern din baza de date și username-ul actual
@@ -1110,6 +1179,23 @@ app.post('/memes/:memeId/comments/:commentId/vote', async (req, res) => {
       return res.status(400).json({ 
         error: 'Invalid vote type',
         message: 'Tipul de vot trebuie să fie "up" sau "down".'
+      });
+    }
+    
+    // Verificăm dacă utilizatorul este anonimizat/marcat ca șters
+    const userStatusCheck = await pool.query(
+      'SELECT is_deleted FROM users WHERE google_id = $1',
+      [userId]
+    );
+    
+    if (userStatusCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (userStatusCheck.rows[0].is_deleted) {
+      return res.status(403).json({ 
+        error: 'Account deactivated', 
+        message: 'Your account has been deactivated and cannot perform this action.'
       });
     }
     
@@ -1320,6 +1406,7 @@ app.get('/admin/users', authorize(['admin']), async (req, res) => {
       SELECT u.*, r.name as role
       FROM users u
       LEFT JOIN user_roles r ON u.role_id = r.id
+      WHERE (u.is_deleted IS NULL OR u.is_deleted = FALSE)
       ORDER BY u.created_at DESC
     `);
     
@@ -1610,59 +1697,57 @@ app.delete('/users/:id', authorize(['admin']), async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Get all meme ids by this user to delete their files
-    const memesResult = await client.query('SELECT id, image_url FROM memes WHERE user_id = $1', [id]);
-    const memeIds = memesResult.rows.map(meme => meme.id);
+    // Verifică dacă coloana is_deleted există în tabelul users
+    const columnCheck = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'is_deleted'
+    `);
     
-    // Delete comments on memes by this user
-    if (memeIds.length > 0) {
-      await client.query(
-        'DELETE FROM comments WHERE meme_id = ANY($1::int[])', 
-        [memeIds]
-      );
+    // Dacă coloana nu există, o creăm
+    if (columnCheck.rows.length === 0) {
+      await client.query('ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE');
     }
     
-    // Delete votes on this user's memes
-    if (memeIds.length > 0) {
-      await client.query(
-        'DELETE FROM user_votes WHERE meme_id = ANY($1::int[])', 
-        [memeIds]
-      );
-    }
+    // Generăm un username anonimizat pentru utilizator
+    const anonUsername = `deleted_user_${id}`;
     
-    // Delete all comments by this user
-    await client.query('DELETE FROM comments WHERE user_id = $1', [id]);
+    // Actualizăm utilizatorul în loc să-l ștergem
+    // - Marcăm ca șters (is_deleted = true)
+    // - Anonimizăm datele personale (email, username)
+    // - Păstrăm id-ul și alte informații pentru referințe
+    await client.query(`
+      UPDATE users 
+      SET is_deleted = TRUE, 
+          username = $1, 
+          display_name = $1,
+          email = $2,
+          photo_url = NULL
+      WHERE id = $3
+    `, [anonUsername, `deleted_${id}@deleted.user`, id]);
     
-    // Delete all votes by this user
-    await client.query('DELETE FROM user_votes WHERE user_id = $1', [id]);
+    // Actualizăm și username-ul în meme-uri și comentarii pentru consistent UI
+    await client.query(`
+      UPDATE memes 
+      SET username = $1
+      WHERE user_id = $2
+    `, [anonUsername, id]);
     
-    // Delete all memes by this user
-    await client.query('DELETE FROM memes WHERE user_id = $1', [id]);
+    await client.query(`
+      UPDATE comments 
+      SET username = $1
+      WHERE user_id = $2
+    `, [anonUsername, id]);
     
-    // Delete the user
-    await client.query('DELETE FROM users WHERE id = $1', [id]);
-    
-    // Delete user's meme image files
-    memesResult.rows.forEach(meme => {
-      if (meme.image_url) {
-        const filePath = path.join(__dirname, meme.image_url);
-        try {
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-          }
-        } catch (err) {
-          console.error(`Error deleting file ${filePath}:`, err);
-        }
-      }
-    });
-    
-    // Commit transaction
     await client.query('COMMIT');
     
-    res.json({ message: 'User and all associated content successfully deleted' });
+    res.json({ 
+      message: 'User has been marked as deleted and anonymized successfully',
+      username: anonUsername
+    });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Error deleting user:', error);
+    console.error('Error soft-deleting user:', error);
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();

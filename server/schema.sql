@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_login TIMESTAMP,
     nickname_changed BOOLEAN DEFAULT FALSE,
     is_verified BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
     meme_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW()
 );
@@ -101,6 +102,14 @@ CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
 -- Migrare date existente (dacă există)
 DO $$
 BEGIN
+    -- Adaugă coloana is_deleted dacă nu există deja
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'is_deleted'
+    ) THEN
+        ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
+    END IF;
+
     -- Migrare user_votes dacă sunt TEXT
     IF EXISTS (
         SELECT 1 FROM information_schema.columns 

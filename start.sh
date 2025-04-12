@@ -23,7 +23,7 @@ sleep 10
 # Întreabă utilizatorul dacă s-a logat pe website
 read -p "Te-ai logat pe website? (yes/no): " user_logged_in
 
-if [ "$user_logged_in" = "yes" ]; then
+if [ "$user_logged_in" = "y" ]; then
     # Setează rolul de admin pentru utilizatorul specificat
     echo "Setare rol admin pentru utilizatorul mateas.bogdan@gmail.com..."
     docker-compose -f docker-compose.dev.yml exec postgres psql -U ubuntu -d meme_db -c "UPDATE users SET role_id = 3 WHERE email = 'mateas.bogdan@gmail.com';"

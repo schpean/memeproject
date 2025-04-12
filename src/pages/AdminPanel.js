@@ -421,12 +421,14 @@ const AdminPanel = () => {
                     </td>
                     <td>{new Date(user.last_login).toLocaleString()}</td>
                     <td>
-                      <button 
-                        className="view-button"
-                        onClick={() => navigate(`/admin/users/${user.id}`)}
-                      >
-                        View
-                      </button>
+                      <div className="action-buttons">
+                        <button 
+                          className="view-button"
+                          onClick={() => navigate(`/admin/users/${user.id}`)}
+                        >
+                          View
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
