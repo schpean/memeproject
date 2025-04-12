@@ -47,11 +47,30 @@ api.interceptors.request.use(config => {
 // Helper function to parse user data from localStorage
 const getCurrentUser = () => {
   try {
+    console.log('getCurrentUser called');
     const userString = localStorage.getItem('memeUser');
-    if (!userString) return null;
+    if (!userString) {
+      console.log('No user found in localStorage');
+      return null;
+    }
     
     const user = JSON.parse(userString);
-    if (!user || !user.uid) return null;
+    if (!user || !user.uid) {
+      console.log('Invalid user object in localStorage:', user);
+      return null;
+    }
+    
+    // Verifică dacă există și token-ul
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('Warning: User exists in localStorage but token is missing');
+    }
+    
+    console.log('Current user from localStorage:', {
+      uid: user.uid,
+      username: user.username || user.displayName,
+      hasToken: !!token
+    });
     
     return user;
   } catch (error) {
@@ -232,15 +251,56 @@ export const commentApi = {
       throw new Error('User not logged in');
     }
     
+    console.log('Vote operation on comment:', commentId, 'for meme:', memeId);
+    console.log('Current user:', user.uid);
+    console.log('Operation type:', isRemovingVote ? 'Removing vote' : 'Adding vote');
+    
     try {
+      // Simplificăm logica - voteType este 'up' pentru a adăuga vot, 'down' pentru a elimina vot
+      const voteType = isRemovingVote ? 'down' : 'up';
+      
       const response = await api.post(`/memes/${memeId}/comments/${commentId}/vote`, {
         userId: user.uid,
-        voteType: isRemovingVote ? 'down' : 'up'
+        voteType: voteType
       });
       
-      return response.data;
+      console.log('Vote operation successful, new vote count:', response.data.votes);
+      
+      // Asigurăm că voturile nu sunt negative
+      const safeResponse = {
+        ...response.data,
+        votes: Math.max(0, response.data.votes || 0)
+      };
+      
+      return safeResponse;
     } catch (error) {
-      console.error(`Error upvoting comment ${commentId} on meme ${memeId}:`, error);
+      console.error(`Error with comment vote operation:`, error);
+      
+      if (error.response) {
+        console.error('Error status:', error.response.status);
+        console.error('Error data:', error.response.data);
+        
+        // Verifică erori specifice și tratează-le corespunzător
+        if (error.response.status === 404 && error.response.data.error === 'User not found') {
+          alert('Trebuie să vă autentificați din nou pentru a vota comentarii.');
+        } else if (error.response.status === 400) {
+          // Tratăm erori 400 ca inconsistențe între client și server
+          // Încercăm să obținem starea actuală a comentariului
+          try {
+            const commentResponse = await api.get(`/memes/${memeId}/comments`);
+            const targetComment = commentResponse.data.find(c => c.id === commentId);
+            if (targetComment) {
+              return {
+                ...targetComment,
+                votes: Math.max(0, targetComment.votes || 0)
+              };
+            }
+          } catch (secondaryError) {
+            console.error('Failed to recover comment state:', secondaryError);
+          }
+        }
+      }
+      
       throw error;
     }
   }

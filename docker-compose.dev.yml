@@ -1,0 +1,62 @@
+# Deschide fișierul și copiază exact următorul conținut în docker-compose.dev.yml:
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "1337:1337"
+    networks:
+      - postgres_network  # Conectăm app la rețeaua postgres
+    environment:
+      - NODE_ENV=development
+      - HOST=0.0.0.0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=ubuntu
+      - DB_PASSWORD=iMenTABlexpr
+      - DB_NAME=meme_db
+      - PORT=1337
+      - REACT_APP_API_BASE_URL=http://localhost
+      - REACT_APP_CLIENT_BASE_URL=http://localhost
+      - CLIENT_BASE_URL=http://localhost
+      - PUBLIC_URL=http://localhost
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src
+      - ./server:/app/server
+      - ./public:/app/public
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=ubuntu
+      - POSTGRES_PASSWORD=iMenTABlexpr
+      - POSTGRES_DB=meme_db
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./server/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - postgres_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ubuntu -d meme_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  postgres_network:
+    driver: bridge
+
+volumes:
+  postgres_data_dev:

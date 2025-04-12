@@ -62,13 +62,23 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
     if (currentUser) {
       // Get upvoted comments from localStorage
       const upvotedComments = JSON.parse(localStorage.getItem('upvotedComments') || '[]');
-      setHasUserUpvoted(upvotedComments.includes(comment.id));
+      console.log('Comment useEffect - comment ID:', comment.id);
+      console.log('Comment useEffect - upvotedComments from localStorage:', upvotedComments);
+      
+      // Convertim la string pentru a asigura o comparație corectă
+      const commentIdStr = String(comment.id);
+      const hasUpvoted = upvotedComments.some(id => String(id) === commentIdStr);
+      
+      console.log('Comment useEffect - is upvoted?', hasUpvoted);
+      setHasUserUpvoted(hasUpvoted);
     }
   }, [currentUser, comment.id]);
 
   // Update vote count when comment prop changes
   useEffect(() => {
-    setVoteCount(comment.votes || 0);
+    // Asigură-te că numărul de voturi nu este negativ
+    const safeVoteCount = Math.max(0, comment.votes || 0);
+    setVoteCount(safeVoteCount);
   }, [comment.votes]);
 
   // Toggle collapse state of the comment
@@ -83,40 +93,55 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
       return;
     }
 
+    console.log('Handling upvote for comment:', comment.id);
+    
+    // Prevenim dublu clic în timpul procesării
+    if (isVoting) {
+      console.log('Ignoring click - vote operation already in progress');
+      return;
+    }
+    
     setIsVoting(true);
     
     try {
-      // Call the parent handler to update the vote in the database
       if (onVoteComment) {
+        // Actualizăm votul - dacă hasUserUpvoted este true, eliminăm votul, altfel adăugăm un vot
         const updatedComment = await onVoteComment(comment.id, hasUserUpvoted);
+        
         if (updatedComment) {
-          setVoteCount(updatedComment.votes || voteCount + (hasUserUpvoted ? -1 : 1));
+          // Actualizăm numărul de voturi în UI
+          setVoteCount(Math.max(0, updatedComment.votes || 0));
           
-          // Toggle upvote status in localStorage
+          // Actualizăm localStorage și starea locală
+          const commentIdStr = String(comment.id);
           const upvotedComments = JSON.parse(localStorage.getItem('upvotedComments') || '[]');
           
           if (hasUserUpvoted) {
-            // Remove from upvoted comments
-            const newUpvotedComments = upvotedComments.filter(id => id !== comment.id);
+            // Eliminăm comentariul din localStorage dacă l-am votat anterior
+            const newUpvotedComments = upvotedComments.filter(id => String(id) !== commentIdStr);
             localStorage.setItem('upvotedComments', JSON.stringify(newUpvotedComments));
             setHasUserUpvoted(false);
+            console.log('Removed vote - new count:', updatedComment.votes);
           } else {
-            // Add to upvoted comments
-            upvotedComments.push(comment.id);
-            localStorage.setItem('upvotedComments', JSON.stringify(upvotedComments));
+            // Adăugăm comentariul în localStorage dacă nu l-am votat anterior
+            if (!upvotedComments.some(id => String(id) === commentIdStr)) {
+              upvotedComments.push(comment.id);
+              localStorage.setItem('upvotedComments', JSON.stringify(upvotedComments));
+            }
             setHasUserUpvoted(true);
+            console.log('Added vote - new count:', updatedComment.votes);
           }
         }
       } else {
-        // Fallback for demo if no handler is provided
-        setVoteCount(voteCount + (hasUserUpvoted ? -1 : 1));
-        setHasUserUpvoted(!hasUserUpvoted);
+        console.log('Warning: onVoteComment handler is not provided');
       }
     } catch (error) {
       console.error('Error voting on comment:', error);
       
-      // Only show alert if not already voted
-      if (!hasUserUpvoted) {
+      // Afișăm un mesaj de eroare
+      if (error.response && error.response.data && error.response.data.message) {
+        alert(error.response.data.message);
+      } else {
         alert('Failed to vote on comment. Please try again.');
       }
     } finally {
