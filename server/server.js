@@ -405,7 +405,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
       message = req.body.message;
       imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
       userId = req.body.userId;
-      username = req.body.username;
+      username = req.body.username; // Vom suprascrie acest username cu cel din baza de date
     } else {
       // Handle JSON request with URL
       const body = req.body;
@@ -414,7 +414,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
       message = body.message;
       imageUrl = body.image_url;
       userId = body.userId;
-      username = body.username;
+      username = body.username; // Vom suprascrie acest username cu cel din baza de date
     }
     
     // Detailed debug info
@@ -424,7 +424,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
     console.log('- Image URL:', imageUrl);
     console.log('- Message:', message);
     console.log('- User ID:', userId);
-    console.log('- Username:', username);
+    console.log('- Username trimis de client:', username);
 
     // Validate required fields
     if (!company || (company !== 'bossme.me' && !city)) {
@@ -432,18 +432,19 @@ app.post('/memes', upload.single('image'), async (req, res) => {
       console.log('- City present:', !!city);
       return res.status(400).json({ error: 'Company and city are required' });
     }
-
-    console.log('Creating meme with user attribution:', username);
     
-    // Obține ID-ul numeric al utilizatorului din baza de date
+    // Obține ID-ul numeric al utilizatorului din baza de date și username-ul actual
     let dbUserId = null;
+    let currentUsername = 'anonymous';
     
     if (userId) {
       try {
-        const userCheck = await pool.query('SELECT id FROM users WHERE google_id = $1', [userId]);
+        const userCheck = await pool.query('SELECT id, username FROM users WHERE google_id = $1', [userId]);
         if (userCheck.rows.length > 0) {
           dbUserId = userCheck.rows[0].id;
+          currentUsername = userCheck.rows[0].username;
           console.log('Found numeric user ID:', dbUserId);
+          console.log('Found current username from database:', currentUsername);
         } else {
           console.log('User not found, meme will be anonymous');
         }
@@ -452,7 +453,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
         // Continuăm fără user ID dacă utilizatorul nu este găsit
       }
     }
-    
+
     // Check if uploads directory exists
     const uploadsDir = path.join(__dirname, 'uploads');
     if (!fs.existsSync(uploadsDir)) {
@@ -466,7 +467,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
     console.log('- Image URL:', imageUrl);
     console.log('- Message:', message || null);
     console.log('- User ID (numeric):', dbUserId);
-    console.log('- Username:', username);
+    console.log('- Username (from database):', currentUsername);
     
     try {
       // Check if user is admin or moderator - their posts are auto-approved
@@ -496,7 +497,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
           imageUrl || '', 
           message || null, 
           dbUserId, // Folosim ID-ul numeric intern
-          username || 'anonymous',
+          currentUsername, // Folosim întotdeauna numele din baza de date
           approvalStatus
         ]
       );
@@ -565,7 +566,7 @@ app.post('/memes', upload.single('image'), async (req, res) => {
               imageUrl || '', 
               message || null, 
               dbUserId, // Folosim ID-ul numeric intern
-              username || 'anonymous'
+              currentUsername
             ]
           );
           console.log('Retry successful, returning result');
@@ -922,13 +923,42 @@ app.post('/users/update-nickname', async (req, res) => {
       return res.status(409).json({ error: 'This nickname is already taken' });
     }
 
-    // Update the user's nickname
-    const result = await pool.query(
-      'UPDATE users SET username = $1, display_name = $1, nickname_changed = TRUE WHERE id = $2 RETURNING *',
-      [newNickname, user.id]
-    );
-
-    res.json(result.rows[0]);
+    // Folosim o tranzacție pentru a actualiza nickname-ul în toate locurile
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Update the user's nickname in users table
+      const result = await client.query(
+        'UPDATE users SET username = $1, display_name = $1, nickname_changed = TRUE WHERE id = $2 RETURNING *',
+        [newNickname, user.id]
+      );
+      
+      // Actualizează nickname-ul în toate meme-urile utilizatorului
+      console.log('Updating nickname in memes');
+      await client.query(
+        'UPDATE memes SET username = $1 WHERE user_id = $2',
+        [newNickname, user.id]
+      );
+      
+      // Actualizează nickname-ul în toate comentariile utilizatorului
+      console.log('Updating nickname in comments');
+      await client.query(
+        'UPDATE comments SET username = $1 WHERE user_id = $2',
+        [newNickname, user.id]
+      );
+      
+      await client.query('COMMIT');
+      console.log('Nickname updated successfully in all locations');
+      
+      res.json(result.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error updating nickname:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Error updating nickname');
     // Add more detailed error logging
@@ -1002,6 +1032,8 @@ app.post('/memes/:id/comments', async (req, res) => {
       return res.status(400).json({ error: 'User ID and content are required' });
     }
     
+    console.log('Comment request with username from client:', username);
+    
     // First check if comments table exists
     const tableCheck = await pool.query(`
       SELECT EXISTS (
@@ -1020,14 +1052,17 @@ app.post('/memes/:id/comments', async (req, res) => {
       return res.status(404).json({ error: 'Meme not found' });
     }
 
-    // Obține ID-ul numeric al utilizatorului
-    const userCheck = await pool.query('SELECT id FROM users WHERE google_id = $1', [userId]);
+    // Obține ID-ul numeric al utilizatorului și username-ul actual din baza de date
+    const userCheck = await pool.query('SELECT id, username FROM users WHERE google_id = $1', [userId]);
     if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Folosim ID-ul numeric intern din baza de date
+    // Folosim ID-ul numeric intern din baza de date și username-ul actual
     const dbUserId = userCheck.rows[0].id;
+    const currentUsername = userCheck.rows[0].username;
+    
+    console.log('Using username from database:', currentUsername);
 
     // If parentId is provided, verify it exists
     if (parentId) {
@@ -1040,7 +1075,7 @@ app.post('/memes/:id/comments', async (req, res) => {
     // Insert with parentId if it's a reply, otherwise null
     const result = await pool.query(
       'INSERT INTO comments (meme_id, user_id, username, content, parent_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [id, dbUserId, username, content, parentId || null]
+      [id, dbUserId, currentUsername, content, parentId || null]
     );
     
     res.status(201).json(result.rows[0]);
