@@ -72,6 +72,27 @@ select {
   background-color: #45a049;
 }
 
+.delete-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-left: 0.5rem;
+}
+
+.delete-button:hover {
+  background-color: #d32f2f;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
 .error-message {
   background-color: #ffebee;
   color: #c62828;

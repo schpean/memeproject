@@ -33,6 +33,19 @@ const NicknameModal = ({ onClose }) => {
     setIsSubmitting(true);
     try {
       await api.userApi.updateNickname(newNickname.trim());
+      
+      // Actualizăm și localStorage-ul cu noul nickname pentru a reflecta schimbarea imediat
+      try {
+        const userString = localStorage.getItem('memeUser');
+        if (userString) {
+          const user = JSON.parse(userString);
+          user.username = newNickname.trim();
+          localStorage.setItem('memeUser', JSON.stringify(user));
+        }
+      } catch (error) {
+        console.error('Error updating localStorage:', error);
+      }
+      
       window.location.reload(); // Reload to update UI with new nickname
     } catch (error) {
       setNicknameError(error.message || 'Failed to update nickname');

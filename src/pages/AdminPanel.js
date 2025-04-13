@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { API_ENDPOINTS } from '../config/config';
+import { API_ENDPOINTS } from '../utils/config';
 import { FaSearch, FaFilter, FaChevronLeft, FaChevronRight, FaDownload } from 'react-icons/fa';
 import './styles/AdminPanel.css';
 
@@ -421,12 +421,14 @@ const AdminPanel = () => {
                     </td>
                     <td>{new Date(user.last_login).toLocaleString()}</td>
                     <td>
-                      <button 
-                        className="view-button"
-                        onClick={() => navigate(`/admin/users/${user.id}`)}
-                      >
-                        View
-                      </button>
+                      <div className="action-buttons">
+                        <button 
+                          className="view-button"
+                          onClick={() => navigate(`/admin/users/${user.id}`)}
+                        >
+                          View
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -104,31 +104,58 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
       return null;
     }
     
+    console.log('Vote request for comment:', commentId, isUpvoted ? 'removing vote' : 'adding vote');
+    
     try {
-      // Call the API to upvote the comment
+      // Trimitem cererea de vot către API
       const updatedComment = await commentApi.upvoteComment(memeId, commentId, isUpvoted);
+      console.log('API response for vote:', updatedComment);
       
-      // Update the comment in our tree
+      // Actualizăm comentariul în structura noastră de date
       const updatedComments = updateCommentInTree(comments, commentId, updatedComment);
       
-      // Resort comments after vote changes
+      // Reordonăm comentariile după schimbările voturilor
       const sortedComments = [...updatedComments].sort((a, b) => (b.votes || 0) - (a.votes || 0));
       setComments(sortedComments);
       
+      // Sincronizăm cu localStorage
+      const upvotedComments = JSON.parse(localStorage.getItem('upvotedComments') || '[]');
+      const commentIdStr = String(commentId);
+      
+      if (isUpvoted) {
+        // Eliminăm comentariul din lista de voturi
+        const filteredComments = upvotedComments.filter(id => String(id) !== commentIdStr);
+        localStorage.setItem('upvotedComments', JSON.stringify(filteredComments));
+        console.log('Removed comment from upvotedComments');
+      } else {
+        // Adăugăm comentariul la lista de voturi
+        if (!upvotedComments.some(id => String(id) === commentIdStr)) {
+          upvotedComments.push(commentId);
+          localStorage.setItem('upvotedComments', JSON.stringify(upvotedComments));
+          console.log('Added comment to upvotedComments');
+        }
+      }
+      
       return updatedComment;
     } catch (error) {
-      console.error('Error upvoting comment:', error);
+      console.error('Error processing vote:', error);
       
-      // Check if this is an "already voted" error, which we can handle gracefully
-      if (error.response && error.response.status === 400 && 
-          error.response.data && error.response.data.error === 'You have already voted for this comment') {
+      // Verifică pentru erorile de "deja votat" / "nu a votat încă"
+      if (error.response && error.response.status === 400) {
+        console.log('Vote state inconsistency detected:', error.response.data);
         
-        // Find the comment and return it (with votes unchanged) to avoid UI errors
+        // Găsim comentariul pentru a-l returna neschimbat (evităm erorile UI)
         const comment = findCommentById(comments, commentId);
         if (comment) {
-          // Return the comment with votes unchanged to avoid errors
           return comment;
         }
+      }
+      
+      // Afișăm mesaje de eroare pentru utilizator
+      if (error.response && error.response.data && error.response.data.message) {
+        alert(error.response.data.message);
+      } else {
+        alert('Eroare la procesarea votului. Încercați din nou.');
       }
       
       throw error;
@@ -155,15 +182,21 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
   
   // Update a specific comment in the tree
   const updateCommentInTree = (commentTree, commentId, updatedComment) => {
+    // Asigură-te că numărul de voturi nu este negativ
+    const safeUpdatedComment = {
+      ...updatedComment,
+      votes: Math.max(0, updatedComment.votes || 0)
+    };
+    
     return commentTree.map(comment => {
       if (comment.id === commentId) {
         // Return the updated comment with its original replies
-        return { ...updatedComment, replies: comment.replies };
+        return { ...safeUpdatedComment, replies: comment.replies };
       } else if (comment.replies && comment.replies.length > 0) {
         // Check the replies recursively
         return {
           ...comment,
-          replies: updateCommentInTree(comment.replies, commentId, updatedComment)
+          replies: updateCommentInTree(comment.replies, commentId, safeUpdatedComment)
         };
       }
       return comment;
