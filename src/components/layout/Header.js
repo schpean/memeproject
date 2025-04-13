@@ -89,6 +89,10 @@ function Header() {
                         </button>
                       )}
                       
+                      <Link to="/mymemes" className="menu-item mymemes-link" onClick={toggleMenu}>
+                        My memes
+                      </Link>
+                      
                       {(isAdmin || isModerator) && (
                         <Link to="/pending" className="menu-item pending-link" onClick={toggleMenu}>
                           Pending Approval

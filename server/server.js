@@ -368,17 +368,35 @@ app.put('/memes/:id/approval', authorize(['admin', 'moderator']), async (req, re
   try {
     const { id } = req.params;
     const { status, reason } = req.body;
-    
+    const userId = req.header('user-id');
+
     // Validate status
     if (!status || !['approved', 'rejected'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status. Must be "approved" or "rejected"' });
     }
     
+    // Get the user's numeric ID
+    let approverDbId = null;
+    if (userId && status === 'approved') {
+      const userCheck = await pool.query('SELECT id FROM users WHERE google_id = $1', [userId]);
+      if (userCheck.rows.length > 0) {
+        approverDbId = userCheck.rows[0].id;
+      }
+    }
+    
     // Update meme approval status
-    const result = await pool.query(
-      'UPDATE memes SET approval_status = $1, rejection_reason = $2 WHERE id = $3 RETURNING *',
-      [status, reason || null, id]
-    );
+    let result;
+    if (status === 'approved' && approverDbId) {
+      result = await pool.query(
+        'UPDATE memes SET approval_status = $1, rejection_reason = $2, approved_by = $3, approved_at = NOW() WHERE id = $4 RETURNING *',
+        [status, reason || null, approverDbId, id]
+      );
+    } else {
+      result = await pool.query(
+        'UPDATE memes SET approval_status = $1, rejection_reason = $2 WHERE id = $3 RETURNING *',
+        [status, reason || null, id]
+      );
+    }
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Meme not found' });
@@ -1324,11 +1342,53 @@ app.post('/memes/:memeId/comments/:commentId/vote', async (req, res) => {
 app.get('/memes/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.header('user-id');
     
+    // Obține meme-ul
     const result = await pool.query('SELECT * FROM memes WHERE id = $1', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Meme not found' });
+    }
+    
+    const meme = result.rows[0];
+    
+    // Verifică permisiunile pentru meme-uri care nu sunt aprobate
+    if (meme.approval_status !== 'approved') {
+      // Dacă nu există user ID, nu are acces
+      if (!userId) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have permission to view this meme'
+        });
+      }
+      
+      // Verifică dacă utilizatorul este admin/moderator sau creatorul meme-ului
+      const userCheck = await pool.query(`
+        SELECT u.id, u.role_id, r.name as role_name
+        FROM users u
+        LEFT JOIN user_roles r ON u.role_id = r.id
+        WHERE u.google_id = $1
+      `, [userId]);
+      
+      if (userCheck.rows.length === 0) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have permission to view this meme'
+        });
+      }
+      
+      const user = userCheck.rows[0];
+      const isAdminOrMod = user.role_name === 'admin' || user.role_name === 'moderator';
+      const isCreator = meme.user_id && user.id === meme.user_id;
+      
+      // Dacă utilizatorul nu este nici admin/moderator, nici creatorul meme-ului, nu are acces
+      if (!isAdminOrMod && !isCreator) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have permission to view this meme'
+        });
+      }
     }
     
     // Try to get comment count, but don't fail if comments table doesn't exist
@@ -1338,14 +1398,13 @@ app.get('/memes/:id', async (req, res) => {
         [id]
       );
       
-      const meme = result.rows[0];
       meme.comment_count = parseInt(commentCountResult.rows[0].count);
       
       res.json(meme);
     } catch (error) {
       // If the comments table doesn't exist, just return the meme without comment count
       console.log('Comments functionality not available yet');
-      res.json(result.rows[0]);
+      res.json(meme);
     }
   } catch (error) {
     console.error(`Error fetching meme ${id}:`, error);
@@ -1640,37 +1699,33 @@ app.get('/users/:id/stats', authorize(['admin']), async (req, res) => {
       [userId]
     );
     
-    // Get all memes with their votes
+    // Get all memes with their votes and approver info
     const memesResult = await pool.query(
-      `SELECT id, message as title, 
-              COALESCE(votes, 0) as votes, 
-              created_at, 
-              approval_status 
-       FROM memes 
-       WHERE user_id = $1 
-       ORDER BY created_at DESC`,
+      `SELECT m.id, m.message as title, 
+              COALESCE(m.votes, 0) as votes, 
+              m.created_at, 
+              m.approval_status,
+              m.approved_at,
+              u.username as approved_by_username
+       FROM memes m
+       LEFT JOIN users u ON m.approved_by = u.id 
+       WHERE m.user_id = $1 
+       ORDER BY m.created_at DESC`,
       [userId]
     );
     
     // Response data
     const stats = {
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        created_at: user.created_at,
-        last_login: user.last_login,
-        role_id: user.role_id
-      },
+      user,
       meme_count: parseInt(memeCountResult.rows[0].meme_count),
-      total_votes: parseInt(totalVotesResult.rows[0].total_votes) || 0,
+      total_votes: parseInt(totalVotesResult.rows[0].total_votes),
       memes: memesResult.rows
     };
     
     res.json(stats);
   } catch (error) {
     console.error('Error getting user stats:', error);
-    res.status(500).json({ error: 'Failed to load user statistics. Please try again.' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1751,6 +1806,44 @@ app.delete('/users/:id', authorize(['admin']), async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
+  }
+});
+
+// Get all memes for the current user regardless of approval status
+app.get('/users/me/memes', async (req, res) => {
+  try {
+    const userId = req.header('user-id');
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Obține ID-ul numeric al utilizatorului
+    const userCheck = await pool.query('SELECT id FROM users WHERE google_id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const dbUserId = userCheck.rows[0].id;
+    
+    // Obține toate meme-urile utilizatorului, indiferent de status
+    const result = await pool.query(`
+      SELECT m.*, 
+             COALESCE(u.username, 'Unknown') as approved_by_username,
+             (CASE 
+                WHEN m.approval_status = 'rejected' THEN m.rejection_reason 
+                ELSE NULL 
+              END) as rejection_reason
+      FROM memes m
+      LEFT JOIN users u ON m.approved_by = u.id
+      WHERE m.user_id = $1
+      ORDER BY m.created_at DESC
+    `, [dbUserId]);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching user memes:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

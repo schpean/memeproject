@@ -109,10 +109,30 @@ export const memeApi = {
       throw new Error('Meme ID is required');
     }
     try {
-      const response = await api.get(`/memes/${id}`);
+      const user = getCurrentUser();
+      const headers = user ? { 'user-id': user.uid } : {};
+      const response = await api.get(`/memes/${id}`, { headers });
       return response.data;
     } catch (error) {
       console.error(`Error fetching meme ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  // Get all memes for the current user
+  getUserMemes: async () => {
+    try {
+      const user = getCurrentUser();
+      if (!user) {
+        throw new Error('User not logged in');
+      }
+      
+      const response = await api.get('/users/me/memes', {
+        headers: { 'user-id': user.uid }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user memes:', error);
       throw error;
     }
   },

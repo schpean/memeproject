@@ -12,6 +12,7 @@ import CommentsPage from './pages/CommentsPage';
 import AdminPanel from './pages/AdminPanel';
 import PendingMemes from './pages/PendingMemes';
 import UserDetails from './pages/UserDetails';
+import MyMemes from './pages/MyMemes';
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationProvider } from './components/common/Notification';
 import VerifyEmail from './components/auth/VerifyEmail';
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/admin/users/:id" element={<UserDetails />} />
                 <Route path="/pending" element={<PendingMemes />} />
+                <Route path="/mymemes" element={<MyMemes />} />
                 <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

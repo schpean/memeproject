@@ -180,6 +180,7 @@ const UserDetails = () => {
                 <th>Created</th>
                 <th>Votes</th>
                 <th>Status</th>
+                <th>Who</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -190,6 +191,11 @@ const UserDetails = () => {
                   <td>{formatDate(meme.created_at)}</td>
                   <td>{meme.votes || 0}</td>
                   <td>{meme.approval_status}</td>
+                  <td>
+                    {(meme.approval_status === 'approved' || meme.approval_status === 'rejected') 
+                      ? (meme.approved_by_username ? meme.approved_by_username : 'N/A') 
+                      : '-'}
+                  </td>
                   <td>
                     <Link to={`/meme/${meme.id}`} className="view-button">View</Link>
                   </td>
