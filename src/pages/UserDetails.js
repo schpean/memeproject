@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { API_ENDPOINTS } from '../config/config';
+import { API_ENDPOINTS } from '../utils/config';
 import { notify } from '../components/common/Notification';
 import './styles/UserDetails.css';
 
@@ -203,7 +203,7 @@ const UserDetails = () => {
       <div id="danger-zone" className="danger-zone">
         <h2>Danger Zone</h2>
         <div className="delete-section">
-          <p>Utilizatorul poate fi anonimizat, păstrând conținutul său sub un pseudonim.</p>
+          <p>Utilizatorul poate fi sters si banat, păstrând conținutul său sub un pseudonim.</p>
           
           {confirmDelete ? (
             <div className="confirm-delete">
@@ -221,7 +221,7 @@ const UserDetails = () => {
                   onClick={handleDeleteUser}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Se procesează...' : 'Da, Anonimizează Utilizatorul'}
+                  {isDeleting ? 'Se procesează...' : 'Da, sterge si baneaza userul'}
                 </button>
               </div>
             </div>
@@ -231,7 +231,7 @@ const UserDetails = () => {
               onClick={handleDeleteUser}
               disabled={isDeleting}
             >
-              Anonimizează Utilizatorul
+              Sterge Utilizatorul
             </button>
           )}
         </div>

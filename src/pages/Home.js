@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import MemeCard from '../components/meme/MemeCard';
 import './styles/Home.css';
-import { API_ENDPOINTS, POLLING_URL, API_BASE_URL } from '../config/config';
+import { API_ENDPOINTS, POLLING_URL, API_BASE_URL } from '../utils/config';
 import { FaFire, FaChartLine, FaClock, FaAngleDown, FaSort, FaCalendarAlt, FaComment, FaArrowUp } from 'react-icons/fa';
 
 const Home = () => {

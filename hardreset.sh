@@ -2,15 +2,15 @@
 
 # Oprește și elimină toate containerele, volumele, rețelele și imaginile
 echo "Oprire și curățare Docker..."
-docker-compose down -v
+docker-compose -f docker-compose.dev.yml down -v
 docker rm -f $(docker ps -aq) || true
-docker rmi -f $(docker images -q) || true
+docker rmi $(docker images -qf "dangling=true") || true
 docker volume rm $(docker volume ls -q) || true
 docker system prune -a -f --volumes
 
 # Construiește imaginile fără a folosi cache-ul
 echo "Construire containere noi..."
-docker-compose -f docker-compose.dev.yml build --no-cache
+docker-compose -f docker-compose.dev.yml build --no-cache 
 
 # Pornește containerele
 echo "Pornire containere..."

@@ -1,9 +1,9 @@
-version: '3.8'
 
 services:
   app:
     build:
       context: .
+      shm_size: '4gb'
       dockerfile: Dockerfile
     network_mode: "host"  # Folosim host network mode
     environment:

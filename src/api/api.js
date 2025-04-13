@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_BASE_URL, API_ENDPOINTS } from '../config/config';
+import { API_BASE_URL, API_ENDPOINTS } from '../utils/config';
 
 console.log('API Configuration:', { 
   baseURL: API_BASE_URL,
