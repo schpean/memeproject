@@ -1,0 +1,191 @@
+/* Stiluri pentru paginile legale (Terms, Privacy, Disclaimer) */
+.legal-page {
+  padding: 2rem 0;
+}
+
+.legal-container {
+  background-color: var(--bg-white);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 4px 10px var(--shadow-color);
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.legal-container h1 {
+  color: var(--primary-color);
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.legal-intro {
+  font-size: 1.1rem;
+  color: var(--text-gray);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  text-align: center;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.legal-section {
+  margin-bottom: 2rem;
+}
+
+.legal-section h2 {
+  color: var(--primary-color);
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.5rem;
+}
+
+.legal-section p {
+  color: var(--text-dark);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.legal-footer {
+  text-align: center;
+  margin-top: 3rem;
+  font-size: 0.9rem;
+  color: var(--text-gray);
+  border-top: 1px solid var(--border-light);
+  padding-top: 1rem;
+}
+
+/* Stiluri pentru pagina de contact */
+.contact-page {
+  padding: 2rem 0;
+}
+
+.contact-container {
+  background-color: var(--bg-white);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 4px 10px var(--shadow-color);
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.contact-container h1 {
+  color: var(--primary-color);
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.contact-intro {
+  font-size: 1.1rem;
+  color: var(--text-gray);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.contact-form {
+  max-width: 600px;
+  margin: 0 auto 3rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.contact-submit {
+  width: 100%;
+  padding: 0.8rem !important;
+  font-size: 1.1rem;
+  margin-top: 1rem;
+}
+
+.contact-status {
+  padding: 1.5rem;
+  border-radius: var(--border-radius-md);
+  margin: 1rem 0 2rem;
+  text-align: center;
+}
+
+.contact-status.success {
+  background-color: rgba(227, 202, 165, 0.2);
+  border: 1px solid var(--accent-color);
+  color: var(--primary-dark);
+}
+
+.contact-status.error {
+  background-color: rgba(240, 128, 128, 0.2);
+  border: 1px solid lightcoral;
+  color: darkred;
+}
+
+.contact-alternatives {
+  margin-top: 3rem;
+  border-top: 1px solid var(--border-light);
+  padding-top: 2rem;
+}
+
+.contact-alternatives h2 {
+  font-size: 1.4rem;
+  color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.contact-methods {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  flex-wrap: wrap;
+}
+
+.contact-method {
+  text-align: center;
+  min-width: 200px;
+}
+
+.contact-method h3 {
+  font-size: 1.2rem;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.contact-method p {
+  color: var(--text-dark);
+  font-size: 1rem;
+}
+
+/* Responsive design pentru paginile legale și de contact */
+@media (max-width: 768px) {
+  .legal-container,
+  .contact-container {
+    padding: 1.5rem;
+  }
+
+  .legal-container h1,
+  .contact-container h1 {
+    font-size: 1.8rem;
+  }
+
+  .legal-intro,
+  .contact-intro {
+    font-size: 1rem;
+  }
+
+  .legal-section h2 {
+    font-size: 1.3rem;
+  }
+
+  .contact-methods {
+    gap: 1.5rem;
+  }
+} 

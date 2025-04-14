@@ -49,6 +49,7 @@ body {
   color: var(--text-dark);
   background-color: var(--bg-light) !important;
   line-height: 1.6;
+  min-height: 100vh;
 }
 
 code {
@@ -219,8 +220,11 @@ label {
 .footer {
   background-color: var(--bg-white) !important;
   box-shadow: 0 -2px 4px var(--shadow-color) !important;
-  padding: 1rem 0;
+  padding: 0.5rem 0;
   margin-top: 2rem;
+  position: relative;
+  width: 100%;
+  bottom: 0;
 }
 
 .footer .container {
@@ -230,6 +234,128 @@ label {
   padding: 0 1.5rem;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+
+.footer-copyright {
+  flex: 0 0 15%;
+  min-width: 80px;
+  padding-right: 5px;
+}
+
+.footer-links {
+  flex: 0 1 60%;
+  margin: 0;
+  border-top: none;
+  padding-top: 0;
+  text-align: center;
+  padding-left: 11%; /* Reprezintă 5% din lățimea containerului părinte */
+}
+
+
+.footer-nav {
+  display: flex;
+  list-style: none;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-nav li a {
+  color: var(--text-gray);
+  font-size: 0.75rem;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-nav li a:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.buy-me-coffee {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 36px;
+  min-width: 180px;
+  position: relative;
+  z-index: 10;
+  flex: 0 0 25%;
+  margin-left: auto;
+  padding-left: 5px;
+}
+
+#bmc-button-container {
+  height: auto !important;
+  position: relative;
+  z-index: 15;
+  min-width: 180px;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+/* Stiluri pentru butonul generat de script */
+.bmc-button {
+  min-height: 36px !important;
+  min-width: 180px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 4px 12px !important;
+  background-color: var(--primary-color) !important;
+  border-radius: 18px !important;
+  margin: 0 !important;
+  box-shadow: 0 4px 8px var(--shadow-color) !important;
+  white-space: nowrap !important;
+}
+
+.bmc-button:hover {
+  background-color: var(--primary-dark) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 12px var(--shadow-color) !important;
+}
+
+.buy-me-coffee iframe {
+  margin: 0 !important;
+  min-height: 40px !important;
+  min-width: 160px !important;
+}
+
+.bmc-fallback-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background-color: var(--primary-color);
+  color: var(--text-white) !important;
+  border-radius: 18px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px var(--shadow-color);
+  min-height: 36px;
+  min-width: 170px;
+  z-index: 5;
+  white-space: nowrap;
+}
+
+.bmc-fallback-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px var(--shadow-color);
+  background-color: var(--primary-dark);
+  color: var(--text-white) !important;
 }
 
 .footer p {
@@ -365,3 +491,45 @@ h1, h2, h3, h4, h5, h6 {
 .w-auto { width: auto; }
 .h-full { height: 100%; }
 .h-auto { height: auto; }
+
+/* Media queries pentru responsive design */
+@media (max-width: 768px) {
+  .footer-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+  
+  .footer-copyright,
+  .footer-links,
+  .buy-me-coffee {
+    flex: 1 0 100%;
+    margin: 0.3rem 0;
+    justify-content: center;
+  }
+  
+  .buy-me-coffee {
+    justify-content: center;
+    margin: 6px 0;
+  }
+
+  main.container {
+    padding-bottom: 6rem !important; /* Mai mult spațiu pe mobile */
+  }
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+main.container {
+  flex: 1;
+  min-height: 80vh;
+  padding-bottom: 4rem !important; /* Asigurăm spațiu pentru footer */
+  position: relative;
+  z-index: 5;
+}
