@@ -3,6 +3,8 @@ import { FaArrowUp, FaReply, FaUser, FaFire, FaTrash } from 'react-icons/fa';
 import './styles/Comment.css';
 import { getDicebearAvatarUrl } from '../../utils/avatarUtils';
 import { formatCount } from '../../utils/format';
+import useConfirmDialog from '../../hooks/useConfirmDialog';
+import ConfirmDialog from '../ConfirmDialog';
 
 // Function to format dates like "4h ago", "3h ago", etc.
 const formatTimeAgo = (dateString) => {
@@ -34,10 +36,13 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
-  const [hasUserUpvoted, setHasUserUpvoted] = useState(false);
+  const [hasUserUpvoted, setHasUserUpvoted] = useState(comment.has_user_upvoted || false);
   const [voteCount, setVoteCount] = useState(comment.votes || 0);
   const [isVoting, setIsVoting] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+
+  // Dialog de confirmare
+  const { isOpen, dialogConfig, confirmDialog, closeDialog } = useConfirmDialog();
 
   // Get avatar URL - use Dicebear as default or fallback
   const getAvatarUrl = () => {
@@ -196,121 +201,149 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment
   const handleDeleteComment = async () => {
     if (!canDeleteComment) return;
     
-    if (window.confirm('Ești sigur că vrei să ștergi acest comentariu?')) {
+    // Folosim dialogul personalizat în loc de window.confirm
+    const confirmed = await confirmDialog({
+      title: 'Șterge comentariul',
+      message: 'Ești sigur că vrei să ștergi acest comentariu?',
+      confirmText: 'Șterge',
+      cancelText: 'Anulează',
+      confirmButtonClass: 'danger',
+      icon: 'warning'
+    });
+    
+    if (confirmed) {
       try {
         await onDeleteComment(comment.id);
       } catch (error) {
         console.error('Error deleting comment:', error);
-        alert('Nu s-a putut șterge comentariul. Încercați din nou.');
+        
+        // Folosim un nou dialog pentru erori în loc de alert
+        confirmDialog({
+          title: 'Eroare',
+          message: 'Nu s-a putut șterge comentariul. Încercați din nou.',
+          confirmText: 'OK',
+          cancelText: '',
+          confirmButtonClass: 'primary',
+          icon: 'warning',
+          onCancel: closeDialog
+        });
       }
     }
   };
 
   return (
-    <div className={`reddit-comment ${isCollapsed ? 'collapsed' : ''} ${isDeleted ? 'deleted-comment' : ''}`}>
-      <button 
-        className={`comment-vote ${hasUserUpvoted ? 'voted' : ''} ${voteCount >= 50 ? 'hot' : ''}`}
-        onClick={handleUpvote}
-        disabled={!currentUser || isVoting}
-        aria-label={hasUserUpvoted ? "Remove upvote" : "Upvote"}
-        title={hasUserUpvoted ? "Click to remove upvote" : "Upvote"}
-      >
-        {voteCount >= 50 ? <FaFire className="upvote-icon" /> : <FaArrowUp className="upvote-icon" />}
-        <span className="vote-count">{formatCount(voteCount)}</span>
-      </button>
-      
-      <div className="comment-content">
-        <div className="comment-header">
-          <div className="comment-avatar">
-            <img 
-              src={getAvatarUrl()}
-              alt={comment.username || 'Anonymous'}
-              className="avatar-image"
-              onError={handleImageError}
-            />
-          </div>
-          <span className="comment-author">{comment.username || 'Anonymous'}</span>
-          <span className="comment-dot">•</span>
-          <span className="comment-time">{formatTimeAgo(comment.created_at)}</span>
-        </div>
-        
-        {!isCollapsed ? (
-          <>
-            <div className="comment-text">{comment.content}</div>
-            
-            <div className="comment-actions">
-              {!isDeleted && (
-                <button 
-                  className="reply-button" 
-                  onClick={() => setIsReplying(!isReplying)}
-                  disabled={!currentUser}
-                >
-                  <FaReply /> Reply
-                </button>
-              )}
-            </div>
-            
-            {isReplying && (
-              <form className="reply-form" onSubmit={handleReplySubmit}>
-                <textarea
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="What are your thoughts?"
-                  rows="3"
-                />
-                <div className="reply-actions">
-                  <button type="button" onClick={() => setIsReplying(false)}>Cancel</button>
-                  <button 
-                    type="submit" 
-                    disabled={!replyContent.trim()}
-                    className="submit-reply"
-                  >
-                    Reply
-                  </button>
-                </div>
-              </form>
-            )}
-            
-            {/* Render child comments if any */}
-            {hasReplies && (
-              <div className="comment-replies">
-                {comment.replies.map(reply => (
-                  <Comment 
-                    key={reply.id} 
-                    comment={reply} 
-                    onReply={onReply}
-                    onVoteComment={onVoteComment}
-                    onDeleteComment={onDeleteComment}
-                    currentUser={currentUser}
-                    isAdmin={isAdmin}
-                    isModerator={isModerator}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        ) : null}
-        
-        {/* Delete button - visible only for users with permission */}
-        {canDeleteComment && (
-          <button 
-            className="delete-comment-button" 
-            onClick={handleDeleteComment}
-            title="Șterge comentariul"
-          >
-            <FaTrash /> Șterge
-          </button>
-        )}
-        
-        {/* Collapse button that looks like the screenshot */}
+    <>
+      <div className={`reddit-comment ${isCollapsed ? 'collapsed' : ''} ${isDeleted ? 'deleted-comment' : ''}`}>
         <button 
-          className="collapse-toggle-button" 
-          onClick={toggleCollapse}
+          className={`comment-vote ${hasUserUpvoted ? 'voted' : ''} ${voteCount >= 50 ? 'hot' : ''}`}
+          onClick={handleUpvote}
+          disabled={!currentUser || isVoting}
+          aria-label={hasUserUpvoted ? "Remove upvote" : "Upvote"}
+          title={hasUserUpvoted ? "Click to remove upvote" : "Upvote"}
         >
-          {isCollapsed ? "Collapse" : "− Collapse"}
+          {voteCount >= 50 ? <FaFire className="upvote-icon" /> : <FaArrowUp className="upvote-icon" />}
+          <span className="vote-count">{formatCount(voteCount)}</span>
         </button>
+        
+        <div className="comment-content">
+          <div className="comment-header">
+            <div className="comment-avatar">
+              <img 
+                src={getAvatarUrl()}
+                alt={comment.username || 'Anonymous'}
+                className="avatar-image"
+                onError={handleImageError}
+              />
+            </div>
+            <span className="comment-author">{comment.username || 'Anonymous'}</span>
+            <span className="comment-dot">•</span>
+            <span className="comment-time">{formatTimeAgo(comment.created_at)}</span>
+          </div>
+          
+          {!isCollapsed ? (
+            <>
+              <div className="comment-text">{comment.content}</div>
+              
+              <div className="comment-actions">
+                {!isDeleted && (
+                  <button 
+                    className="reply-button" 
+                    onClick={() => setIsReplying(!isReplying)}
+                    disabled={!currentUser}
+                  >
+                    <FaReply /> Reply
+                  </button>
+                )}
+              </div>
+              
+              {isReplying && (
+                <form className="reply-form" onSubmit={handleReplySubmit}>
+                  <textarea
+                    value={replyContent}
+                    onChange={(e) => setReplyContent(e.target.value)}
+                    placeholder="What are your thoughts?"
+                    rows="3"
+                  />
+                  <div className="reply-actions">
+                    <button type="button" onClick={() => setIsReplying(false)}>Cancel</button>
+                    <button 
+                      type="submit" 
+                      disabled={!replyContent.trim()}
+                      className="submit-reply"
+                    >
+                      Reply
+                    </button>
+                  </div>
+                </form>
+              )}
+              
+              {/* Render child comments if any */}
+              {hasReplies && (
+                <div className="comment-replies">
+                  {comment.replies.map(reply => (
+                    <Comment 
+                      key={reply.id} 
+                      comment={reply} 
+                      onReply={onReply}
+                      onVoteComment={onVoteComment}
+                      onDeleteComment={onDeleteComment}
+                      currentUser={currentUser}
+                      isAdmin={isAdmin}
+                      isModerator={isModerator}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : null}
+          
+          {/* Delete button - visible only for users with permission */}
+          {canDeleteComment && (
+            <button 
+              className="delete-comment-button" 
+              onClick={handleDeleteComment}
+              title="Șterge comentariul"
+            >
+              <FaTrash /> Șterge
+            </button>
+          )}
+          
+          {/* Collapse button that looks like the screenshot */}
+          <button 
+            className="collapse-toggle-button" 
+            onClick={toggleCollapse}
+          >
+            {isCollapsed ? "Collapse" : "− Collapse"}
+          </button>
+        </div>
       </div>
-    </div>
+      
+      {/* Adăugăm dialogul de confirmare */}
+      <ConfirmDialog
+        isOpen={isOpen}
+        {...dialogConfig}
+      />
+    </>
   );
 };
 

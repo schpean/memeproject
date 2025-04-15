@@ -43,6 +43,7 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [upvotedMemes, setUpvotedMemes] = useState([]);
   const [needsVerification, setNeedsVerification] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(false);
   const [userPermissions, setUserPermissions] = useState({
     isAdmin: false,
     isModerator: false,
@@ -54,6 +55,16 @@ export const AuthProvider = ({ children }) => {
       canManageRoles: false
     }
   });
+
+  // Funcție pentru a activa loading global
+  const startGlobalLoading = useCallback(() => {
+    setGlobalLoading(true);
+  }, []);
+
+  // Funcție pentru a dezactiva loading global
+  const stopGlobalLoading = useCallback(() => {
+    setGlobalLoading(false);
+  }, []);
 
   // Load user data on mount
   useEffect(() => {
@@ -406,7 +417,10 @@ export const AuthProvider = ({ children }) => {
     resendVerificationEmail,
     // Derived properties
     isLoggedIn: !!currentUser,
-    isVerified: currentUser?.isEmailVerified || false
+    isVerified: currentUser?.isEmailVerified || false,
+    globalLoading,
+    startGlobalLoading,
+    stopGlobalLoading
   };
 
   return (
