@@ -1076,8 +1076,15 @@ app.get('/memes/:id/comments', async (req, res) => {
       );
     `);
     
-    // If parent_id exists, include it in the SELECT statement
-    let query = 'SELECT * FROM comments WHERE meme_id = $1 ORDER BY votes DESC, created_at DESC';
+    // Actualizare query pentru a include google_id-ul utilizatorului
+    let query = `
+      SELECT c.*, u.google_id
+      FROM comments c
+      LEFT JOIN users u ON c.user_id = u.id
+      WHERE c.meme_id = $1 
+      ORDER BY c.votes DESC, c.created_at DESC
+    `;
+    
     if (!columnCheck.rows[0].exists) {
       console.log('Warning: parent_id column does not exist in comments table');
     }
@@ -1087,10 +1094,12 @@ app.get('/memes/:id/comments', async (req, res) => {
     // Transform the results to ensure parent_id property is properly named for frontend
     const comments = result.rows.map(comment => {
       // Convert parent_id to parentId for consistent naming in frontend
-      const { parent_id, ...rest } = comment;
+      // și includem google_id ca owner_id pentru a permite verificarea proprietarului comentariului în frontend
+      const { parent_id, google_id, ...rest } = comment;
       return {
         ...rest,
-        parentId: parent_id
+        parentId: parent_id,
+        owner_id: google_id  // Adăugăm owner_id care va fi Google ID-ul utilizatorului
       };
     });
     
@@ -1165,7 +1174,13 @@ app.post('/memes/:id/comments', async (req, res) => {
       [id, dbUserId, currentUsername, content, parentId || null]
     );
     
-    res.status(201).json(result.rows[0]);
+    // Adăugăm owner_id (google_id) în răspuns pentru a putea afișa butonul de ștergere imediat
+    const commentWithOwnerId = {
+      ...result.rows[0],
+      owner_id: userId // Adăugăm google_id-ul ca owner_id în răspuns
+    };
+    
+    res.status(201).json(commentWithOwnerId);
   } catch (error) {
     console.error('Error adding comment:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1334,6 +1349,121 @@ app.post('/memes/:memeId/comments/:commentId/vote', async (req, res) => {
     res.status(500).json({ 
       error: 'Internal server error', 
       message: 'A apărut o eroare la procesarea votului. Vă rugăm să încercați din nou.'
+    });
+  }
+});
+
+// "Delete" a comment (mark as deleted)
+app.delete('/memes/:memeId/comments/:commentId', async (req, res) => {
+  try {
+    const { memeId, commentId } = req.params;
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        message: 'Trebuie să fiți autentificat pentru a șterge comentarii.'
+      });
+    }
+    
+    // Verificăm dacă utilizatorul este dezactivat
+    const userStatusCheck = await pool.query(
+      'SELECT is_deleted FROM users WHERE google_id = $1',
+      [userId]
+    );
+    
+    if (userStatusCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (userStatusCheck.rows[0].is_deleted) {
+      return res.status(403).json({ 
+        error: 'Account deactivated',
+        message: 'Contul dvs. a fost dezactivat și nu poate efectua această acțiune.'
+      });
+    }
+    
+    // Verificăm dacă comentariul există
+    const commentCheck = await pool.query(
+      'SELECT c.*, u.google_id as comment_owner_id FROM comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.id = $1 AND c.meme_id = $2',
+      [commentId, memeId]
+    );
+    
+    if (commentCheck.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Comment not found',
+        message: 'Comentariul căutat nu există.'
+      });
+    }
+    
+    const comment = commentCheck.rows[0];
+    
+    // Verificăm dacă comentariul este deja șters
+    if (comment.is_deleted) {
+      return res.status(400).json({
+        error: 'Comment already deleted',
+        message: 'Acest comentariu a fost deja șters.'
+      });
+    }
+    
+    // Obținem informații despre utilizator și rolurile sale
+    const userCheck = await pool.query(`
+      SELECT u.id, u.google_id, u.username, r.name as role 
+      FROM users u
+      LEFT JOIN user_roles r ON u.role_id = r.id
+      WHERE u.google_id = $1
+    `, [userId]);
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userCheck.rows[0];
+    const isAdmin = user.role === 'admin';
+    const isModerator = user.role === 'moderator';
+    const isCommentOwner = comment.comment_owner_id === userId;
+    console.log('Delete comment permission check:', {
+      commentId,
+      userId,
+      comment_owner_id: comment.comment_owner_id,
+      isAdmin,
+      isModerator,
+      isCommentOwner
+    });
+    
+    // Verificăm permisiunile de ștergere
+    if (!isAdmin && !isModerator && !isCommentOwner) {
+      return res.status(403).json({
+        error: 'Permission denied',
+        message: 'Nu aveți permisiunea de a șterge acest comentariu.'
+      });
+    }
+    
+    // Determinăm mesajul potrivit în funcție de cine șterge comentariul
+    let deletionMessage;
+    if (isAdmin) {
+      deletionMessage = '[Admin: Am șters asta ca să-mi justific salariul]';
+    } else if (isModerator) {
+      deletionMessage = '[Moderator: Am șters asta în pauza de cafea, înainte să mă întorc la Excel]';
+    } else {
+      deletionMessage = '[Imi retrag comentariul, m-am razgandit]';
+    }
+    // Marcăm comentariul ca șters și îi golim conținutul
+    const result = await pool.query(
+      'UPDATE comments SET content = $1, is_deleted = TRUE WHERE id = $2 RETURNING *',
+      [deletionMessage, commentId]
+    );
+    
+    res.json({ 
+      success: true, 
+      message: 'Comentariul a fost șters cu succes.',
+      comment: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: 'A apărut o eroare la ștergerea comentariului. Vă rugăm să încercați din nou.' 
     });
   }
 });

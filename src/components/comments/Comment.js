@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaArrowUp, FaReply, FaUser, FaFire } from 'react-icons/fa';
+import { FaArrowUp, FaReply, FaUser, FaFire, FaTrash } from 'react-icons/fa';
 import './styles/Comment.css';
 import { getDicebearAvatarUrl } from '../../utils/avatarUtils';
 import { formatCount } from '../../utils/format';
@@ -30,7 +30,7 @@ const formatTimeAgo = (dateString) => {
   return date.toLocaleDateString(undefined, options);
 };
 
-const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
+const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment, isAdmin, isModerator }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
@@ -165,8 +165,49 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
   // Determine if this comment has replies
   const hasReplies = comment.replies && comment.replies.length > 0;
 
+  // Verifică dacă comentariul a fost șters
+  const isDeleted = comment.is_deleted || comment.content === '[Comentariu șters]';
+  
+  // Verifică dacă utilizatorul poate șterge comentariul
+  const canDeleteComment = currentUser && !isDeleted && (
+    isAdmin || 
+    isModerator || 
+    (currentUser.uid && comment.owner_id && currentUser.uid === comment.owner_id)
+  );
+  
+  // Debug info
+  useEffect(() => {
+    console.log('Comment ID:', comment.id);
+    console.log('Comment data:', comment);
+    console.log('Current user:', currentUser);
+    console.log('Check IDs:', {
+      commentOwnerId: comment.owner_id,
+      currentUserUid: currentUser?.uid,
+      match: currentUser?.uid === comment.owner_id
+    });
+    console.log('Permissions:', {
+      isAdmin,
+      isModerator,
+      canDeleteComment
+    });
+  }, [comment, currentUser, isAdmin, isModerator, canDeleteComment]);
+  
+  // Handler pentru ștergerea comentariului
+  const handleDeleteComment = async () => {
+    if (!canDeleteComment) return;
+    
+    if (window.confirm('Ești sigur că vrei să ștergi acest comentariu?')) {
+      try {
+        await onDeleteComment(comment.id);
+      } catch (error) {
+        console.error('Error deleting comment:', error);
+        alert('Nu s-a putut șterge comentariul. Încercați din nou.');
+      }
+    }
+  };
+
   return (
-    <div className={`reddit-comment ${isCollapsed ? 'collapsed' : ''}`}>
+    <div className={`reddit-comment ${isCollapsed ? 'collapsed' : ''} ${isDeleted ? 'deleted-comment' : ''}`}>
       <button 
         className={`comment-vote ${hasUserUpvoted ? 'voted' : ''} ${voteCount >= 50 ? 'hot' : ''}`}
         onClick={handleUpvote}
@@ -198,13 +239,15 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
             <div className="comment-text">{comment.content}</div>
             
             <div className="comment-actions">
-              <button 
-                className="reply-button" 
-                onClick={() => setIsReplying(!isReplying)}
-                disabled={!currentUser}
-              >
-                <FaReply /> Reply
-              </button>
+              {!isDeleted && (
+                <button 
+                  className="reply-button" 
+                  onClick={() => setIsReplying(!isReplying)}
+                  disabled={!currentUser}
+                >
+                  <FaReply /> Reply
+                </button>
+              )}
             </div>
             
             {isReplying && (
@@ -237,13 +280,27 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment }) => {
                     comment={reply} 
                     onReply={onReply}
                     onVoteComment={onVoteComment}
+                    onDeleteComment={onDeleteComment}
                     currentUser={currentUser}
+                    isAdmin={isAdmin}
+                    isModerator={isModerator}
                   />
                 ))}
               </div>
             )}
           </>
         ) : null}
+        
+        {/* Delete button - visible only for users with permission */}
+        {canDeleteComment && (
+          <button 
+            className="delete-comment-button" 
+            onClick={handleDeleteComment}
+            title="Șterge comentariul"
+          >
+            <FaTrash /> Șterge
+          </button>
+        )}
         
         {/* Collapse button that looks like the screenshot */}
         <button 

@@ -67,7 +67,8 @@ CREATE TABLE IF NOT EXISTS comments (
     content TEXT NOT NULL,
     parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW(),
-    votes INTEGER DEFAULT 0
+    votes INTEGER DEFAULT 0,
+    is_deleted BOOLEAN DEFAULT FALSE
 );
 
 CREATE INDEX IF NOT EXISTS idx_comments_meme_id ON comments(meme_id);

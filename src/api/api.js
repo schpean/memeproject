@@ -323,6 +323,31 @@ export const commentApi = {
       
       throw error;
     }
+  },
+  
+  // "Delete" a comment (mark as deleted)
+  deleteComment: async (memeId, commentId) => {
+    if (!memeId || !commentId) {
+      throw new Error('Meme ID and Comment ID are required');
+    }
+    
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User not logged in');
+    }
+    
+    try {
+      const response = await api.delete(`/memes/${memeId}/comments/${commentId}`, {
+        data: {
+          userId: user.uid
+        }
+      });
+      
+      return response.data.comment; // Returnăm comentariul actualizat
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      throw error;
+    }
   }
 };
 
