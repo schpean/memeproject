@@ -180,6 +180,39 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Logout function
+  const logout = useCallback(() => {
+    // Clear user data from state
+    setCurrentUser(null);
+    setUpvotedMemes([]);
+    setUserPermissions({
+      isAdmin: false,
+      isModerator: false,
+      permissions: {
+        canCreateMemes: false,
+        canDeleteMemes: false,
+        canEditMemes: false,
+        canManageUsers: false,
+        canManageRoles: false
+      }
+    });
+    
+    // Clear localStorage data
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.UPVOTED_MEMES);
+    localStorage.removeItem(STORAGE_KEYS.PERMISSIONS);
+    localStorage.removeItem('token');
+    
+    // Attempt to revoke Google token if available
+    if (window.google && currentUser?.token) {
+      try {
+        window.google.accounts.oauth2.revoke(currentUser.token);
+      } catch (error) {
+        console.error('Error revoking Google token:', error);
+      }
+    }
+  }, [currentUser]);
+
   // Google login logic
   const loginWithGoogle = useCallback(async () => {
     setAuthError(null);
@@ -237,32 +270,45 @@ export const AuthProvider = ({ children }) => {
               body: JSON.stringify(googleUserData)
             });
             
+            // Parse response JSON indiferent de codul de răspuns pentru a vedea mesajul de eroare
+            const responseData = await serverLoginResponse.json();
+            
             if (!serverLoginResponse.ok) {
-              throw new Error(`Server login failed: ${serverLoginResponse.status}`);
+              // Verifică dacă serverul a returnat un mesaj de eroare specific
+              if (responseData.message) {
+                setAuthError(responseData.message);
+              } else if (responseData.error && responseData.error.includes('previously associated with a deleted account')) {
+                setAuthError('Această adresă de email nu poate fi folosită pentru că a fost asociată anterior cu un cont șters.');
+              } else if (responseData.error && responseData.error.includes('Account deactivated')) {
+                setAuthError('Contul tău a fost dezactivat. Te rugăm să contactezi administratorul pentru asistență.');
+              } else {
+                setAuthError(`Eroare de autentificare: ${responseData.error || 'Necunoscută'}`);
+              }
+              
+              logout(); // Deconectează utilizatorul în caz de eroare
+              return;
             }
             
-            const authData = await serverLoginResponse.json();
-            
-            if (authData.error) {
-              setAuthError(authData.error);
+            if (responseData.error) {
+              setAuthError(responseData.error);
               return;
             }
             
             // Store the JWT token for API requests
-            localStorage.setItem('token', authData.token);
+            localStorage.setItem('token', responseData.token);
             
             // Create a unified user object from Google and our database
             const user = {
               ...googleUserData,
-              uid: authData.userId || googleUserInfo.sub,
-              username: authData.username || googleUserInfo.name,
-              isEmailVerified: authData.isEmailVerified || false,
-              emailVerificationRequired: authData.emailVerificationRequired || false
+              uid: responseData.userId || googleUserInfo.sub,
+              username: responseData.username || googleUserInfo.name,
+              isEmailVerified: responseData.isEmailVerified || false,
+              emailVerificationRequired: responseData.emailVerificationRequired || false
             };
             
             // Set verification needed state
             setNeedsVerification(
-              authData.emailVerificationRequired && !authData.isEmailVerified
+              responseData.emailVerificationRequired && !responseData.isEmailVerified
             );
             
             // Save user to state and localStorage
@@ -270,15 +316,24 @@ export const AuthProvider = ({ children }) => {
             saveToLocalStorage(STORAGE_KEYS.USER, user);
             
             // Load any upvoted memes from the server
-            if (authData.upvotedMemes && Array.isArray(authData.upvotedMemes)) {
-              setUpvotedMemes(authData.upvotedMemes);
-              saveToLocalStorage(STORAGE_KEYS.UPVOTED_MEMES, authData.upvotedMemes);
+            if (responseData.upvotedMemes && Array.isArray(responseData.upvotedMemes)) {
+              setUpvotedMemes(responseData.upvotedMemes);
+              saveToLocalStorage(STORAGE_KEYS.UPVOTED_MEMES, responseData.upvotedMemes);
             }
             
             // Fetch user permissions
             fetchUserPermissions(user.uid);
           } catch (error) {
             console.error('Error processing Google login:', error);
+            
+            // Verifică dacă eroarea conține detalii despre un cont șters
+            if (error.response && error.response.data && 
+                error.response.data.redirectToLogin) {
+              setAuthError('Contul tău a fost dezactivat. Te rugăm să contactezi administratorul pentru asistență.');
+              logout(); // Deconectează utilizatorul și curăță starea locală
+              return;
+            }
+            
             setAuthError('Error processing login. Please try again.');
           }
         }
@@ -290,40 +345,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Google login error:', error);
       setAuthError('Failed to initialize Google Sign-In. Please try again later.');
     }
-  }, [fetchUserPermissions]);
-
-  // Logout function
-  const logout = useCallback(() => {
-    // Clear user data from state
-    setCurrentUser(null);
-    setUpvotedMemes([]);
-    setUserPermissions({
-      isAdmin: false,
-      isModerator: false,
-      permissions: {
-        canCreateMemes: false,
-        canDeleteMemes: false,
-        canEditMemes: false,
-        canManageUsers: false,
-        canManageRoles: false
-      }
-    });
-    
-    // Clear localStorage data
-    localStorage.removeItem(STORAGE_KEYS.USER);
-    localStorage.removeItem(STORAGE_KEYS.UPVOTED_MEMES);
-    localStorage.removeItem(STORAGE_KEYS.PERMISSIONS);
-    localStorage.removeItem('token');
-    
-    // Attempt to revoke Google token if available
-    if (window.google && currentUser?.token) {
-      try {
-        window.google.accounts.oauth2.revoke(currentUser.token);
-      } catch (error) {
-        console.error('Error revoking Google token:', error);
-      }
-    }
-  }, [currentUser]);
+  }, [fetchUserPermissions, logout]);
 
   // Check if user has a specific permission
   const hasPermission = useCallback((permission) => {

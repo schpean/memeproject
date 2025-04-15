@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { API_ENDPOINTS } from '../config/config';
+import { API_ENDPOINTS } from '../utils/config';
 import { notify } from '../components/common/Notification';
 import './styles/UserDetails.css';
 
@@ -9,12 +9,27 @@ const UserDetails = () => {
   const { id } = useParams();
   const { currentUser, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [userStats, setUserStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Verifică dacă este o cerere directă pentru anonimizare
+  useEffect(() => {
+    if (location.hash === '#danger-zone') {
+      setConfirmDelete(true);
+      // Facem scroll la secțiunea de danger zone
+      setTimeout(() => {
+        const element = document.getElementById('danger-zone');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, [location]);
 
   // Fetch user stats
   useEffect(() => {
@@ -185,38 +200,38 @@ const UserDetails = () => {
         </div>
       )}
       
-      <div className="danger-zone">
+      <div id="danger-zone" className="danger-zone">
         <h2>Danger Zone</h2>
         <div className="delete-section">
-          <p>Delete this user and all their content. This action cannot be undone.</p>
+          <p>Utilizatorul poate fi sters si banat, păstrând conținutul său sub un pseudonim.</p>
           
           {confirmDelete ? (
             <div className="confirm-delete">
-              <p>Are you sure? This will delete all of this user's data including memes, comments, and votes.</p>
+              <p>Ești sigur? Această acțiune va anonimiza contul utilizatorului și îl va marca ca șters. Meme-urile și comentariile utilizatorului vor rămâne, dar vor apărea sub un nume anonim.</p>
               <div className="confirm-buttons">
                 <button 
                   className="cancel-button" 
                   onClick={() => setConfirmDelete(false)}
                   disabled={isDeleting}
                 >
-                  Cancel
+                  Anulează
                 </button>
                 <button 
                   className="delete-button confirm" 
                   onClick={handleDeleteUser}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Yes, Delete User'}
+                  {isDeleting ? 'Se procesează...' : 'Da, sterge si baneaza userul'}
                 </button>
               </div>
             </div>
           ) : (
             <button 
-              className="delete-button" 
+              className="delete-button danger-button" 
               onClick={handleDeleteUser}
               disabled={isDeleting}
             >
-              Delete User
+              Sterge Utilizatorul
             </button>
           )}
         </div>
