@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS memes (
     votes INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),
     approval_status VARCHAR(20) DEFAULT 'pending' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
-    rejection_reason TEXT
+    rejection_reason TEXT,
+    approved_by BIGINT REFERENCES users(id),
+    approved_at TIMESTAMP
 );
 
 -- Create indexes for memes
@@ -65,7 +67,8 @@ CREATE TABLE IF NOT EXISTS comments (
     content TEXT NOT NULL,
     parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW(),
-    votes INTEGER DEFAULT 0
+    votes INTEGER DEFAULT 0,
+    is_deleted BOOLEAN DEFAULT FALSE
 );
 
 CREATE INDEX IF NOT EXISTS idx_comments_meme_id ON comments(meme_id);
@@ -108,6 +111,22 @@ BEGIN
         WHERE table_name = 'users' AND column_name = 'is_deleted'
     ) THEN
         ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
+    END IF;
+
+    -- Adaugă coloana approved_by dacă nu există deja
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'memes' AND column_name = 'approved_by'
+    ) THEN
+        ALTER TABLE memes ADD COLUMN approved_by BIGINT REFERENCES users(id);
+    END IF;
+
+    -- Adaugă coloana approved_at dacă nu există deja
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'memes' AND column_name = 'approved_at'
+    ) THEN
+        ALTER TABLE memes ADD COLUMN approved_at TIMESTAMP;
     END IF;
 
     -- Migrare user_votes dacă sunt TEXT

@@ -7,7 +7,7 @@ import { getDicebearAvatarUrl } from '../../utils/avatarUtils';
 import './styles/CommentSection.css';
 
 const CommentSection = ({ memeId, initialComments = [] }) => {
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser, isAdmin, isModerator } = useContext(AuthContext);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -255,6 +255,35 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
     });
   };
   
+  // Handle comment deletion
+  const handleDeleteComment = async (commentId) => {
+    if (!currentUser) {
+      alert('Please log in to delete comments');
+      return;
+    }
+    
+    try {
+      // Call API to delete the comment
+      await commentApi.deleteComment(memeId, commentId);
+      
+      // Find the comment in the tree
+      const comment = findCommentById(comments, commentId);
+      if (!comment) return;
+      
+      // Mark the comment as deleted in our local state
+      const updatedComments = updateCommentInTree(comments, commentId, {
+        ...comment,
+        isDeleted: true,
+        content: "[Comentariu șters]"
+      });
+      
+      setComments(updatedComments);
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      alert('Failed to delete comment. Please try again.');
+    }
+  };
+  
   // Get total comment count including replies
   const totalCommentCount = (commentTree) => {
     let count = 0;
@@ -322,7 +351,10 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
                 comment={comment}
                 onReply={handleReply}
                 onVoteComment={handleVoteComment}
+                onDeleteComment={handleDeleteComment}
                 currentUser={currentUser}
+                isAdmin={isAdmin}
+                isModerator={isModerator}
               />
             ))}
             

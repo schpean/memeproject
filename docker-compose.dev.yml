@@ -1,17 +1,19 @@
-
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "1337:1337"
-    networks:
-      - postgres_network  # Conectăm app la rețeaua postgres
+    network_mode: "host"  # Adăugăm host network mode
+    # Comentăm ports deoarece nu sunt necesare în host network mode
+    # ports:
+    #   - "1337:1337"
+    # Comentăm networks deoarece nu sunt necesare în host network mode
+    # networks:
+    #   - postgres_network
     environment:
       - NODE_ENV=development
       - HOST=0.0.0.0
-      - DB_HOST=postgres
+      - DB_HOST=localhost  # Modificăm din postgres în localhost
       - DB_PORT=5432
       - DB_USER=ubuntu
       - DB_PASSWORD=iMenTABlexpr

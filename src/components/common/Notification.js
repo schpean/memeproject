@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { FaCheck, FaExclamationCircle } from 'react-icons/fa';
 import '../../styles/Notification.css';
+import GlobalLoading from './GlobalLoading';
 
 // Types: success, error
 const Notification = ({ message, type = 'success', duration = 3000 }) => {
@@ -83,6 +84,7 @@ export const NotificationProvider = ({ children }) => {
     <>
       {children}
       <NotificationPortal notifications={notifications} />
+      <GlobalLoading />
     </>
   );
 };
