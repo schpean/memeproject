@@ -141,6 +141,32 @@ function Terms() {
                 These Terms shall be governed by and construed in accordance with the laws of Romania, the European Union (EU), and the European Economic Area (EEA), without regard to its conflict of law principles.
               </p>
             </div>
+
+            <div className="legal-section">
+              <h2>12. Dispute Resolution and Arbitration</h2>
+              <p>
+                If a dispute arises between you and bossme.me regarding these Terms or your use of the platform, we strongly encourage you to first contact us directly to seek an amicable resolution at contact@bossme.me.
+              </p>
+              <p>
+                For users in the European Union: In accordance with the EU's Online Dispute Resolution platform, you may also refer complaints to the online dispute resolution platform set up by the European Commission, available at <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener noreferrer">https://ec.europa.eu/consumers/odr/</a>.
+              </p>
+              <p>
+                For all users: If we cannot resolve the dispute through informal negotiation within 30 days, any controversy or claim arising out of or relating to these Terms or your use of the bossme.me platform shall be settled by binding arbitration in accordance with the Rules of Arbitration of the International Chamber of Commerce by one or more arbitrators appointed in accordance with the said Rules. The seat of arbitration shall be Bucharest, Romania. The language of the arbitration shall be English.
+              </p>
+              <p>
+                This arbitration provision does not prevent you from bringing your dispute to the attention of any federal, state, or local government agencies that can, if the law allows, seek relief against us on your behalf.
+              </p>
+            </div>
+
+            <div className="legal-section">
+              <h2>13. Age Restrictions</h2>
+              <p>
+                bossme.me is intended for use by individuals who are at least 18 years of age or the age of legal majority in their jurisdiction, whichever is greater. By using our platform, you represent and warrant that you meet this age requirement. If we become aware that a user is under the age of 18, we reserve the right to terminate their account and remove their content.
+              </p>
+              <p>
+                If you are a parent or guardian and you believe your child has provided us with personal information without your consent, please contact us at privacy@bossme.me.
+              </p>
+            </div>
           </div>
         ) : (
           // Conținut în română
@@ -261,6 +287,32 @@ function Terms() {
               <h2>11. Legea Aplicabilă</h2>
               <p>
                 Acești Termeni vor fi guvernați și interpretați în conformitate cu legislația României, a Uniunii Europene (UE) și a Spațiului Economic European (SEE), fără a ține cont de principiile privind conflictele de legi.
+              </p>
+            </div>
+
+            <div className="legal-section">
+              <h2>12. Soluționarea Litigiilor și Arbitraj</h2>
+              <p>
+                Dacă apare un litigiu între tine și bossme.me cu privire la acești Termeni sau la utilizarea platformei, te încurajăm să ne contactezi mai întâi direct pentru a căuta o rezolvare amiabilă la contact@bossme.me.
+              </p>
+              <p>
+                Pentru utilizatorii din Uniunea Europeană: În conformitate cu platforma de Soluționare Online a Litigiilor a UE, poți adresa plângerile și către platforma de soluționare online a litigiilor instituită de Comisia Europeană, disponibilă la <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener noreferrer">https://ec.europa.eu/consumers/odr/</a>.
+              </p>
+              <p>
+                Pentru toți utilizatorii: Dacă nu putem rezolva litigiul prin negociere informală în termen de 30 de zile, orice controversă sau pretenție care decurge din sau în legătură cu acești Termeni sau cu utilizarea platformei bossme.me va fi soluționată prin arbitraj obligatoriu în conformitate cu Regulile de Arbitraj ale Camerei Internaționale de Comerț, de către unul sau mai mulți arbitri numiți în conformitate cu Regulile menționate. Sediul arbitrajului va fi București, România. Limba arbitrajului va fi engleza.
+              </p>
+              <p>
+                Această prevedere privind arbitrajul nu te împiedică să aduci litigiul în atenția oricăror agenții guvernamentale federale, statale sau locale care pot, dacă legea permite, să caute măsuri reparatorii împotriva noastră în numele tău.
+              </p>
+            </div>
+
+            <div className="legal-section">
+              <h2>13. Restricții de Vârstă</h2>
+              <p>
+                bossme.me este destinat utilizării de către persoane care au cel puțin 18 ani sau vârsta majoratului legal în jurisdicția lor, oricare dintre acestea este mai mare. Prin utilizarea platformei noastre, declari și garantezi că îndeplinești această cerință de vârstă. Dacă aflăm că un utilizator are sub 18 ani, ne rezervăm dreptul de a-i închide contul și de a-i elimina conținutul.
+              </p>
+              <p>
+                Dacă ești părinte sau tutore și crezi că copilul tău ne-a furnizat informații personale fără consimțământul tău, te rugăm să ne contactezi la privacy@bossme.me.
               </p>
             </div>
           </div>

@@ -17,10 +17,12 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Disclaimer from './pages/Disclaimer';
 import Contact from './pages/Contact';
+import CookiePolicy from './pages/CookiePolicy';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './components/common/Notification';
 import VerifyEmail from './components/auth/VerifyEmail';
 import { setAuthContextGetter } from './api/api';
+import CookieBanner from './components/ui/CookieBanner';
 
 // Component care conectează AuthContext cu api.js
 const AuthContextConnector = ({ children }) => {
@@ -63,10 +65,12 @@ function App() {
                   <Route path="/privacy" element={<Privacy />} />
                   <Route path="/disclaimer" element={<Disclaimer />} />
                   <Route path="/contact" element={<Contact />} />
+                  <Route path="/cookies" element={<CookiePolicy />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
               <Footer />
+              <CookieBanner />
             </div>
           </AuthContextConnector>
         </Router>

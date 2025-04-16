@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import '../styles/Legal.css';
+import { Link } from 'react-router-dom';
 
 function Privacy() {
   const [language, setLanguage] = useState('en'); // 'en' pentru engleză, 'ro' pentru română
@@ -54,17 +55,17 @@ function Privacy() {
             </div>
             
             <div className="legal-section">
-              <h2>3. Cookies and Tracking Technologies</h2>
+              <h2>3. Cookies and Storage Technologies</h2>
               <p>
-                We use cookies and similar technologies to:
+                We use essential cookies and local storage technologies to:
               </p>
               <ul style={{ paddingLeft: '2rem' }}>
                 <li>Remember your preferences;</li>
-                <li>Analyze site traffic and user behavior;</li>
-                <li>Deliver relevant and customized content.</li>
+                <li>Keep you logged in to your account;</li>
+                <li>Remember your cookie consent choices.</li>
               </ul>
               <p>
-                You can control or disable cookies through your browser settings. For more details, refer to our Cookie Policy.
+                Currently, we do not use cookies for analytics, advertising, or tracking purposes. You can control or disable cookies through your browser settings. For more details, refer to our <Link to="/cookies">Cookie Policy</Link>.
               </p>
             </div>
             
@@ -86,7 +87,21 @@ function Privacy() {
             </div>
             
             <div className="legal-section">
-              <h2>6. User Rights</h2>
+              <h2>6. GDPR Compliance</h2>
+              <p>
+                As a platform that may process data from EU residents, we comply with the General Data Protection Regulation (GDPR). Our compliance includes:
+              </p>
+              <ul style={{ paddingLeft: '2rem' }}>
+                <li><strong>Legal Basis for Processing:</strong> We process your data based on legitimate interests (operating our platform), consent (when you explicitly provide it), contractual necessity (to provide our services), or legal obligations.</li>
+                <li><strong>Data Retention:</strong> We retain personal data only for as long as necessary to fulfill the purposes for which it was collected, or as required by law. Inactive accounts may be archived after 12 months of inactivity.</li>
+                <li><strong>International Transfers:</strong> When data is transferred outside the EEA, we ensure adequate safeguards are in place, such as Standard Contractual Clauses or operating with service providers certified under recognized frameworks.</li>
+                <li><strong>Data Protection Officer:</strong> While not legally required for our organization size, we have designated personnel responsible for data protection matters.</li>
+                <li><strong>Data Protection Impact Assessments:</strong> We conduct assessments when new processing activities may result in high risk to your rights and freedoms.</li>
+              </ul>
+            </div>
+            
+            <div className="legal-section">
+              <h2>7. User Rights</h2>
               <p>
                 Under the GDPR and other applicable laws, you have the right to:
               </p>
@@ -104,14 +119,24 @@ function Privacy() {
             </div>
             
             <div className="legal-section">
-              <h2>7. Changes to This Privacy Policy</h2>
+              <h2>8. Children's Privacy</h2>
+              <p>
+                Our platform is not intended for use by individuals under the age of 18. We do not knowingly collect personal information from children under 18. If you are a parent or guardian and believe that your child has provided us with personal information, please contact us immediately at privacy@bossme.me, and we will take steps to remove that information from our servers.
+              </p>
+              <p>
+                In the EU and EEA, different age limits may apply according to local laws (generally between 13 and 16 years). If you're a resident of these areas and under the applicable age limit, you must have parental consent before providing any personal data to the website.
+              </p>
+            </div>
+            
+            <div className="legal-section">
+              <h2>9. Changes to This Privacy Policy</h2>
               <p>
                 We may update this Privacy Policy from time to time. When we do, we will revise the "Last updated" date at the bottom of this document and notify users of significant changes via email or on the platform. Continued use of the platform after changes indicates your acceptance of the revised policy.
               </p>
             </div>
             
             <div className="legal-section">
-              <h2>8. Contact Information</h2>
+              <h2>10. Contact Information</h2>
               <p>
                 If you have any questions about this Privacy Policy or your data, please contact us at:<br />
                 Email: privacy@bossme.me<br />
@@ -153,17 +178,17 @@ function Privacy() {
             </div>
             
             <div className="legal-section">
-              <h2>3. Cookie-uri și tehnologii de urmărire</h2>
+              <h2>3. Cookie-uri și Tehnologii de Stocare</h2>
               <p>
-                Folosim cookie-uri și tehnologii similare pentru a:
+                Folosim cookie-uri esențiale și tehnologii de stocare locală pentru a:
               </p>
               <ul style={{ paddingLeft: '2rem' }}>
                 <li>Memora preferințele tale;</li>
-                <li>Analiza traficul site-ului și comportamentul utilizatorilor;</li>
-                <li>Furniza conținut relevant și personalizat.</li>
+                <li>Te menține conectat la contul tău;</li>
+                <li>Reține alegerile tale privind consimțământul pentru cookie-uri.</li>
               </ul>
               <p>
-                Poți controla sau dezactiva cookie-urile prin setările browserului tău. Pentru mai multe detalii, consultă Politica noastră privind Cookie-urile.
+                În prezent, nu folosim cookie-uri pentru analiză, publicitate sau urmărire. Poți controla sau dezactiva cookie-urile prin setările browserului tău. Pentru mai multe detalii, consultă <Link to="/cookies">Politica noastră privind Cookie-urile</Link>.
               </p>
             </div>
             
@@ -185,7 +210,21 @@ function Privacy() {
             </div>
             
             <div className="legal-section">
-              <h2>6. Drepturile utilizatorilor</h2>
+              <h2>6. Conformitate cu GDPR</h2>
+              <p>
+                Ca platformă care poate procesa date de la rezidenți UE, respectăm Regulamentul General privind Protecția Datelor (GDPR). Conformitatea noastră include:
+              </p>
+              <ul style={{ paddingLeft: '2rem' }}>
+                <li><strong>Temeiul legal pentru prelucrare:</strong> Prelucrăm datele tale pe baza intereselor legitime (operarea platformei noastre), consimțământului (când îl oferi explicit), necesității contractuale (pentru a furniza serviciile noastre) sau obligațiilor legale.</li>
+                <li><strong>Păstrarea datelor:</strong> Păstrăm datele personale doar atât timp cât este necesar pentru îndeplinirea scopurilor pentru care au fost colectate sau conform cerințelor legale. Conturile inactive pot fi arhivate după 12 luni de inactivitate.</li>
+                <li><strong>Transferuri internaționale:</strong> Când datele sunt transferate în afara SEE, ne asigurăm că există garanții adecvate, cum ar fi Clauzele Contractuale Standard sau colaborarea cu furnizori de servicii certificați în cadrul unor cadre recunoscute.</li>
+                <li><strong>Responsabil cu protecția datelor:</strong> Deși nu este obligatoriu din punct de vedere legal pentru dimensiunea organizației noastre, am desemnat personal responsabil pentru aspectele legate de protecția datelor.</li>
+                <li><strong>Evaluări de impact privind protecția datelor:</strong> Efectuăm evaluări atunci când noile activități de prelucrare pot prezenta un risc ridicat pentru drepturile și libertățile tale.</li>
+              </ul>
+            </div>
+            
+            <div className="legal-section">
+              <h2>7. Drepturile utilizatorilor</h2>
               <p>
                 În conformitate cu GDPR și alte legi aplicabile, ai dreptul să:
               </p>
@@ -203,14 +242,24 @@ function Privacy() {
             </div>
             
             <div className="legal-section">
-              <h2>7. Modificări ale acestei Politici de Confidențialitate</h2>
+              <h2>8. Confidențialitatea Copiilor</h2>
+              <p>
+                Platforma noastră nu este destinată utilizării de către persoane cu vârsta sub 18 ani. Nu colectăm cu bună știință informații personale de la copii sub 18 ani. Dacă ești părinte sau tutore și crezi că copilul tău ne-a furnizat informații personale, te rugăm să ne contactezi imediat la privacy@bossme.me, și vom lua măsuri pentru a elimina aceste informații de pe serverele noastre.
+              </p>
+              <p>
+                În UE și SEE, pot fi aplicabile diferite limite de vârstă în conformitate cu legile locale (în general între 13 și 16 ani). Dacă ești rezident al acestor zone și sub limita de vârstă aplicabilă, trebuie să ai consimțământul părinților înainte de a furniza orice date personale pe website.
+              </p>
+            </div>
+            
+            <div className="legal-section">
+              <h2>9. Modificări ale acestei Politici de Confidențialitate</h2>
               <p>
                 Este posibil să actualizăm această Politică de Confidențialitate periodic. Când facem acest lucru, vom revizui data "Ultima actualizare" din partea de jos a acestui document și vom notifica utilizatorii despre modificările semnificative prin e-mail sau pe platformă. Utilizarea continuă a platformei după modificări indică acceptarea politicii revizuite.
               </p>
             </div>
             
             <div className="legal-section">
-              <h2>8. Informații de contact</h2>
+              <h2>10. Informații de contact</h2>
               <p>
                 Dacă ai întrebări despre această Politică de Confidențialitate sau despre datele tale, te rugăm să ne contactezi la:<br />
                 Email: privacy@bossme.me<br />
