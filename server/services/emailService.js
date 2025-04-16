@@ -60,7 +60,7 @@ class EmailService {
                         ${content}
                     </div>
                     <div class="footer">
-                        <p>This is an alpha test email from BossMe.me</p>
+                        <p>This is an alpha test email from bossme.me</p>
                         <p>To unsubscribe, <a href="mailto:${process.env.EMAIL_FROM}?subject=unsubscribe">click here</a></p>
                     </div>
                 </div>

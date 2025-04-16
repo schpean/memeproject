@@ -491,7 +491,7 @@ body {
   box-shadow: 0 0 0 3px var(--primary-color), 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Bossme.me description in selected filter */
+/* bossme.me description in selected filter */
 .bossme-description {
   font-size: 0.85rem;
   color: var(--text-gray);

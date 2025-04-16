@@ -1,5 +1,5 @@
 /**
- * Test Email Sender for BossMe.me Alpha
+ * Test Email Sender for bossme.me Alpha
  * 
  * This script tests the email functionality by sending test emails to the verified email address.
  * Make sure to update the TEST_EMAIL_ADDRESS variable with an email that is verified in AWS SES.

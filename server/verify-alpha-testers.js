@@ -15,12 +15,12 @@ const alphaTesters = [
     // 'friend2@example.com',
 ];
 
-console.log('=== BossMe.me Alpha Tester Verification ===');
+console.log('=== bossme.me Alpha Tester Verification ===');
 console.log(`Found ${alphaTesters.length} alpha tester email addresses to verify.`);
 console.log('\nInstructions for each alpha tester:');
 console.log('1. They will receive a verification email from AWS');
 console.log('2. They need to click the verification link in the email');
-console.log('3. Once verified, they can receive emails from BossMe.me');
+console.log('3. Once verified, they can receive emails from bossme.me');
 console.log('\nTo verify these email addresses:');
 console.log('1. Go to AWS SES Console: https://console.aws.amazon.com/ses/');
 console.log('2. Click "Verified Identities" in the left sidebar');
