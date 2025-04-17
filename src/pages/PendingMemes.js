@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MemeCard from '../components/meme/MemeCard';
 import { useAuth } from '../contexts/AuthContext';
-import { API_ENDPOINTS } from '../utils/config';
+import { memeService } from '../services';
 import './styles/PendingMemes.css';
 
 const PendingMemes = () => {
@@ -28,17 +28,7 @@ const PendingMemes = () => {
       setError(null);
       
       try {
-        const response = await fetch(API_ENDPOINTS.pendingMemes, {
-          headers: {
-            'user-id': currentUser.uid
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
+        const data = await memeService.getPendingMemes();
         setPendingMemes(data);
       } catch (err) {
         console.error('Error fetching pending memes:', err);
@@ -94,9 +84,9 @@ const PendingMemes = () => {
             {pendingMemes.map(meme => (
               <MemeCard 
                 key={meme.id} 
-                meme={meme} 
-                onVote={handleMemeUpdate} 
-                showApprovalStatus={true}
+                meme={meme}
+                onVote={handleMemeUpdate}
+                showApprovalStatus
               />
             ))}
           </div>

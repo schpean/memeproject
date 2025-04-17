@@ -22,24 +22,24 @@ function Terms() {
         
         {language === 'en' ? (
           // Conținut în engleză
-          <div className="legal-content">
-            <p className="legal-intro">
+        <div className="legal-content">
+          <p className="legal-intro">
               Welcome to bossme.me! These Terms of Service ("Terms") govern your use of our website and services. By accessing or using bossme.me, you agree to comply with and be bound by these Terms. If you do not agree, please do not use our platform.
-            </p>
-            
-            <div className="legal-section">
-              <h2>1. Introduction</h2>
-              <p>
+          </p>
+          
+          <div className="legal-section">
+            <h2>1. Introduction</h2>
+            <p>
                 bossme.me is a satire and humor-based platform that allows users to create and share meme-style content about workplace experiences, colleagues, and company culture. All content is user-generated and subjective in nature. The platform is designed for entertainment and commentary purposes and does not claim factual accuracy of any content posted.
               </p>
               <p>
                 Satire & Humor: Content shared on bossme.me is intended as satire and humor. It is not factual and should not be interpreted as such. All posts are subjective opinions and do not reflect real events or actual occurrences.
-              </p>
-            </div>
-            
-            <div className="legal-section">
-              <h2>2. User Accounts</h2>
-              <p>
+            </p>
+          </div>
+          
+          <div className="legal-section">
+            <h2>2. User Accounts</h2>
+            <p>
                 To access certain features, you may be required to create an account. You agree to:
               </p>
               <ul style={{ paddingLeft: '2rem' }}>
@@ -49,12 +49,12 @@ function Terms() {
               </ul>
               <p>
                 We reserve the right to suspend or terminate accounts that violate these Terms, our content guidelines, or applicable laws.
-              </p>
-            </div>
-            
-            <div className="legal-section">
-              <h2>3. Content Guidelines</h2>
-              <p>
+            </p>
+          </div>
+          
+          <div className="legal-section">
+            <h2>3. Content Guidelines</h2>
+            <p>
                 You are solely responsible for the content you submit or share. By using bossme.me, you agree not to post content that:
               </p>
               <ul style={{ paddingLeft: '2rem' }}>
@@ -65,12 +65,12 @@ function Terms() {
               </ul>
               <p>
                 We reserve the right to remove any content that we, at our sole discretion, deem inappropriate or in violation of these Terms.
-              </p>
-            </div>
-            
-            <div className="legal-section">
-              <h2>4. Intellectual Property</h2>
-              <p>
+            </p>
+          </div>
+          
+          <div className="legal-section">
+            <h2>4. Intellectual Property</h2>
+            <p>
                 You retain ownership of any content you submit. However, by posting on bossme.me, you grant us a non-exclusive, worldwide, royalty-free, perpetual, irrevocable, sublicensable, and transferable license to:
               </p>
               <ul style={{ paddingLeft: '2rem' }}>
@@ -80,19 +80,19 @@ function Terms() {
               </ul>
               <p>
                 You represent and warrant that you have all necessary rights to grant this license.
-              </p>
-            </div>
-            
-            <div className="legal-section">
-              <h2>5. Termination</h2>
-              <p>
+            </p>
+          </div>
+          
+          <div className="legal-section">
+            <h2>5. Termination</h2>
+            <p>
                 We may suspend or terminate your access to bossme.me at any time, without prior notice, if we determine that you have violated these Terms, our content guidelines, or applicable laws. Upon termination, your right to use the service will immediately cease. You may terminate your account at any time by contacting us or following the instructions on our platform.
-              </p>
-            </div>
-            
-            <div className="legal-section">
-              <h2>6. Limitation of Liability</h2>
-              <p>
+            </p>
+          </div>
+          
+          <div className="legal-section">
+            <h2>6. Limitation of Liability</h2>
+            <p>
                 To the fullest extent permitted by law, bossme.me, its affiliates, and team members shall not be liable for any direct, indirect, incidental, or consequential damages resulting from:
               </p>
               <ul style={{ paddingLeft: '2rem' }}>
@@ -102,19 +102,19 @@ function Terms() {
               </ul>
               <p>
                 All content is provided "as is" and "as available," without warranties of any kind. bossme.me makes no representations or warranties regarding the reliability, completeness, or accuracy of the content shared on the platform.
-              </p>
-            </div>
-            
-            <div className="legal-section">
-              <h2>7. Changes to Terms</h2>
-              <p>
+            </p>
+          </div>
+          
+          <div className="legal-section">
+            <h2>7. Changes to Terms</h2>
+            <p>
                 We may update these Terms from time to time. When we do, we will revise the "Last updated" date at the bottom of this document. Continued use of the platform after any changes constitutes your acceptance of the updated Terms. We will notify users of substantial changes via email or on-site notification.
-              </p>
-            </div>
-            
-            <div className="legal-section">
-              <h2>8. Contact Information</h2>
-              <p>
+            </p>
+          </div>
+          
+          <div className="legal-section">
+            <h2>8. Contact Information</h2>
+            <p>
                 If you have any questions about these Terms, please contact us at:<br />
                 Email: contact@bossme.me<br />
                 Website: https://bossme.me/contact

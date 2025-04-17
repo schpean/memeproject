@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_verified BOOLEAN DEFAULT FALSE,
     is_deleted BOOLEAN DEFAULT FALSE,
     meme_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Memes table with all columns
@@ -111,6 +112,14 @@ BEGIN
         WHERE table_name = 'users' AND column_name = 'is_deleted'
     ) THEN
         ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
+    END IF;
+
+    -- Adaugă coloana updated_at dacă nu există deja
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT NOW();
     END IF;
 
     -- Adaugă coloana approved_by dacă nu există deja
