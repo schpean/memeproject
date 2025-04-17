@@ -3,8 +3,16 @@ import { API_ENDPOINTS, CLIENT_BASE_URL } from '../utils/config';
 
 const AuthContext = createContext();
 
-// Client ID for Google OAuth from environment variable
+// Client ID pentru OAuth din variabilele de mediu
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+const APPLE_CLIENT_ID = process.env.REACT_APP_APPLE_CLIENT_ID;
+
+// Constantele pentru providerii de autentificare
+const AUTH_PROVIDERS = {
+  GOOGLE: 'google',
+  APPLE: 'apple',
+  EMAIL: 'email'
+};
 
 // Local storage key constants
 const STORAGE_KEYS = {
@@ -84,7 +92,7 @@ export const AuthProvider = ({ children }) => {
         }
         
         // Fetch latest permissions
-        fetchUserPermissions(savedUser.uid);
+        fetchUserPermissions(savedUser.uid, savedUser.authProvider);
       }
       setLoading(false);
     };
@@ -92,22 +100,24 @@ export const AuthProvider = ({ children }) => {
     // Initialize auth state
     initialize();
     
-    // Load Google Sign-In API
-    loadGoogleScript();
+    // Load auth provider scripts
+    loadAuthScripts();
   }, []);
 
-  // Load Google Sign-In JS SDK
-  const loadGoogleScript = useCallback(() => {
-    // Don't load if script already exists
-    if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) return;
+  // Load auth provider JS SDKs
+  const loadAuthScripts = useCallback(() => {
+    // Load Google Sign-In API if not already loaded
+    if (!document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => console.log('Google Sign-In SDK loaded successfully');
+      script.onerror = () => console.error('Failed to load Google Sign-In SDK');
+      document.body.appendChild(script);
+    }
     
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => console.log('Google Sign-In SDK loaded successfully');
-    script.onerror = () => console.error('Failed to load Google Sign-In SDK');
-    document.body.appendChild(script);
+    // Aici putem adăuga alte script-uri pentru alți provideri (Apple, etc.)
   }, []);
 
   // Track upvoted memes - returns true if added, false if already upvoted or user not logged in
@@ -159,11 +169,11 @@ export const AuthProvider = ({ children }) => {
   }, [upvotedMemes]);
 
   // Fetch the latest user permissions
-  const fetchUserPermissions = useCallback(async (userId) => {
+  const fetchUserPermissions = useCallback(async (userId, authProvider = AUTH_PROVIDERS.GOOGLE) => {
     if (!userId) return;
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.users}/me?userId=${userId}`);
+      const response = await fetch(`${API_ENDPOINTS.users}/me?userId=${userId}&authProvider=${authProvider}`);
       
       if (!response.ok) {
         throw new Error(`Error fetching user permissions: ${response.status}`);
@@ -214,15 +224,129 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem(STORAGE_KEYS.PERMISSIONS);
     localStorage.removeItem('token');
     
-    // Attempt to revoke Google token if available
-    if (window.google && currentUser?.token) {
+    // Logout din provider specific
+    if (currentUser?.authProvider && currentUser?.token) {
       try {
-        window.google.accounts.oauth2.revoke(currentUser.token);
+        switch(currentUser.authProvider) {
+          case AUTH_PROVIDERS.GOOGLE:
+            if (window.google) {
+              window.google.accounts.oauth2.revoke(currentUser.token);
+            }
+            break;
+          case AUTH_PROVIDERS.APPLE:
+            // Aici va fi logica pentru revocarea token-ului Apple
+            console.log('Apple logout not implemented yet');
+            break;
+          default:
+            break;
+        }
       } catch (error) {
-        console.error('Error revoking Google token:', error);
+        console.error(`Error revoking ${currentUser.authProvider} token:`, error);
       }
     }
   }, [currentUser]);
+
+  // Funcție abstractizată pentru a procesa rezultatele autentificării
+  const processAuthResult = useCallback(async (providerData, authProvider) => {
+    try {
+      // Construiește endpoint-ul corect pentru provider
+      const endpoint = authProvider === AUTH_PROVIDERS.GOOGLE 
+        ? API_ENDPOINTS.googleAuth 
+        : authProvider === AUTH_PROVIDERS.APPLE 
+          ? API_ENDPOINTS.appleAuth 
+          : API_ENDPOINTS.emailAuth;
+      
+      // Prepare the data based on the provider type
+      let requestData = { ...providerData, authProvider };
+      
+      // Specific provider keys required by the backend
+      if (authProvider === AUTH_PROVIDERS.GOOGLE) {
+        requestData.googleId = providerData.providerUserId;
+      } else if (authProvider === AUTH_PROVIDERS.APPLE) {
+        requestData.appleId = providerData.providerUserId;
+      }
+      
+      // Send provider data to our server for JWT and account creation/verification
+      const serverLoginResponse = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+      
+      // Parse response JSON indiferent de codul de răspuns pentru a vedea mesajul de eroare
+      const responseData = await serverLoginResponse.json();
+      
+      if (!serverLoginResponse.ok) {
+        // Verifică dacă serverul a returnat un mesaj de eroare specific
+        if (responseData.message) {
+          setAuthError(responseData.message);
+        } else if (responseData.error && responseData.error.includes('previously associated with a deleted account')) {
+          setAuthError('Această adresă de email nu poate fi folosită pentru că a fost asociată anterior cu un cont șters.');
+        } else if (responseData.error && responseData.error.includes('Account deactivated')) {
+          setAuthError('Contul tău a fost dezactivat. Te rugăm să contactezi administratorul pentru asistență.');
+        } else {
+          setAuthError(`Eroare de autentificare: ${responseData.error || 'Necunoscută'}`);
+        }
+        
+        logout(); // Deconectează utilizatorul în caz de eroare
+        return null;
+      }
+      
+      if (responseData.error) {
+        setAuthError(responseData.error);
+        return null;
+      }
+      
+      // Store the JWT token for API requests
+      localStorage.setItem('token', responseData.token);
+      
+      // Create a unified user object
+      const user = {
+        ...providerData,
+        uid: responseData.userId || providerData.providerUserId,
+        username: responseData.username || providerData.displayName,
+        isEmailVerified: responseData.isEmailVerified || false,
+        emailVerificationRequired: responseData.emailVerificationRequired || false,
+        authProvider,
+        authProviderId: providerData.providerUserId
+      };
+      
+      // Set verification needed state
+      setNeedsVerification(
+        responseData.emailVerificationRequired && !responseData.isEmailVerified
+      );
+      
+      // Save user to state and localStorage
+      setCurrentUser(user);
+      saveToLocalStorage(STORAGE_KEYS.USER, user);
+      
+      // Load any upvoted memes from the server
+      if (responseData.upvotedMemes && Array.isArray(responseData.upvotedMemes)) {
+        setUpvotedMemes(responseData.upvotedMemes);
+        saveToLocalStorage(STORAGE_KEYS.UPVOTED_MEMES, responseData.upvotedMemes);
+      }
+      
+      // Fetch user permissions
+      fetchUserPermissions(user.uid, authProvider);
+      
+      return user;
+    } catch (error) {
+      console.error('Error processing authentication:', error);
+      
+      // Verifică dacă eroarea conține detalii despre un cont șters
+      if (error.response && error.response.data && 
+          error.response.data.redirectToLogin) {
+        setAuthError('Contul tău a fost dezactivat. Te rugăm să contactezi administratorul pentru asistență.');
+        logout(); // Deconectează utilizatorul și curăță starea locală
+        return null;
+      }
+      
+      setAuthError('Error processing login. Please try again.');
+      return null;
+    }
+  }, [fetchUserPermissions, logout]);
 
   // Google login logic
   const loginWithGoogle = useCallback(async () => {
@@ -265,86 +389,17 @@ export const AuthProvider = ({ children }) => {
             
             // Create user data object from Google response
             const googleUserData = {
-              googleId: googleUserInfo.sub,
+              providerUserId: googleUserInfo.sub,
               displayName: googleUserInfo.name,
               email: googleUserInfo.email,
               photoURL: googleUserInfo.picture,
               token: tokenResponse.access_token
             };
             
-            // Send Google data to our server for JWT and account creation/verification
-            const serverLoginResponse = await fetch(`${API_ENDPOINTS.googleAuth}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(googleUserData)
-            });
-            
-            // Parse response JSON indiferent de codul de răspuns pentru a vedea mesajul de eroare
-            const responseData = await serverLoginResponse.json();
-            
-            if (!serverLoginResponse.ok) {
-              // Verifică dacă serverul a returnat un mesaj de eroare specific
-              if (responseData.message) {
-                setAuthError(responseData.message);
-              } else if (responseData.error && responseData.error.includes('previously associated with a deleted account')) {
-                setAuthError('Această adresă de email nu poate fi folosită pentru că a fost asociată anterior cu un cont șters.');
-              } else if (responseData.error && responseData.error.includes('Account deactivated')) {
-                setAuthError('Contul tău a fost dezactivat. Te rugăm să contactezi administratorul pentru asistență.');
-              } else {
-                setAuthError(`Eroare de autentificare: ${responseData.error || 'Necunoscută'}`);
-              }
-              
-              logout(); // Deconectează utilizatorul în caz de eroare
-              return;
-            }
-            
-            if (responseData.error) {
-              setAuthError(responseData.error);
-              return;
-            }
-            
-            // Store the JWT token for API requests
-            localStorage.setItem('token', responseData.token);
-            
-            // Create a unified user object from Google and our database
-            const user = {
-              ...googleUserData,
-              uid: responseData.userId || googleUserInfo.sub,
-              username: responseData.username || googleUserInfo.name,
-              isEmailVerified: responseData.isEmailVerified || false,
-              emailVerificationRequired: responseData.emailVerificationRequired || false
-            };
-            
-            // Set verification needed state
-            setNeedsVerification(
-              responseData.emailVerificationRequired && !responseData.isEmailVerified
-            );
-            
-            // Save user to state and localStorage
-            setCurrentUser(user);
-            saveToLocalStorage(STORAGE_KEYS.USER, user);
-            
-            // Load any upvoted memes from the server
-            if (responseData.upvotedMemes && Array.isArray(responseData.upvotedMemes)) {
-              setUpvotedMemes(responseData.upvotedMemes);
-              saveToLocalStorage(STORAGE_KEYS.UPVOTED_MEMES, responseData.upvotedMemes);
-            }
-            
-            // Fetch user permissions
-            fetchUserPermissions(user.uid);
+            // Process Google authentication
+            await processAuthResult(googleUserData, AUTH_PROVIDERS.GOOGLE);
           } catch (error) {
             console.error('Error processing Google login:', error);
-            
-            // Verifică dacă eroarea conține detalii despre un cont șters
-            if (error.response && error.response.data && 
-                error.response.data.redirectToLogin) {
-              setAuthError('Contul tău a fost dezactivat. Te rugăm să contactezi administratorul pentru asistență.');
-              logout(); // Deconectează utilizatorul și curăță starea locală
-              return;
-            }
-            
             setAuthError('Error processing login. Please try again.');
           }
         }
@@ -356,7 +411,26 @@ export const AuthProvider = ({ children }) => {
       console.error('Google login error:', error);
       setAuthError('Failed to initialize Google Sign-In. Please try again later.');
     }
-  }, [fetchUserPermissions, logout]);
+  }, [processAuthResult]);
+
+  // Apple login logic - pregătit pentru implementare viitoare
+  const loginWithApple = useCallback(async () => {
+    setAuthError(null);
+    
+    // Aici se va implementa logica pentru autentificare Apple
+    setAuthError('Apple Sign-In is not implemented yet.');
+    
+    // Exemplu: 
+    // const appleUserData = {
+    //   providerUserId: 'apple-user-id',
+    //   displayName: 'Apple User',
+    //   email: 'user@apple.com',
+    //   photoURL: '',
+    //   token: 'apple-token'
+    // };
+    // 
+    // await processAuthResult(appleUserData, AUTH_PROVIDERS.APPLE);
+  }, []);
 
   // Check if user has a specific permission
   const hasPermission = useCallback((permission) => {
@@ -383,7 +457,8 @@ export const AuthProvider = ({ children }) => {
         },
         body: JSON.stringify({
           userId: currentUser.uid,
-          email: currentUser.email
+          email: currentUser.email,
+          authProvider: currentUser.authProvider || AUTH_PROVIDERS.GOOGLE
         })
       });
       
@@ -412,6 +487,7 @@ export const AuthProvider = ({ children }) => {
     addUpvotedMeme,
     removeUpvotedMeme,
     loginWithGoogle,
+    loginWithApple,
     logout,
     hasPermission,
     resendVerificationEmail,
@@ -420,7 +496,9 @@ export const AuthProvider = ({ children }) => {
     isVerified: currentUser?.isEmailVerified || false,
     globalLoading,
     startGlobalLoading,
-    stopGlobalLoading
+    stopGlobalLoading,
+    // Constants
+    AUTH_PROVIDERS
   };
 
   return (

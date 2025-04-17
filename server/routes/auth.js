@@ -3,6 +3,7 @@
  * 
  * Acest fișier gestionează toate rutele legate de autentificare:
  * - /users/google-auth pentru autentificare Google OAuth
+ * - /users/apple-auth pentru autentificare Apple
  * - /users/update-nickname pentru actualizare nickname
  * - /auth/verify-email pentru verificare email
  * 
@@ -22,45 +23,65 @@ const pool = require('../db');
 const { v4: uuidv4 } = require('uuid');
 const emailService = require('../email');
 const { authorize } = require('../middleware/auth');
-const userQueries = require('../models/user');
+const { PROVIDERS, ...userQueries } = require('../models/user');
 
-// Update the Google OAuth login to include role information and email verification
-router.post('/google-auth', async (req, res) => {
+// Abstractizarea procesului de autentificare pentru orice provider
+const handleAuthProvider = async (req, res, providerName) => {
   try {
-    const { googleId, email, displayName, photoURL, token } = req.body;
+    // Extrage datele comune pentru orice provider
+    const { email, displayName, photoURL, token } = req.body;
     
-    if (!googleId || !email) {
-      return res.status(400).json({ error: 'Google ID and email are required' });
+    // Extrage ID-ul specific provider-ului
+    let providerUserId;
+    switch (providerName) {
+      case PROVIDERS.GOOGLE:
+        providerUserId = req.body.googleId;
+        break;
+      case PROVIDERS.APPLE:
+        providerUserId = req.body.appleId;
+        break;
+      case PROVIDERS.EMAIL:
+        providerUserId = email; // Pentru email, folosim adresa de email ca ID
+        break;
+      default:
+        return res.status(400).json({ error: `Provider invalid: ${providerName}` });
     }
     
-    // Verify the token with Google using server-side client secret from config
+    if (!providerUserId || !email) {
+      return res.status(400).json({ 
+        error: 'Date incomplete', 
+        message: `ID-ul provider-ului și adresa de email sunt obligatorii pentru ${providerName}` 
+      });
+    }
+    
+    // Verify the token if necessary with provider
     if (!token) {
-      console.warn('No token provided for validation');
+      console.warn(`No token provided for ${providerName} validation`);
     }
     
-    // Verificăm dacă acest Google ID aparține unui cont marcat ca șters
-    const deletedCheck = await userQueries.findByGoogleId(googleId);
+    // Verifică utilizatorul după provider și ID
+    const user = await userQueries.findByProviderId(providerName, providerUserId);
     
-    if (deletedCheck && deletedCheck.is_deleted) {
+    // Verifică dacă acest utilizator e marcat ca șters
+    if (user && user.is_deleted) {
       return res.status(403).json({ 
         error: 'Account deactivated', 
         message: 'This account has been deactivated. Please contact the administrator for assistance.'
       });
     }
     
-    // Check if this email is blacklisted (was previously deleted)
+    // Verifică dacă emailul e în blacklist
     const emailCheck = await userQueries.findByEmail(email);
-
+    
     if (emailCheck && emailCheck.is_deleted) {
       return res.status(403).json({ 
         error: 'This email address cannot be used for registration as it was previously associated with a deleted account.' 
       });
     }
     
-    if (deletedCheck) {
+    if (user) {
       // User exists, update last login time
-      const user = deletedCheck;
-      await userQueries.update(user.google_id, {
+      await userQueries.update(providerName, providerUserId, {
         last_login: new Date(),
         photo_url: getMascotImageUrl(user.username)
       });
@@ -73,7 +94,7 @@ router.post('/google-auth', async (req, res) => {
         expiryTime.setHours(expiryTime.getHours() + 24); // Token expires in 24 hours
         
         // Update the user's verification token
-        await userQueries.update(user.google_id, {
+        await userQueries.update(providerName, providerUserId, {
           verification_token: verificationToken,
           verification_expires: expiryTime
         });
@@ -85,14 +106,18 @@ router.post('/google-auth', async (req, res) => {
           ...user,
           isAdmin: user.role_name === 'admin',
           isModerator: user.role_name === 'moderator' || user.role_name === 'admin',
-          needsVerification: true
+          needsVerification: true,
+          authProvider: providerName,
+          authProviderId: providerUserId
         });
       }
       
       return res.json({
         ...user,
         isAdmin: user.role_name === 'admin',
-        isModerator: user.role_name === 'moderator' || user.role_name === 'admin'
+        isModerator: user.role_name === 'moderator' || user.role_name === 'admin',
+        authProvider: providerName,
+        authProviderId: providerUserId
       });
     }
     
@@ -114,7 +139,8 @@ router.post('/google-auth', async (req, res) => {
     
     // Create new user
     const newUser = await userQueries.create({
-      google_id: googleId,
+      auth_provider: providerName,
+      auth_provider_user_id: providerUserId,
       email,
       username,
       photo_url: getMascotImageUrl(username),
@@ -130,18 +156,30 @@ router.post('/google-auth', async (req, res) => {
       ...newUser,
       isAdmin: newUser.role_name === 'admin',
       isModerator: newUser.role_name === 'moderator' || newUser.role_name === 'admin',
-      needsVerification: true
+      needsVerification: true,
+      authProvider: providerName,
+      authProviderId: providerUserId
     });
   } catch (error) {
-    console.error('Error during Google authentication:', error);
+    console.error(`Error during ${providerName} authentication:`, error);
     res.status(500).json({ error: 'Internal server error' });
   }
+};
+
+// Update the Google OAuth login to include role information and email verification
+router.post('/google-auth', async (req, res) => {
+  return handleAuthProvider(req, res, PROVIDERS.GOOGLE);
+});
+
+// Endpoint pentru autentificare Apple (pregătit pentru implementare viitoare)
+router.post('/apple-auth', async (req, res) => {
+  return handleAuthProvider(req, res, PROVIDERS.APPLE);
 });
 
 // Update user nickname
 router.post('/update-nickname', async (req, res) => {
   try {
-    const { userId, newNickname } = req.body;
+    const { userId, newNickname, authProvider = PROVIDERS.GOOGLE } = req.body;
 
     if (!userId || !newNickname) {
       console.log('Missing required fields');
@@ -154,7 +192,7 @@ router.post('/update-nickname', async (req, res) => {
     }
 
     // Check if the user exists and if they have already changed their nickname
-    const user = await userQueries.findByGoogleId(userId);
+    const user = await userQueries.findByProviderId(authProvider, userId);
 
     if (!user) {
       console.log('User not found');
@@ -182,7 +220,7 @@ router.post('/update-nickname', async (req, res) => {
     }
 
     // Update the user's nickname
-    await userQueries.update(userId, {
+    await userQueries.update(authProvider, userId, {
       username: newNickname,
       nickname_changed: true
     });

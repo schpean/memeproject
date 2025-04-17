@@ -18,6 +18,7 @@
  */
 
 const pool = require('../db');
+const userQueries = require('../models/user');
 
 // Role-based authorization middleware
 const authorize = (roles = []) => {
@@ -36,22 +37,21 @@ const authorize = (roles = []) => {
     }
 
     try {
-      // Get user and their role - use google_id instead of id and exclude deleted users
-      const result = await pool.query(`
-        SELECT u.*, r.name as role_name 
-        FROM users u
-        LEFT JOIN user_roles r ON u.role_id = r.id
-        WHERE u.google_id = $1 AND (u.is_deleted IS NULL OR u.is_deleted = FALSE)
-      `, [userId]);
+      // Determină provider-ul din header sau query - default la Google pentru compatibilitate
+      const authProvider = req.headers['auth-provider'] || 
+                          req.query.authProvider || 
+                          (req.body && req.body.authProvider) || 
+                          userQueries.PROVIDERS.GOOGLE;
+                          
+      // Găsește utilizatorul folosind provider-ul și ID-ul
+      const user = await userQueries.findByProviderId(authProvider, userId);
       
-      if (result.rows.length === 0) {
+      if (!user) {
         return res.status(401).json({ 
           error: 'Unauthorized - User not found or account has been deleted',
           redirectToLogin: true 
         });
       }
-      
-      const user = result.rows[0];
       
       // Check if role is required and if user's role is allowed
       if (roles.length && !roles.includes(user.role_name)) {

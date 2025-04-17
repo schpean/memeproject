@@ -25,13 +25,36 @@ export const WS_URL = `${wsBaseURL}/ws`;
 // Fallback HTTP polling URL for environments where WebSockets are blocked
 export const POLLING_URL = `${API_BASE_URL}/api/updates`;
 
+// Constantele pentru providerii de autentificare
+export const AUTH_PROVIDERS = {
+  GOOGLE: 'google',
+  APPLE: 'apple',
+  EMAIL: 'email'
+};
+
 // IMPORTANT: Acest obiect defineşte toate endpoint-urile API utilizate în aplicaţie
 export const API_ENDPOINTS = {
   // Auth endpoints
   googleAuth: '/users/google-auth',
+  appleAuth: '/users/apple-auth',
+  emailAuth: '/users/email-auth',
   updateNickname: '/users/update-nickname',
   verifyEmail: '/verify-email',
   resendVerification: '/resend-verification',
+  
+  // Helper pentru endpoint-uri de autentificare în funcție de provider
+  authEndpoint: (provider) => {
+    switch(provider) {
+      case AUTH_PROVIDERS.GOOGLE:
+        return '/users/google-auth';
+      case AUTH_PROVIDERS.APPLE:
+        return '/users/apple-auth';
+      case AUTH_PROVIDERS.EMAIL:
+        return '/users/email-auth';
+      default:
+        return '/users/google-auth';
+    }
+  },
   
   // User endpoints
   users: '/users',

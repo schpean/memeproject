@@ -9,7 +9,8 @@
  * - Queries pentru gestionarea sesiunilor
  * 
  * Schema tabelului users:
- * - google_id (pentru autentificare Google)
+ * - auth_provider_id (legătura cu provider-ul de autentificare)
+ * - auth_provider_user_id (ID-ul utilizatorului în sistemul provider-ului)
  * - email
  * - username
  * - role_id (legătura cu tabela roles)
@@ -27,24 +28,48 @@
 
 const pool = require('../db');
 
+// Constants for providers
+const PROVIDERS = {
+  GOOGLE: 'google',
+  APPLE: 'apple',
+  EMAIL: 'email'
+};
+
 const userQueries = {
-  // Găsește un utilizator după google_id
-  findByGoogleId: async (googleId) => {
+  // Funcție generică pentru a obține ID-ul provider-ului după nume
+  getProviderId: async (providerName) => {
+    const result = await pool.query(
+      'SELECT id FROM auth_providers WHERE name = $1',
+      [providerName]
+    );
+    return result.rows[0]?.id;
+  },
+
+  // Găsește un utilizator după auth_provider și id extern
+  findByProviderId: async (providerName, providerUserId) => {
+    const providerId = await userQueries.getProviderId(providerName);
+    if (!providerId) return null;
+
     const result = await pool.query(`
       SELECT u.*, r.name as role_name 
       FROM users u
       LEFT JOIN user_roles r ON u.role_id = r.id
-      WHERE u.google_id = $1 AND (u.is_deleted IS NULL OR u.is_deleted = FALSE)
-    `, [googleId]);
+      WHERE u.auth_provider_id = $1 AND u.auth_provider_user_id = $2 
+        AND (u.is_deleted IS NULL OR u.is_deleted = FALSE)
+    `, [providerId, providerUserId]);
     return result.rows[0];
   },
+
+  // NOTĂ: Pentru a menține sistemul agnostic, evităm a folosi funcții specifice provider-ilor
+  // În locul findByGoogleId(), folosește findByProviderId(PROVIDERS.GOOGLE, id)
 
   // Găsește un utilizator după email
   findByEmail: async (email) => {
     const result = await pool.query(`
-      SELECT u.*, r.name as role_name 
+      SELECT u.*, r.name as role_name, ap.name as auth_provider
       FROM users u
       LEFT JOIN user_roles r ON u.role_id = r.id
+      LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id
       WHERE u.email = $1 AND (u.is_deleted IS NULL OR u.is_deleted = FALSE)
     `, [email]);
     return result.rows[0];
@@ -52,52 +77,131 @@ const userQueries = {
 
   // Creează un utilizator nou
   create: async (userData) => {
-    const { google_id, email, username, role_id = 1 } = userData;
+    const { auth_provider, auth_provider_user_id, email, username, role_id = 1, verification_token, verification_expires, photo_url } = userData;
+    
+    // Obține ID-ul provider-ului
+    const providerId = await userQueries.getProviderId(auth_provider || PROVIDERS.GOOGLE);
+    if (!providerId) {
+      throw new Error(`Provider de autentificare necunoscut: ${auth_provider}`);
+    }
+
     const result = await pool.query(`
-      INSERT INTO users (google_id, email, username, role_id, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, NOW(), NOW())
+      INSERT INTO users (
+        auth_provider_id, auth_provider_user_id, email, username, 
+        role_id, verification_token, verification_expires, photo_url,
+        created_at, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
       RETURNING *
-    `, [google_id, email, username, role_id]);
+    `, [providerId, auth_provider_user_id, email, username, role_id, verification_token, verification_expires, photo_url]);
+    
     return result.rows[0];
   },
 
   // Actualizează un utilizator
-  update: async (googleId, updateData) => {
-    const { email, username, role_id } = updateData;
-    const result = await pool.query(`
+  update: async (auth_provider, providerUserId, updateData) => {
+    // Pentru compatibilitate cu codul existent care folosește google_id direct
+    let providerId;
+    
+    if (typeof auth_provider === 'string' && auth_provider.includes('google')) {
+      // Cazul în care primul argument este direct googleId
+      providerId = await userQueries.getProviderId(PROVIDERS.GOOGLE);
+      providerUserId = auth_provider; // Primul argument este de fapt providerUserId
+    } else {
+      // Cazul normal
+      providerId = await userQueries.getProviderId(auth_provider);
+    }
+    
+    if (!providerId) {
+      throw new Error(`Provider necunoscut: ${auth_provider}`);
+    }
+
+    // Construim SET clause dinamic pentru valorile primite
+    const updates = [];
+    const values = [providerId, providerUserId]; // $1, $2
+    let paramIndex = 3;
+    
+    // Adaugă fiecare câmp valid la updates
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined && value !== null) {
+        updates.push(`${key} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
+    }
+    
+    // Adaugă updated_at întotdeauna
+    updates.push('updated_at = NOW()');
+    
+    // Construiește query-ul complet
+    const query = `
       UPDATE users
-      SET email = COALESCE($2, email),
-          username = COALESCE($3, username),
-          role_id = COALESCE($4, role_id),
-          updated_at = NOW()
-      WHERE google_id = $1
+      SET ${updates.join(', ')}
+      WHERE auth_provider_id = $1 AND auth_provider_user_id = $2
       RETURNING *
-    `, [googleId, email, username, role_id]);
+    `;
+    
+    const result = await pool.query(query, values);
     return result.rows[0];
   },
 
   // Șterge logic un utilizator
-  softDelete: async (googleId) => {
+  softDelete: async (auth_provider, providerUserId) => {
+    // Pentru compatibilitate cu codul existent care folosește google_id direct
+    let providerId;
+    
+    if (typeof auth_provider === 'string' && !providerUserId) {
+      // Cazul în care primul argument este direct googleId
+      providerId = await userQueries.getProviderId(PROVIDERS.GOOGLE);
+      providerUserId = auth_provider; // Primul argument este de fapt providerUserId
+    } else {
+      // Cazul normal
+      providerId = await userQueries.getProviderId(auth_provider);
+    }
+
     const result = await pool.query(`
       UPDATE users
       SET is_deleted = TRUE,
           updated_at = NOW()
-      WHERE google_id = $1
+      WHERE auth_provider_id = $1 AND auth_provider_user_id = $2
       RETURNING *
-    `, [googleId]);
+    `, [providerId, providerUserId]);
     return result.rows[0];
   },
 
   // Găsește un utilizator după username
   findByUsername: async (username) => {
     const result = await pool.query(`
-      SELECT u.*, r.name as role_name 
+      SELECT u.*, r.name as role_name, ap.name as auth_provider
       FROM users u
       LEFT JOIN user_roles r ON u.role_id = r.id
+      LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id
       WHERE u.username = $1 AND (u.is_deleted IS NULL OR u.is_deleted = FALSE)
     `, [username]);
     return result.rows[0];
+  },
+  
+  // Găsește un utilizator după ID intern
+  findById: async (id) => {
+    const result = await pool.query(`
+      SELECT u.*, r.name as role_name, ap.name as auth_provider
+      FROM users u
+      LEFT JOIN user_roles r ON u.role_id = r.id
+      LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id
+      WHERE u.id = $1 AND (u.is_deleted IS NULL OR u.is_deleted = FALSE)
+    `, [id]);
+    return result.rows[0];
+  },
+  
+  // Pentru compatibilitate temporară cu codul existent - a se elimina după migrare completă
+  findByGoogleId: async (googleId) => {
+    console.warn('DEPRECATED: findByGoogleId este depreciat. Folosiți findByProviderId(PROVIDERS.GOOGLE, id)');
+    return userQueries.findByProviderId(PROVIDERS.GOOGLE, googleId);
   }
 };
 
-module.exports = userQueries; 
+// Exportăm și constantele pentru a putea fi folosite în alte locuri
+module.exports = {
+  ...userQueries,
+  PROVIDERS
+}; 

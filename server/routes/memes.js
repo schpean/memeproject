@@ -7,6 +7,7 @@ const pool = require('../db');
 const { authorize } = require('../middleware/auth');
 const checkUserStatus = require('../middleware/checkUserStatus');
 const broadcastService = require('../websocket/broadcastService');
+const { PROVIDERS } = require('../models/user');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -81,6 +82,7 @@ router.get('/', async (req, res) => {
     
     // Only show approved memes by default for regular users
     const userId = req.headers['user-id'] || req.query.userId;
+    const authProvider = req.headers['auth-provider'] || req.query.authProvider || PROVIDERS.GOOGLE;
     let userRole = 'user';
     
     if (userId) {
@@ -89,8 +91,9 @@ router.get('/', async (req, res) => {
           SELECT u.*, r.name as role_name 
           FROM users u
           LEFT JOIN user_roles r ON u.role_id = r.id
-          WHERE u.id = $1
-        `, [userId]);
+          LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id
+          WHERE u.auth_provider_user_id = $1 AND ap.name = $2
+        `, [userId, authProvider]);
         
         if (userResult.rows.length > 0) {
           userRole = userResult.rows[0].role_name;
@@ -169,6 +172,7 @@ router.put('/:id/approval', authorize(['admin', 'moderator']), async (req, res) 
     const { id } = req.params;
     const { status, reason } = req.body;
     const userId = req.header('user-id');
+    const authProvider = req.header('auth-provider') || PROVIDERS.GOOGLE;
 
     // Validate status
     if (!status || !['approved', 'rejected'].includes(status)) {
@@ -178,7 +182,17 @@ router.put('/:id/approval', authorize(['admin', 'moderator']), async (req, res) 
     // Get the user's numeric ID
     let approverDbId = null;
     if (userId) {
-      const userCheck = await pool.query('SELECT id FROM users WHERE google_id = $1', [userId]);
+      // Get the auth provider ID first
+      const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
+      if (providerQuery.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid authentication provider' });
+      }
+      const providerId = providerQuery.rows[0].id;
+      
+      const userCheck = await pool.query(
+        'SELECT id FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', 
+        [providerId, userId]
+      );
       if (userCheck.rows.length > 0) {
         approverDbId = userCheck.rows[0].id;
       }
@@ -217,7 +231,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     console.log('---DETAILED MEME REQUEST INFO---');
     console.log('- Full request body:', req.body);
     
-    let company, city, message, imageUrl, userId, username;
+    let company, city, message, imageUrl, userId, username, authProvider;
     
     if (isFormData) {
       // Handle FormData upload with file
@@ -227,6 +241,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
       userId = req.body.userId;
       username = req.body.username; // Vom suprascrie acest username cu cel din baza de date
+      authProvider = req.body.authProvider || PROVIDERS.GOOGLE;
     } else {
       // Handle JSON request with URL
       const body = req.body;
@@ -236,6 +251,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       imageUrl = body.image_url;
       userId = body.userId;
       username = body.username; // Vom suprascrie acest username cu cel din baza de date
+      authProvider = body.authProvider || PROVIDERS.GOOGLE;
     }
     
     // Detailed debug info
@@ -245,6 +261,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     console.log('- Image URL:', imageUrl);
     console.log('- Message:', message);
     console.log('- User ID:', userId);
+    console.log('- Auth Provider:', authProvider);
     console.log('- Username trimis de client:', username);
 
     // Validate required fields
@@ -260,22 +277,30 @@ router.post('/', upload.single('image'), async (req, res) => {
     
     if (userId) {
       try {
-        const userCheck = await pool.query('SELECT id, username, is_deleted FROM users WHERE google_id = $1', [userId]);
-        if (userCheck.rows.length > 0) {
-          // Verifică dacă utilizatorul este marcat ca șters
-          if (userCheck.rows[0].is_deleted) {
-            return res.status(403).json({ 
-              error: 'Account is deactivated', 
-              message: 'Your account has been deactivated and cannot post new content.'
-            });
-          }
-          
-          dbUserId = userCheck.rows[0].id;
-          currentUsername = userCheck.rows[0].username;
-          console.log('Found numeric user ID:', dbUserId);
-          console.log('Found current username from database:', currentUsername);
+        // Get the auth provider ID first
+        const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
+        if (providerQuery.rows.length === 0) {
+          console.log('Auth provider not found, meme will be anonymous');
         } else {
-          console.log('User not found, meme will be anonymous');
+          const providerId = providerQuery.rows[0].id;
+          
+          const userCheck = await pool.query('SELECT id, username, is_deleted FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', [providerId, userId]);
+          if (userCheck.rows.length > 0) {
+            // Verifică dacă utilizatorul este marcat ca șters
+            if (userCheck.rows[0].is_deleted) {
+              return res.status(403).json({ 
+                error: 'Account is deactivated', 
+                message: 'Your account has been deactivated and cannot post new content.'
+              });
+            }
+            
+            dbUserId = userCheck.rows[0].id;
+            currentUsername = userCheck.rows[0].username;
+            console.log('Found numeric user ID:', dbUserId);
+            console.log('Found current username from database:', currentUsername);
+          } else {
+            console.log('User not found, meme will be anonymous');
+          }
         }
       } catch (userError) {
         console.error('Error finding user:', userError);
@@ -302,16 +327,22 @@ router.post('/', upload.single('image'), async (req, res) => {
       // Check if user is admin or moderator - their posts are auto-approved
       let approvalStatus = 'pending';
       try {
-        const userResult = await pool.query(`
-          SELECT u.*, r.name as role_name 
-          FROM users u
-          LEFT JOIN user_roles r ON u.role_id = r.id
-          WHERE u.google_id = $1
-        `, [userId]);
-        
-        if (userResult.rows.length > 0 && 
-           (userResult.rows[0].role_name === 'admin' || userResult.rows[0].role_name === 'moderator')) {
-          approvalStatus = 'approved';
+        // Get the auth provider ID first
+        const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
+        if (providerQuery.rows.length > 0) {
+          const providerId = providerQuery.rows[0].id;
+          
+          const userResult = await pool.query(`
+            SELECT u.*, r.name as role_name 
+            FROM users u
+            LEFT JOIN user_roles r ON u.role_id = r.id
+            WHERE u.auth_provider_id = $1 AND u.auth_provider_user_id = $2
+          `, [providerId, userId]);
+          
+          if (userResult.rows.length > 0 && 
+             (userResult.rows[0].role_name === 'admin' || userResult.rows[0].role_name === 'moderator')) {
+            approvalStatus = 'approved';
+          }
         }
       } catch (error) {
         console.error('Error checking user role:', error);
@@ -342,10 +373,16 @@ router.post('/', upload.single('image'), async (req, res) => {
       
       // Actualizează contorul utilizatorului
       if (userId) {
-        await pool.query(
-          'UPDATE users SET meme_count = meme_count + 1 WHERE google_id = $1', 
-          [userId]
-        );
+        // Get the auth provider ID first
+        const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
+        if (providerQuery.rows.length > 0) {
+          const providerId = providerQuery.rows[0].id;
+          
+          await pool.query(
+            'UPDATE users SET meme_count = meme_count + 1 WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', 
+            [providerId, userId]
+          );
+        }
       }
     } catch (dbError) {
       console.error('Database error while creating meme:', dbError);
@@ -431,7 +468,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 router.post('/:id/vote', async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId, voteType } = req.body;
+    const { userId, voteType, authProvider = PROVIDERS.GOOGLE } = req.body;
     
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required to vote' });
@@ -441,10 +478,17 @@ router.post('/:id/vote', async (req, res) => {
       return res.status(400).json({ error: 'Invalid vote type. Must be "up" or "down"' });
     }
     
+    // Get the auth provider ID
+    const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
+    if (providerQuery.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid authentication provider' });
+    }
+    const providerId = providerQuery.rows[0].id;
+    
     // Verificăm dacă utilizatorul este anonimizat/marcat ca șters
     const userStatusCheck = await pool.query(
-      'SELECT is_deleted FROM users WHERE google_id = $1',
-      [userId]
+      'SELECT is_deleted FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2',
+      [providerId, userId]
     );
     
     if (userStatusCheck.rows.length === 0) {
@@ -464,7 +508,10 @@ router.post('/:id/vote', async (req, res) => {
       await client.query('BEGIN');
       
       // Obține ID-ul numeric al utilizatorului din baza de date
-      const userCheck = await client.query('SELECT id FROM users WHERE google_id = $1', [userId]);
+      const userCheck = await client.query(
+        'SELECT id FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', 
+        [providerId, userId]
+      );
       if (userCheck.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'User not found' });
@@ -568,6 +615,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.header('user-id');
+    const authProvider = req.header('auth-provider') || PROVIDERS.GOOGLE;
     
     // Obține meme-ul
     const result = await pool.query('SELECT * FROM memes WHERE id = $1', [id]);
@@ -588,13 +636,20 @@ router.get('/:id', async (req, res) => {
         });
       }
       
+      // Get the auth provider ID
+      const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
+      if (providerQuery.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid authentication provider' });
+      }
+      const providerId = providerQuery.rows[0].id;
+      
       // Verifică dacă utilizatorul este admin/moderator sau creatorul meme-ului
       const userCheck = await pool.query(`
         SELECT u.id, u.role_id, r.name as role_name
         FROM users u
         LEFT JOIN user_roles r ON u.role_id = r.id
-        WHERE u.google_id = $1
-      `, [userId]);
+        WHERE u.auth_provider_id = $1 AND u.auth_provider_user_id = $2
+      `, [providerId, userId]);
       
       if (userCheck.rows.length === 0) {
         return res.status(403).json({ 

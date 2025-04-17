@@ -9,6 +9,7 @@
  */
 
 const pool = require('../db');
+const userQueries = require('../models/user');
 
 const checkUserStatus = async (req, res, next) => {
   const userId = req.header('user-id') || req.body.userId || req.query.userId;
@@ -21,19 +22,23 @@ const checkUserStatus = async (req, res, next) => {
   }
   
   try {
-    const userCheck = await pool.query(
-      'SELECT is_deleted FROM users WHERE google_id = $1',
-      [userId]
-    );
+    // Determină provider-ul din header, body sau query - default la Google pentru compatibilitate
+    const authProvider = req.header('auth-provider') || 
+                         req.body.authProvider || 
+                         req.query.authProvider || 
+                         userQueries.PROVIDERS.GOOGLE;
     
-    if (userCheck.rows.length === 0) {
+    // Verifică utilizatorul folosind provider-ul și ID-ul
+    const user = await userQueries.findByProviderId(authProvider, userId);
+    
+    if (!user) {
       return res.status(404).json({ 
         error: 'User not found',
         message: 'Utilizatorul nu a fost găsit. Vă rugăm să vă autentificați din nou.'
       });
     }
     
-    if (userCheck.rows[0].is_deleted) {
+    if (user.is_deleted) {
       return res.status(403).json({ 
         error: 'Account deactivated',
         message: 'Acest cont a fost dezactivat și nu poate efectua acțiuni.'
@@ -41,8 +46,7 @@ const checkUserStatus = async (req, res, next) => {
     }
     
     // Adăugăm ID-ul numeric al utilizatorului în request pentru a fi folosit mai târziu
-    const numericIdResult = await pool.query('SELECT id FROM users WHERE google_id = $1', [userId]);
-    req.numericUserId = numericIdResult.rows[0].id;
+    req.numericUserId = user.id;
     
     next();
   } catch (error) {
