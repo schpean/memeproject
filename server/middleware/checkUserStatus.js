@@ -6,30 +6,36 @@
  * - Utilizatorul nu este marcat ca șters
  * 
  * Se folosește pentru toate rutele care necesită un utilizator activ
+ * 
+ * Sistemul este agnostic față de metoda de autentificare, folosind
+ * exclusiv public_id (UUID) pentru a identifica utilizatorii.
  */
 
 const pool = require('../db');
 const userQueries = require('../models/user');
 
 const checkUserStatus = async (req, res, next) => {
-  const userId = req.header('user-id') || req.body.userId || req.query.userId;
+  const publicId = req.header('user-id') || req.body.userId || req.query.userId;
   
-  if (!userId) {
+  if (!publicId) {
     return res.status(401).json({ 
       error: 'Authentication required',
       message: 'Trebuie să fiți autentificat pentru a efectua această acțiune.'
     });
   }
   
+  // Verificăm dacă publicId are format de UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(publicId)) {
+    return res.status(401).json({ 
+      error: 'Invalid user ID format',
+      message: 'Formatul identificatorului de utilizator este invalid.'
+    });
+  }
+  
   try {
-    // Determină provider-ul din header, body sau query - default la Google pentru compatibilitate
-    const authProvider = req.header('auth-provider') || 
-                         req.body.authProvider || 
-                         req.query.authProvider || 
-                         userQueries.PROVIDERS.GOOGLE;
-    
-    // Verifică utilizatorul folosind provider-ul și ID-ul
-    const user = await userQueries.findByProviderId(authProvider, userId);
+    // Căutăm utilizatorul după public_id
+    const user = await userQueries.findByPublicId(publicId);
     
     if (!user) {
       return res.status(404).json({ 
@@ -45,8 +51,9 @@ const checkUserStatus = async (req, res, next) => {
       });
     }
     
-    // Adăugăm ID-ul numeric al utilizatorului în request pentru a fi folosit mai târziu
-    req.numericUserId = user.id;
+    // Adăugăm datele utilizatorului în request pentru a fi folosite mai târziu
+    req.numericUserId = user.id; // ID-ul numeric din baza de date
+    req.user = user;             // Obiectul complet al utilizatorului
     
     next();
   } catch (error) {

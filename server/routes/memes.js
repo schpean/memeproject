@@ -8,6 +8,7 @@ const { authorize } = require('../middleware/auth');
 const checkUserStatus = require('../middleware/checkUserStatus');
 const broadcastService = require('../websocket/broadcastService');
 const { PROVIDERS } = require('../models/user');
+const userQueries = require('../models/user');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -81,22 +82,19 @@ router.get('/', async (req, res) => {
     }
     
     // Only show approved memes by default for regular users
-    const userId = req.headers['user-id'] || req.query.userId;
-    const authProvider = req.headers['auth-provider'] || req.query.authProvider || PROVIDERS.GOOGLE;
+    const publicId = req.headers['user-id'] || req.query.userId;
     let userRole = 'user';
     
-    if (userId) {
+    if (publicId) {
       try {
-        const userResult = await pool.query(`
-          SELECT u.*, r.name as role_name 
-          FROM users u
-          LEFT JOIN user_roles r ON u.role_id = r.id
-          LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id
-          WHERE u.auth_provider_user_id = $1 AND ap.name = $2
-        `, [userId, authProvider]);
-        
-        if (userResult.rows.length > 0) {
-          userRole = userResult.rows[0].role_name;
+        // Verifică dacă publicId are format de UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(publicId)) {
+          // Obține utilizatorul după public_id
+          const user = await userQueries.findByPublicId(publicId);
+          if (user) {
+            userRole = user.role_name;
+          }
         }
       } catch (error) {
         console.error('Error checking user role:', error);
@@ -171,32 +169,14 @@ router.put('/:id/approval', authorize(['admin', 'moderator']), async (req, res) 
   try {
     const { id } = req.params;
     const { status, reason } = req.body;
-    const userId = req.header('user-id');
-    const authProvider = req.header('auth-provider') || PROVIDERS.GOOGLE;
-
+    
     // Validate status
     if (!status || !['approved', 'rejected'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status. Must be "approved" or "rejected"' });
     }
     
-    // Get the user's numeric ID
-    let approverDbId = null;
-    if (userId) {
-      // Get the auth provider ID first
-      const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
-      if (providerQuery.rows.length === 0) {
-        return res.status(400).json({ error: 'Invalid authentication provider' });
-      }
-      const providerId = providerQuery.rows[0].id;
-      
-      const userCheck = await pool.query(
-        'SELECT id FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', 
-        [providerId, userId]
-      );
-      if (userCheck.rows.length > 0) {
-        approverDbId = userCheck.rows[0].id;
-      }
-    }
+    // Folosim req.user care este deja setat de middleware-ul authorize
+    const approverDbId = req.user?.id;
     
     // Update meme approval status
     let result;
@@ -216,6 +196,14 @@ router.put('/:id/approval', authorize(['admin', 'moderator']), async (req, res) 
       return res.status(404).json({ error: 'Meme not found' });
     }
     
+    // Dacă meme-ul a fost aprobat, difuzează-l către toți clienții
+    if (status === 'approved') {
+      console.log(`Meme #${id} approved by ${req.user.username} (${req.user.public_id}), broadcasting to all clients`);
+      broadcastService.broadcastNewMeme(result.rows[0]);
+    } else if (status === 'rejected') {
+      console.log(`Meme #${id} rejected by ${req.user.username} (${req.user.public_id}). Reason: ${reason || 'No reason provided'}`);
+    }
+    
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating meme approval status:', error);
@@ -223,244 +211,81 @@ router.put('/:id/approval', authorize(['admin', 'moderator']), async (req, res) 
   }
 });
 
-// Handle meme uploads - supports both FormData and JSON requests
-router.post('/', upload.single('image'), async (req, res) => {
+// Crearea unui meme nou
+router.post('/', upload.single('image'), checkUserStatus, async (req, res) => {
   try {
-    // Determine request type
-    const isFormData = req.file !== undefined;
+    const { company, city, message, userId, username } = req.body;
+    
     console.log('---DETAILED MEME REQUEST INFO---');
     console.log('- Full request body:', req.body);
     
-    let company, city, message, imageUrl, userId, username, authProvider;
-    
-    if (isFormData) {
-      // Handle FormData upload with file
-      company = req.body.company;
-      city = req.body.city;
-      message = req.body.message;
-      imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-      userId = req.body.userId;
-      username = req.body.username; // Vom suprascrie acest username cu cel din baza de date
-      authProvider = req.body.authProvider || PROVIDERS.GOOGLE;
-    } else {
-      // Handle JSON request with URL
-      const body = req.body;
-      company = body.company;
-      city = body.city;
-      message = body.message;
-      imageUrl = body.image_url;
-      userId = body.userId;
-      username = body.username; // Vom suprascrie acest username cu cel din baza de date
-      authProvider = body.authProvider || PROVIDERS.GOOGLE;
+    if (!req.file) {
+      return res.status(400).json({ error: 'Image file is required' });
     }
     
-    // Detailed debug info
-    console.log('- Company:', company);
-    console.log('- City:', city);
-    console.log('- Has image:', !!imageUrl);
-    console.log('- Image URL:', imageUrl);
-    console.log('- Message:', message);
-    console.log('- User ID:', userId);
-    console.log('- Auth Provider:', authProvider);
-    console.log('- Username trimis de client:', username);
-
-    // Validate required fields
-    if (!company || (company !== 'bossme.me' && !city)) {
-      console.log('- Company present:', !!company);
-      console.log('- City present:', !!city);
-      return res.status(400).json({ error: 'Company and city are required' });
+    // Validate company name
+    if (!company) {
+      return res.status(400).json({ error: 'Company name is required' });
     }
     
-    // Obține ID-ul numeric al utilizatorului din baza de date și username-ul actual
-    let dbUserId = null;
-    let currentUsername = 'anonymous';
+    // Get user ID if user is authenticated
+    let userDbId = null;
     
     if (userId) {
+      console.log('- User ID:', userId);
+      
       try {
-        // Get the auth provider ID first
-        const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
-        if (providerQuery.rows.length === 0) {
-          console.log('Auth provider not found, meme will be anonymous');
+        // Folosim direct publicId (UUID) pentru a găsi utilizatorul
+        const user = await pool.query('SELECT id FROM users WHERE public_id = $1', [userId]);
+        
+        if (user.rows.length > 0) {
+          userDbId = user.rows[0].id;
+          console.log('- User found in database, id:', userDbId);
         } else {
-          const providerId = providerQuery.rows[0].id;
-          
-          const userCheck = await pool.query('SELECT id, username, is_deleted FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', [providerId, userId]);
-          if (userCheck.rows.length > 0) {
-            // Verifică dacă utilizatorul este marcat ca șters
-            if (userCheck.rows[0].is_deleted) {
-              return res.status(403).json({ 
-                error: 'Account is deactivated', 
-                message: 'Your account has been deactivated and cannot post new content.'
-              });
-            }
-            
-            dbUserId = userCheck.rows[0].id;
-            currentUsername = userCheck.rows[0].username;
-            console.log('Found numeric user ID:', dbUserId);
-            console.log('Found current username from database:', currentUsername);
-          } else {
-            console.log('User not found, meme will be anonymous');
-          }
-        }
-      } catch (userError) {
-        console.error('Error finding user:', userError);
-        // Continuăm fără user ID dacă utilizatorul nu este găsit
-      }
-    }
-
-    // Check if uploads directory exists
-    const uploadsDir = path.join(__dirname, '../uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      console.log('Creating uploads directory...');
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    
-    console.log('Inserting meme into database with parameters:');
-    console.log('- Company:', company);
-    console.log('- City:', city);
-    console.log('- Image URL:', imageUrl);
-    console.log('- Message:', message || null);
-    console.log('- User ID (numeric):', dbUserId);
-    console.log('- Username (from database):', currentUsername);
-    
-    try {
-      // Check if user is admin or moderator - their posts are auto-approved
-      let approvalStatus = 'pending';
-      try {
-        // Get the auth provider ID first
-        const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
-        if (providerQuery.rows.length > 0) {
-          const providerId = providerQuery.rows[0].id;
-          
-          const userResult = await pool.query(`
-            SELECT u.*, r.name as role_name 
-            FROM users u
-            LEFT JOIN user_roles r ON u.role_id = r.id
-            WHERE u.auth_provider_id = $1 AND u.auth_provider_user_id = $2
-          `, [providerId, userId]);
-          
-          if (userResult.rows.length > 0 && 
-             (userResult.rows[0].role_name === 'admin' || userResult.rows[0].role_name === 'moderator')) {
-            approvalStatus = 'approved';
-          }
+          console.log('User not found in database with public_id:', userId);
         }
       } catch (error) {
-        console.error('Error checking user role:', error);
+        console.error('Error finding user:', error);
       }
-      
-      // Try to insert the meme
-      const result = await pool.query(
-        'INSERT INTO memes (company, city, image_url, message, user_id, username, approval_status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-        [
-          company || '', 
-          city || '', 
-          imageUrl || '', 
-          message || null, 
-          dbUserId, // Folosim ID-ul numeric intern
-          currentUsername, // Folosim întotdeauna numele din baza de date
-          approvalStatus
-        ]
-      );
-      console.log('Meme creation successful, returning result');
-      
-      // Broadcast the new meme to all connected clients
-      if (result.rows.length > 0) {
-        const newMeme = result.rows[0];
-        broadcastService.broadcast('newMeme', newMeme);
-      }
-      
-      res.status(201).json(result.rows[0]);
-      
-      // Actualizează contorul utilizatorului
-      if (userId) {
-        // Get the auth provider ID first
-        const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
-        if (providerQuery.rows.length > 0) {
-          const providerId = providerQuery.rows[0].id;
-          
-          await pool.query(
-            'UPDATE users SET meme_count = meme_count + 1 WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', 
-            [providerId, userId]
-          );
-        }
-      }
-    } catch (dbError) {
-      console.error('Database error while creating meme:', dbError);
-      console.error('Error details:', dbError.message);
-      
-      // Check for missing column error
-      if (dbError.code === '42703' && (dbError.message.includes('column "city"') || dbError.message.includes('column "company"') || dbError.message.includes('column "country"'))) {
-        console.log('Detected missing column error. Attempting to fix and retry...');
-        
-        // Run the fix for missing columns
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-          
-          // Check and add city column if needed
-          if (dbError.message.includes('column "city"')) {
-            await client.query(`ALTER TABLE memes ADD COLUMN city TEXT DEFAULT 'Unknown'`);
-            console.log('Added missing city column');
-          }
-          
-          // Check and add company column if needed
-          if (dbError.message.includes('column "company"')) {
-            await client.query(`ALTER TABLE memes ADD COLUMN company TEXT DEFAULT 'Unknown'`);
-            console.log('Added missing company column');
-          }
-          
-          // Check and add country column if needed
-          if (dbError.message.includes('column "country"')) {
-            await client.query(`ALTER TABLE memes ADD COLUMN country TEXT DEFAULT 'Romania'`);
-            console.log('Added missing country column');
-          }
-          
-          // Always ensure country column allows NULL values and has default value
-          await client.query(`ALTER TABLE memes ALTER COLUMN country DROP NOT NULL`);
-          await client.query(`ALTER TABLE memes ALTER COLUMN country SET DEFAULT 'Romania'`);
-          console.log('✅ Made country column nullable with default value "Romania"');
-          
-          await client.query('COMMIT');
-          
-          // Retry the insert
-          console.log('Retrying meme creation...');
-          const retryResult = await pool.query(
-            'INSERT INTO memes (company, city, image_url, message, user_id, username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [
-              company || '', 
-              city || '', 
-              imageUrl || '', 
-              message || null, 
-              dbUserId, // Folosim ID-ul numeric intern
-              currentUsername
-            ]
-          );
-          console.log('Retry successful, returning result');
-          return res.status(201).json(retryResult.rows[0]);
-        } catch (retryError) {
-          await client.query('ROLLBACK');
-          console.error('Error during retry:', retryError);
-          throw retryError;
-        } finally {
-          client.release();
-        }
-      }
-      
-      // Return a more detailed error response
-      res.status(500).json({ 
-        error: 'Failed to create meme',
-        details: dbError.message,
-        code: dbError.code
-      });
+    } else {
+      console.log('No user ID provided, meme will be anonymous');
     }
+    
+    if (!userDbId) {
+      console.log('User not found, meme will be anonymous');
+    }
+    
+    // Process the image
+    const imagePath = req.file.path;
+    const relativePath = path.relative(path.join(__dirname, '..'), imagePath);
+    const imageUrl = `/${relativePath.replace(/\\/g, '/')}`;
+    
+    // Insert into database - toate meme-urile au status 'pending' indiferent dacă utilizatorul este autentificat sau nu
+    const result = await pool.query(
+      `INSERT INTO memes (image_url, company, city, message, user_id, username, approval_status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
+       RETURNING *`,
+      [
+        imageUrl, 
+        company, 
+        city || 'Unknown', 
+        message || '', 
+        userDbId, 
+        username || 'Anonymous',
+        'pending' // Toate meme-urile trebuie aprobate, indiferent dacă utilizatorul este autentificat
+      ]
+    );
+    
+    const newMeme = result.rows[0];
+    
+    // Mesaj de confirmare specific pentru meme-uri în așteptare
+    res.status(201).json({
+      ...newMeme,
+      message: 'Meme-ul a fost trimis cu succes și va fi vizibil după ce va fi aprobat de administratori.'
+    });
   } catch (error) {
     console.error('Error creating meme:', error);
-    res.status(500).json({ 
-      error: 'Failed to create meme',
-      details: error.message,
-      type: error.name,
-      code: error.code
-    });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -468,57 +293,52 @@ router.post('/', upload.single('image'), async (req, res) => {
 router.post('/:id/vote', async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId, voteType, authProvider = PROVIDERS.GOOGLE } = req.body;
+    const { userId, voteType } = req.body;
+    
+    console.log('Processing meme vote:');
+    console.log('- Meme ID:', id);
+    console.log('- User ID:', userId);
+    console.log('- Vote Type:', voteType);
     
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required to vote' });
     }
     
+    // Acceptăm doar 'up' (adaugă vot) sau 'down' (elimină votul)
     if (!voteType || (voteType !== 'up' && voteType !== 'down')) {
       return res.status(400).json({ error: 'Invalid vote type. Must be "up" or "down"' });
     }
     
-    // Get the auth provider ID
-    const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
-    if (providerQuery.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid authentication provider' });
+    // Verificăm dacă userId este un UUID valid
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
     }
-    const providerId = providerQuery.rows[0].id;
     
-    // Verificăm dacă utilizatorul este anonimizat/marcat ca șters
-    const userStatusCheck = await pool.query(
-      'SELECT is_deleted FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2',
-      [providerId, userId]
+    // Găsim utilizatorul după public_id
+    const userCheck = await pool.query(
+      'SELECT id, is_deleted FROM users WHERE public_id = $1',
+      [userId]
     );
     
-    if (userStatusCheck.rows.length === 0) {
+    if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    if (userStatusCheck.rows[0].is_deleted) {
+    if (userCheck.rows[0].is_deleted) {
       return res.status(403).json({ 
         error: 'Account deactivated',
         message: 'Your account has been deactivated and cannot perform this action.'
       });
     }
     
+    // Obține ID-ul numeric al utilizatorului din baza de date
+    const dbUserId = userCheck.rows[0].id;
+    
     // Begin transaction
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      
-      // Obține ID-ul numeric al utilizatorului din baza de date
-      const userCheck = await client.query(
-        'SELECT id FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', 
-        [providerId, userId]
-      );
-      if (userCheck.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      // Folosim ID-ul numeric intern din baza de date
-      const dbUserId = userCheck.rows[0].id;
       
       // Check if user has already voted for this meme
       const voteCheck = await client.query(
@@ -533,10 +353,10 @@ router.post('/:id/vote', async (req, res) => {
           return res.status(400).json({ error: 'You have already voted for this meme' });
         }
         
-        // Record the user's vote
+        // Record the user's vote (vote_type este întotdeauna 1 pentru upvote)
         await client.query(
           'INSERT INTO user_votes (user_id, meme_id, vote_type) VALUES ($1, $2, $3)',
-          [dbUserId, id, voteType === 'up' ? 1 : -1]
+          [dbUserId, id, 1] // 1 for upvote
         );
         
         // Increment meme votes
@@ -557,13 +377,13 @@ router.post('/:id/vote', async (req, res) => {
         
         res.json(result.rows[0]);
       } else {
-        // User wants to remove upvote (downvote)
+        // User wants to remove vote (unvote)
         if (voteCheck.rows.length === 0) {
           await client.query('ROLLBACK');
           return res.status(400).json({ error: 'You have not voted for this meme yet' });
         }
         
-        // Delete the user's vote
+        // Remove the user's vote
         await client.query(
           'DELETE FROM user_votes WHERE user_id = $1 AND meme_id = $2',
           [dbUserId, id]
@@ -594,7 +414,7 @@ router.post('/:id/vote', async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error('Error handling vote on meme:', error);
+    console.error('Error voting on meme:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -614,8 +434,7 @@ router.get('/top', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.header('user-id');
-    const authProvider = req.header('auth-provider') || PROVIDERS.GOOGLE;
+    const publicId = req.header('user-id');
     
     // Obține meme-ul
     const result = await pool.query('SELECT * FROM memes WHERE id = $1', [id]);
@@ -629,36 +448,29 @@ router.get('/:id', async (req, res) => {
     // Verifică permisiunile pentru meme-uri care nu sunt aprobate
     if (meme.approval_status !== 'approved') {
       // Dacă nu există user ID, nu are acces
-      if (!userId) {
+      if (!publicId) {
         return res.status(403).json({ 
           error: 'Access denied',
           message: 'You do not have permission to view this meme'
         });
       }
       
-      // Get the auth provider ID
-      const providerQuery = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
-      if (providerQuery.rows.length === 0) {
-        return res.status(400).json({ error: 'Invalid authentication provider' });
+      // Verificăm dacă publicId are format de UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(publicId)) {
+        return res.status(400).json({ error: 'Invalid user ID format' });
       }
-      const providerId = providerQuery.rows[0].id;
       
       // Verifică dacă utilizatorul este admin/moderator sau creatorul meme-ului
-      const userCheck = await pool.query(`
-        SELECT u.id, u.role_id, r.name as role_name
-        FROM users u
-        LEFT JOIN user_roles r ON u.role_id = r.id
-        WHERE u.auth_provider_id = $1 AND u.auth_provider_user_id = $2
-      `, [providerId, userId]);
+      const user = await userQueries.findByPublicId(publicId);
       
-      if (userCheck.rows.length === 0) {
+      if (!user) {
         return res.status(403).json({ 
           error: 'Access denied',
           message: 'You do not have permission to view this meme'
         });
       }
       
-      const user = userCheck.rows[0];
       const isAdminOrMod = user.role_name === 'admin' || user.role_name === 'moderator';
       const isCreator = meme.user_id && user.id === meme.user_id;
       
@@ -687,7 +499,7 @@ router.get('/:id', async (req, res) => {
       res.json(meme);
     }
   } catch (error) {
-    console.error(`Error fetching meme ${id}:`, error);
+    console.error(`Error fetching meme ${req.params.id}:`, error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -38,6 +38,33 @@ For Gmail, you'll need to:
 
 ### Role-Based Access Control
 
+## Autentificare Agnostică
+
+### Sistem de identificare a utilizatorilor
+
+Aplicația folosește un sistem complet agnostic față de metodele de autentificare, prin utilizarea unui identificator unic intern (UUID) pentru fiecare utilizator, indiferent de metoda de autentificare folosită.
+
+Acest sistem rezolvă următoarele probleme:
+
+1. **Independența de provideri**: Identificarea utilizatorilor este independentă de providerii de autentificare
+2. **Flexibilitate în schimbarea metodelor**: Utilizatorii pot folosi metode diferite de autentificare fără a pierde datele
+3. **Consistență în API-uri**: Toate API-urile folosesc același identificator unic
+4. **Securitate îmbunătățită**: ID-urile nu expun informații despre providerul de autentificare
+
+### Implementare
+
+- Fiecare utilizator primește un `public_id` (UUID) generat intern 
+- Acest `public_id` este folosit ca identificator principal în toate API-urile
+- În frontend, acest `public_id` este stocat în `currentUser.uid`
+- Aplicația păstrează asocierea între `public_id` și credențialele specifice providerilor (Google ID, Apple ID, etc.)
+
+### Beneficii
+
+- Permite migrarea între provideri fără pierdere de date
+- Permite implementarea ușoară a noi metode de autentificare
+- Uniformizează manipularea utilizatorilor în întreaga aplicație
+- Permite utilizatorilor să-și conecteze multiple metode de autentificare la același cont
+
 ## Development Setup
 
 1. Clone the repository

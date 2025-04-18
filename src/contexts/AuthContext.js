@@ -302,10 +302,10 @@ export const AuthProvider = ({ children }) => {
       // Store the JWT token for API requests
       localStorage.setItem('token', responseData.token);
       
-      // Create a unified user object
+      // Create a unified user object using userId (public_id) ca identificator principal
       const user = {
         ...providerData,
-        uid: responseData.userId || providerData.providerUserId,
+        uid: responseData.userId || responseData.public_id, // Preferă userId (public_id) returnată de server
         username: responseData.username || providerData.displayName,
         isEmailVerified: responseData.isEmailVerified || false,
         emailVerificationRequired: responseData.emailVerificationRequired || false,

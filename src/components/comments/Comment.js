@@ -182,20 +182,18 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment
   
   // Debug info
   useEffect(() => {
-    console.log('Comment ID:', comment.id);
-    console.log('Comment data:', comment);
-    console.log('Current user:', currentUser);
-    console.log('Check IDs:', {
-      commentOwnerId: comment.owner_id,
-      currentUserUid: currentUser?.uid,
-      match: currentUser?.uid === comment.owner_id
-    });
-    console.log('Permissions:', {
-      isAdmin,
-      isModerator,
-      canDeleteComment
-    });
-  }, [comment, currentUser, isAdmin, isModerator, canDeleteComment]);
+    if (comment.id) {  // Adăugăm condiția pentru a evita log-uri inutile
+      console.log(`Comment ID ${comment.id} - Delete button visibility check:`, {
+        currentUser: currentUser?.uid,
+        commentOwnerId: comment.owner_id,
+        isDeleted,
+        isAdmin,
+        isModerator,
+        canDeleteComment,
+        match: currentUser?.uid === comment.owner_id
+      });
+    }
+  }, [comment.id, comment.owner_id, currentUser, isDeleted, isAdmin, isModerator, canDeleteComment]);
   
   // Handler pentru ștergerea comentariului
   const handleDeleteComment = async () => {

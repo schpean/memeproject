@@ -15,6 +15,9 @@
  * Dependențe:
  * - ../services/userService.js pentru logica de business
  * - ../middleware/auth.js pentru verificări de autorizare
+ * 
+ * IMPORTANT: Toate rutele folosesc acum exclusiv public_id (UUID) pentru identificarea utilizatorilor
+ * pentru a asigura agnosticitatea față de metoda de autentificare.
  */
 
 const express = require('express');
@@ -81,7 +84,7 @@ const handleAuthProvider = async (req, res, providerName) => {
     
     if (user) {
       // User exists, update last login time
-      await userQueries.update(providerName, providerUserId, {
+      await userQueries.updateByPublicId(user.public_id, {
         last_login: new Date(),
         photo_url: getMascotImageUrl(user.username)
       });
@@ -94,7 +97,7 @@ const handleAuthProvider = async (req, res, providerName) => {
         expiryTime.setHours(expiryTime.getHours() + 24); // Token expires in 24 hours
         
         // Update the user's verification token
-        await userQueries.update(providerName, providerUserId, {
+        await userQueries.updateByPublicId(user.public_id, {
           verification_token: verificationToken,
           verification_expires: expiryTime
         });
@@ -104,20 +107,20 @@ const handleAuthProvider = async (req, res, providerName) => {
         
         return res.json({
           ...user,
+          userId: user.public_id, // Folosim public_id ca userId principal
           isAdmin: user.role_name === 'admin',
           isModerator: user.role_name === 'moderator' || user.role_name === 'admin',
           needsVerification: true,
-          authProvider: providerName,
-          authProviderId: providerUserId
+          authProvider: providerName
         });
       }
       
       return res.json({
         ...user,
+        userId: user.public_id, // Folosim public_id ca userId principal
         isAdmin: user.role_name === 'admin',
         isModerator: user.role_name === 'moderator' || user.role_name === 'admin',
-        authProvider: providerName,
-        authProviderId: providerUserId
+        authProvider: providerName
       });
     }
     
@@ -154,11 +157,11 @@ const handleAuthProvider = async (req, res, providerName) => {
     
     res.status(201).json({
       ...newUser,
+      userId: newUser.public_id, // Folosim public_id ca userId principal
       isAdmin: newUser.role_name === 'admin',
       isModerator: newUser.role_name === 'moderator' || newUser.role_name === 'admin',
       needsVerification: true,
-      authProvider: providerName,
-      authProviderId: providerUserId
+      authProvider: providerName
     });
   } catch (error) {
     console.error(`Error during ${providerName} authentication:`, error);
@@ -179,7 +182,7 @@ router.post('/apple-auth', async (req, res) => {
 // Update user nickname
 router.post('/update-nickname', async (req, res) => {
   try {
-    const { userId, newNickname, authProvider = PROVIDERS.GOOGLE } = req.body;
+    const { userId, newNickname } = req.body;
 
     if (!userId || !newNickname) {
       console.log('Missing required fields');
@@ -191,8 +194,13 @@ router.post('/update-nickname', async (req, res) => {
       return res.status(400).json({ error: 'Nickname must be between 3 and 30 characters' });
     }
 
-    // Check if the user exists and if they have already changed their nickname
-    const user = await userQueries.findByProviderId(authProvider, userId);
+    // Verifică dacă avem un public_id UUID valid
+    if (!userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      return res.status(400).json({ error: 'Invalid user ID format. A valid UUID is required.' });
+    }
+    
+    // Caută utilizatorul după public_id
+    const user = await userQueries.findByPublicId(userId);
 
     if (!user) {
       console.log('User not found');
@@ -219,8 +227,8 @@ router.post('/update-nickname', async (req, res) => {
       return res.status(400).json({ error: 'This nickname is already taken' });
     }
 
-    // Update the user's nickname
-    await userQueries.update(authProvider, userId, {
+    // Update the user's nickname using public_id
+    await userQueries.updateByPublicId(user.public_id, {
       username: newNickname,
       nickname_changed: true
     });

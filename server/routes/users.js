@@ -5,7 +5,8 @@
  * - Obținerea informațiilor despre utilizatorul curent
  * - Obținerea meme-urilor utilizatorului curent
  * 
- * Toate rutele necesită autentificare
+ * Toate rutele folosesc identificatorul unic public_id (UUID)
+ * pentru a face aplicația complet agnostică față de metoda de autentificare.
  */
 
 const express = require('express');
@@ -16,26 +17,19 @@ const checkUserStatus = require('../middleware/checkUserStatus');
 // Get current user's role and permissions
 router.get('/me', checkUserStatus, async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT u.id, u.username, u.email, u.photo_url, 
-             r.name as role
-      FROM users u
-      LEFT JOIN user_roles r ON u.role_id = r.id
-      WHERE u.id = $1
-    `, [req.numericUserId]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const user = result.rows[0];
+    // Utilizăm direct datele din req.user (setat de middleware-ul checkUserStatus)
+    const user = req.user;
     
     // Add permission flags
-    const isAdmin = user.role === 'admin';
-    const isModerator = user.role === 'moderator' || isAdmin;
+    const isAdmin = user.role_name === 'admin';
+    const isModerator = user.role_name === 'moderator' || isAdmin;
     
     res.json({
-      ...user,
+      id: user.public_id, // Trimitem publicId ca id
+      username: user.username,
+      email: user.email,
+      photo_url: user.photo_url,
+      role: user.role_name,
       isAdmin,
       isModerator,
       permissions: {
@@ -47,7 +41,7 @@ router.get('/me', checkUserStatus, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching user details:', error);
+    console.error('Error processing user details:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -55,6 +49,18 @@ router.get('/me', checkUserStatus, async (req, res) => {
 // Get all memes for the current user regardless of approval status
 router.get('/me/memes', checkUserStatus, async (req, res) => {
   try {
+    // Obținem user_id numeric pe baza public_id
+    const userResult = await pool.query(
+      'SELECT id FROM users WHERE public_id = $1',
+      [req.user.public_id]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const numericUserId = userResult.rows[0].id;
+    
     // Obține toate meme-urile utilizatorului, indiferent de status
     const result = await pool.query(`
       SELECT m.*, 
@@ -67,7 +73,7 @@ router.get('/me/memes', checkUserStatus, async (req, res) => {
       LEFT JOIN users u ON m.approved_by = u.id
       WHERE m.user_id = $1
       ORDER BY m.created_at DESC
-    `, [req.numericUserId]);
+    `, [numericUserId]);
     
     res.json(result.rows);
   } catch (error) {

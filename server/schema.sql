@@ -1,3 +1,6 @@
+-- Extensia pentru UUID
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- User roles table
 CREATE TABLE IF NOT EXISTS user_roles (
     id SERIAL PRIMARY KEY,
@@ -31,6 +34,7 @@ ON CONFLICT (name) DO NOTHING;
 -- Users table with all columns
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
+    public_id UUID DEFAULT uuid_generate_v4() NOT NULL UNIQUE,
     email TEXT UNIQUE NOT NULL,
     username TEXT NOT NULL,
     auth_provider_id INTEGER REFERENCES auth_providers(id),
@@ -50,36 +54,38 @@ CREATE TABLE IF NOT EXISTS users (
     UNIQUE(auth_provider_id, auth_provider_user_id)
 );
 
--- Migration for existing users with google_id
+-- Create index for public_id for efficient lookups
+CREATE INDEX IF NOT EXISTS idx_users_public_id ON users(public_id);
+
+-- Migration for existing users without public_id
 DO $$
-DECLARE
-    google_provider_id INTEGER;
 BEGIN
-    -- Get the Google provider ID
-    SELECT id INTO google_provider_id FROM auth_providers WHERE name = 'google';
+    -- Asigură-ne că toți utilizatorii existenți au un public_id
+    UPDATE users SET public_id = uuid_generate_v4() WHERE public_id IS NULL;
+    
+    -- Verifică dacă există coloana google_id și migrează datele la noul sistem agnostic
+    DECLARE
+        google_provider_id INTEGER;
+    BEGIN
+        -- Get the Google provider ID
+        SELECT id INTO google_provider_id FROM auth_providers WHERE name = 'google';
 
-    -- Add new columns if they don't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'auth_provider_id'
-    ) THEN
-        ALTER TABLE users ADD COLUMN auth_provider_id INTEGER REFERENCES auth_providers(id);
-        ALTER TABLE users ADD COLUMN auth_provider_user_id TEXT;
-        ALTER TABLE users ADD CONSTRAINT uq_auth_provider UNIQUE(auth_provider_id, auth_provider_user_id);
-    END IF;
-
-    -- Migrate existing google_id values to the new columns if google_id exists
-    IF EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'google_id'
-    ) THEN
-        -- Update users with google_id
-        UPDATE users
-        SET auth_provider_id = google_provider_id,
-            auth_provider_user_id = google_id
-        WHERE google_id IS NOT NULL
-          AND (auth_provider_id IS NULL OR auth_provider_user_id IS NULL);
-    END IF;
+        -- Migrate existing google_id values to the new columns if google_id exists
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'google_id'
+        ) THEN
+            -- Update users with google_id
+            UPDATE users
+            SET auth_provider_id = google_provider_id,
+                auth_provider_user_id = google_id
+            WHERE google_id IS NOT NULL
+              AND (auth_provider_id IS NULL OR auth_provider_user_id IS NULL);
+            
+            -- Dacă există coloana google_id dar nu mai este necesară, o eliminăm
+            ALTER TABLE users DROP COLUMN IF EXISTS google_id;
+        END IF;
+    END;
 END $$;
 
 -- Memes table with all columns
@@ -152,7 +158,7 @@ CREATE INDEX IF NOT EXISTS idx_comment_votes_user_id ON comment_votes(user_id);
 CREATE INDEX IF NOT EXISTS idx_comment_votes_comment_id ON comment_votes(comment_id);
 CREATE INDEX IF NOT EXISTS idx_users_auth_provider ON users(auth_provider_id, auth_provider_user_id);
 
--- Migrare date existente (dacă există)
+-- Verificare și adăugare coloane care ar putea lipsi
 DO $$
 BEGIN
     -- Adaugă coloana is_deleted dacă nu există deja
@@ -186,7 +192,11 @@ BEGIN
     ) THEN
         ALTER TABLE memes ADD COLUMN approved_at TIMESTAMP;
     END IF;
+END $$;
 
+-- Corectare tipuri de date pentru user_votes și comment_votes dacă este necesar
+DO $$
+BEGIN
     -- Migrare user_votes dacă sunt TEXT
     IF EXISTS (
         SELECT 1 FROM information_schema.columns 
@@ -247,3 +257,6 @@ BEGIN
         DROP TABLE temp_comment_votes;
     END IF;
 END $$;
+
+-- Adăugare comentariu pentru coloana public_id
+COMMENT ON COLUMN users.public_id IS 'UUID unic pentru fiecare utilizator, independent de providerul de autentificare';

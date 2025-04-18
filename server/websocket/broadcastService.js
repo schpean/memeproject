@@ -28,6 +28,12 @@ class BroadcastService {
     // Store the message in the updates queue for polling clients
     updatesQueue.add({ type, data });
   }
+  
+  // Funcție specifică pentru a transmite un meme nou către toți clienții
+  broadcastNewMeme(meme) {
+    this.broadcast('newMeme', meme);
+    console.log(`Broadcasted new meme: ${meme.id} - ${meme.company}`);
+  }
 
   // Method for HTTP polling fallback
   getUpdatesSince(timestamp) {

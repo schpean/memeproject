@@ -245,15 +245,26 @@ export const memeApi = {
     }
     
     // Determine vote type based on current upvote status
+    // 'up' pentru a adăuga vot, 'down' pentru a elimina votul existent (nu este un downvote real)
     const voteType = isUpvoted !== undefined 
       ? (isUpvoted ? 'down' : 'up') 
       : (getSavedArray('upvotedMemes').includes(Number(id)) || getSavedArray('upvotedMemes').includes(id) ? 'down' : 'up');
+    
+    console.log('Processing meme vote:', id, 'Vote type:', voteType, 'Current user:', user.uid);
     
     try {
       const response = await api.post(`/memes/${id}/vote`, { 
         userId: user.uid,
         voteType: voteType
       });
+      
+      // Update local storage to match server state
+      const upvotedMemes = getSavedArray('upvotedMemes');
+      if (voteType === 'up' && !upvotedMemes.includes(id)) {
+        localStorage.setItem('upvotedMemes', JSON.stringify([...upvotedMemes, id]));
+      } else if (voteType === 'down') {
+        localStorage.setItem('upvotedMemes', JSON.stringify(upvotedMemes.filter(memeId => memeId != id)));
+      }
       
       return response.data;
     } catch (error) {
@@ -358,7 +369,7 @@ export const commentApi = {
     console.log('Operation type:', isRemovingVote ? 'Removing vote' : 'Adding vote');
     
     try {
-      // Simplificăm logica - voteType este 'up' pentru a adăuga vot, 'down' pentru a elimina vot
+      // voteType este 'up' pentru a adăuga vot, 'down' pentru a elimina votul existent (nu este un downvote real)
       const voteType = isRemovingVote ? 'down' : 'up';
       
       const response = await api.post(`/memes/${memeId}/comments/${commentId}/vote`, {
@@ -418,16 +429,34 @@ export const commentApi = {
       throw new Error('User not logged in');
     }
     
+    console.log('Attempting to delete comment:', {
+      memeId, 
+      commentId, 
+      userId: user.uid,
+      username: user.username || user.displayName
+    });
+    
     try {
       const response = await api.delete(`/memes/${memeId}/comments/${commentId}`, {
         data: {
           userId: user.uid
+        },
+        headers: {
+          'user-id': user.uid  // Adăugăm și în headers pentru compatibilitate
         }
       });
       
+      console.log('Delete comment response:', response.data);
       return response.data.comment; // Returnăm comentariul actualizat
     } catch (error) {
       console.error('Error deleting comment:', error);
+      
+      // Afișăm mai multe detalii despre eroare
+      if (error.response) {
+        console.error('Error response status:', error.response.status);
+        console.error('Error response data:', error.response.data);
+      }
+      
       throw error;
     }
   }

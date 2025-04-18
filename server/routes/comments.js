@@ -1,9 +1,21 @@
+/**
+ * Rute pentru Comentarii în bossme.me
+ * 
+ * Acest fișier gestionează toate rutele pentru comentarii:
+ * - Obținerea comentariilor pentru un meme
+ * - Adăugarea unui comentariu nou
+ * - Votarea comentariilor
+ * - Ștergerea comentariilor
+ * 
+ * Folosește exclusiv public_id (UUID) pentru identificarea utilizatorilor
+ */
+
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authorize } = require('../middleware/auth');
 const checkUserStatus = require('../middleware/checkUserStatus');
-const { PROVIDERS } = require('../models/user');
+const userQueries = require('../models/user');
 
 // Get comments for a meme
 router.get('/:memeId/comments', async (req, res) => {
@@ -30,12 +42,11 @@ router.get('/:memeId/comments', async (req, res) => {
       );
     `);
     
-    // Actualizare query pentru a include auth_provider_user_id-ul utilizatorului
+    // Query actualizat pentru a returna public_id în loc de auth_provider_id și auth_provider_user_id
     let query = `
-      SELECT c.*, u.auth_provider_id, u.auth_provider_user_id, ap.name as auth_provider_name
+      SELECT c.*, u.public_id as owner_public_id, u.username
       FROM comments c
       LEFT JOIN users u ON c.user_id = u.id
-      LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id
       WHERE c.meme_id = $1 
       ORDER BY c.votes DESC, c.created_at DESC
     `;
@@ -49,13 +60,11 @@ router.get('/:memeId/comments', async (req, res) => {
     // Transform the results to ensure parent_id property is properly named for frontend
     const comments = result.rows.map(comment => {
       // Convert parent_id to parentId for consistent naming in frontend
-      // și includem auth_provider_user_id ca owner_id pentru a permite verificarea proprietarului comentariului în frontend
-      const { parent_id, auth_provider_user_id, auth_provider_name, ...rest } = comment;
+      const { parent_id, owner_public_id, ...rest } = comment;
       return {
         ...rest,
         parentId: parent_id,
-        owner_id: auth_provider_user_id,  // Folosim ID-ul extern din provider pentru compatibilitate
-        auth_provider: auth_provider_name // Adăugăm și numele provider-ului
+        owner_id: owner_public_id  // Folosim public_id ca owner_id pentru verificarea proprietarului în frontend
       };
     });
     
@@ -70,7 +79,7 @@ router.get('/:memeId/comments', async (req, res) => {
 router.post('/:memeId/comments', async (req, res) => {
   try {
     const { memeId } = req.params;
-    const { userId, content, username, parentId, authProvider = PROVIDERS.GOOGLE } = req.body;
+    const { userId, content, username, parentId } = req.body;
     
     if (!userId || !content) {
       return res.status(400).json({ error: 'User ID and content are required' });
@@ -96,25 +105,21 @@ router.post('/:memeId/comments', async (req, res) => {
       return res.status(404).json({ error: 'Meme not found' });
     }
 
-    // Obține ID-ul provider-ului
-    const providerResult = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
-    if (providerResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Unknown authentication provider' });
+    // Verificăm dacă userId are format de UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
     }
-    const providerId = providerResult.rows[0].id;
 
-    // Obține ID-ul numeric al utilizatorului și username-ul actual din baza de date
-    const userCheck = await pool.query(
-      'SELECT id, username, is_deleted FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', 
-      [providerId, userId]
-    );
+    // Obține utilizatorul după public_id
+    const user = await userQueries.findByPublicId(userId);
     
-    if (userCheck.rows.length === 0) {
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     
     // Verifică dacă utilizatorul este marcat ca șters
-    if (userCheck.rows[0].is_deleted) {
+    if (user.is_deleted) {
       return res.status(403).json({ 
         error: 'Account is deactivated', 
         message: 'Your account has been deactivated and cannot post new comments.'
@@ -122,8 +127,8 @@ router.post('/:memeId/comments', async (req, res) => {
     }
     
     // Folosim ID-ul numeric intern din baza de date și username-ul actual
-    const dbUserId = userCheck.rows[0].id;
-    const currentUsername = userCheck.rows[0].username;
+    const dbUserId = user.id;
+    const currentUsername = user.username;
     
     console.log('Using username from database:', currentUsername);
 
@@ -141,11 +146,10 @@ router.post('/:memeId/comments', async (req, res) => {
       [memeId, dbUserId, currentUsername, content, parentId || null]
     );
     
-    // Adăugăm owner_id și auth_provider în răspuns pentru a putea afișa butonul de ștergere imediat
+    // Adăugăm owner_id în răspuns pentru a putea afișa butonul de ștergere imediat
     const commentWithOwnerId = {
       ...result.rows[0],
-      owner_id: userId,
-      auth_provider: authProvider
+      owner_id: userId  // Folosim public_id ca owner_id
     };
     
     res.status(201).json(commentWithOwnerId);
@@ -159,13 +163,12 @@ router.post('/:memeId/comments', async (req, res) => {
 router.post('/:memeId/comments/:commentId/vote', async (req, res) => {
   try {
     const { memeId, commentId } = req.params;
-    const { userId, voteType, authProvider = PROVIDERS.GOOGLE } = req.body;
+    const { userId, voteType } = req.body;
     
     console.log('Processing comment vote:');
     console.log('- Meme ID:', memeId);
     console.log('- Comment ID:', commentId);
     console.log('- User ID:', userId);
-    console.log('- Auth Provider:', authProvider);
     console.log('- Vote Type:', voteType);
     
     if (!userId) {
@@ -176,6 +179,7 @@ router.post('/:memeId/comments/:commentId/vote', async (req, res) => {
       });
     }
     
+    // Acceptăm doar 'up' (adaugă vot) sau 'down' (elimină votul)
     if (!voteType || (voteType !== 'up' && voteType !== 'down')) {
       console.log('Invalid vote type:', voteType);
       return res.status(400).json({ 
@@ -184,156 +188,125 @@ router.post('/:memeId/comments/:commentId/vote', async (req, res) => {
       });
     }
     
-    // Obține ID-ul provider-ului
-    const providerResult = await pool.query('SELECT id FROM auth_providers WHERE name = $1', [authProvider]);
-    if (providerResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Unknown authentication provider' });
+    // Verificăm dacă userId are format de UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
     }
-    const providerId = providerResult.rows[0].id;
     
-    // Verificăm dacă utilizatorul este anonimizat/marcat ca șters
-    const userStatusCheck = await pool.query(
-      'SELECT is_deleted FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2',
-      [providerId, userId]
-    );
+    // Obține utilizatorul după public_id
+    const user = await userQueries.findByPublicId(userId);
     
-    if (userStatusCheck.rows.length === 0) {
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    if (userStatusCheck.rows[0].is_deleted) {
+    // Verifică dacă utilizatorul este marcat ca șters
+    if (user.is_deleted) {
       return res.status(403).json({ 
-        error: 'Account deactivated', 
-        message: 'Your account has been deactivated and cannot perform this action.'
+        error: 'Account is deactivated', 
+        message: 'Your account has been deactivated and cannot vote on comments.'
       });
     }
     
+    // Verifică dacă comentariul există
+    const commentCheck = await pool.query('SELECT id FROM comments WHERE id = $1', [commentId]);
+    if (commentCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    
+    // Convertim UUID în ID-ul numeric intern
+    const dbUserId = user.id;
+    
+    // Verifică dacă utilizatorul a votat deja acest comentariu
+    const voteCheck = await pool.query(
+      'SELECT * FROM comment_votes WHERE user_id = $1 AND comment_id = $2',
+      [dbUserId, commentId]
+    );
+    
     // Begin transaction
     const client = await pool.connect();
+    
     try {
       await client.query('BEGIN');
       
-      // Găsim ID-ul numeric al utilizatorului
-      console.log('Looking up numeric user ID for Provider ID:', providerId, 'and User ID:', userId);
-      const userCheck = await client.query(
-        'SELECT id FROM users WHERE auth_provider_id = $1 AND auth_provider_user_id = $2', 
-        [providerId, userId]
-      );
+      // Valoarea pentru vote_type este 1 (pozitivă) deoarece nu avem downvote real
+      const voteValue = 1;
       
-      if (userCheck.rows.length === 0) {
-        console.log('User not found in database.');
-        await client.query('ROLLBACK');
-        return res.status(404).json({ 
-          error: 'User not found',
-          message: 'Utilizatorul nu a fost găsit. Vă rugăm să vă autentificați din nou.'
-        });
-      }
-      
-      const numericUserId = userCheck.rows[0].id;
-      console.log('Found numeric user ID:', numericUserId);
-      
-      // Verifică dacă comentariul există
-      const commentCheck = await client.query('SELECT id FROM comments WHERE id = $1 AND meme_id = $2', [commentId, memeId]);
-      if (commentCheck.rows.length === 0) {
-        console.log('Comment not found.');
-        await client.query('ROLLBACK');
-        return res.status(404).json({ 
-          error: 'Comment not found',
-          message: 'Comentariul nu a fost găsit sau a fost șters.'
-        });
-      }
-      
-      // Verifică dacă utilizatorul a votat deja acest comentariu
-      const voteCheck = await client.query(
-        'SELECT * FROM comment_votes WHERE user_id = $1 AND comment_id = $2',
-        [numericUserId, commentId]
-      );
-      
-      // Convert voteType to numeric value
-      const voteValue = voteType === 'up' ? 1 : -1;
-      
-      if (voteCheck.rows.length > 0) {
-        // Utilizatorul a votat deja acest comentariu
-        const existingVote = voteCheck.rows[0];
-        
-        if (existingVote.vote_type === voteValue) {
-          // Dacă votează în același fel, anulează votul
-          await client.query(
-            'DELETE FROM comment_votes WHERE id = $1',
-            [existingVote.id]
-          );
-          
-          // Actualizare scor comentariu
-          await client.query(
-            'UPDATE comments SET votes = votes - $1 WHERE id = $2',
-            [existingVote.vote_type, commentId]
-          );
-          
-          await client.query('COMMIT');
-          console.log('Vote removed successfully.');
-          
-          return res.json({
-            message: 'Vote removed successfully',
-            voteType: null
-          });
-        } else {
-          // Dacă votează diferit, actualizează votul
-          await client.query(
-            'UPDATE comment_votes SET vote_type = $1, created_at = NOW() WHERE id = $2',
-            [voteValue, existingVote.id]
-          );
-          
-          // Actualizare scor comentariu (schimbare de 2 puncte: -1 -> +1 sau +1 -> -1)
-          await client.query(
-            'UPDATE comments SET votes = votes + $1 WHERE id = $2',
-            [2 * voteValue, commentId]
-          );
-          
-          await client.query('COMMIT');
-          console.log('Vote changed successfully to:', voteType);
-          
-          return res.json({
-            message: 'Vote changed successfully',
-            voteType: voteType
+      if (voteType === 'up') {
+        // User wants to upvote
+        if (voteCheck.rows.length > 0) {
+          // User already voted
+          await client.query('ROLLBACK');
+          return res.status(400).json({ 
+            error: 'Already voted',
+            message: 'Ai votat deja acest comentariu.'
           });
         }
-      } else {
-        // Utilizatorul nu a votat încă, adaugă vot nou
+        
+        // Record the vote
         await client.query(
           'INSERT INTO comment_votes (user_id, comment_id, vote_type) VALUES ($1, $2, $3)',
-          [numericUserId, commentId, voteValue]
+          [dbUserId, commentId, voteValue]
         );
         
-        // Actualizare scor comentariu
-        await client.query(
-          'UPDATE comments SET votes = votes + $1 WHERE id = $2',
-          [voteValue, commentId]
+        // Increment comment votes
+        const result = await client.query(
+          'UPDATE comments SET votes = votes + 1 WHERE id = $1 RETURNING *',
+          [commentId]
         );
         
         await client.query('COMMIT');
-        console.log('Vote added successfully:', voteType);
         
-        return res.json({
-          message: 'Vote added successfully',
-          voteType: voteType
-        });
+        // Include the owner_id in the response
+        const updatedComment = {
+          ...result.rows[0],
+          owner_id: result.rows[0].user_id === user.id ? userId : null
+        };
+        
+        res.json(updatedComment);
+      } else {
+        // User wants to remove vote (unvote)
+        if (voteCheck.rows.length === 0) {
+          // User has not voted yet
+          await client.query('ROLLBACK');
+          return res.status(400).json({ 
+            error: 'Not voted',
+            message: 'Nu ai votat încă acest comentariu.'
+          });
+        }
+        
+        // Remove the vote
+        await client.query(
+          'DELETE FROM comment_votes WHERE user_id = $1 AND comment_id = $2',
+          [dbUserId, commentId]
+        );
+        
+        // Decrement comment votes
+        const result = await client.query(
+          'UPDATE comments SET votes = votes - 1 WHERE id = $1 RETURNING *',
+          [commentId]
+        );
+        
+        await client.query('COMMIT');
+        
+        // Include the owner_id in the response
+        const updatedComment = {
+          ...result.rows[0],
+          owner_id: result.rows[0].user_id === user.id ? userId : null
+        };
+        
+        res.json(updatedComment);
       }
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('Error processing vote:', error);
-      res.status(500).json({ 
-        error: 'Internal server error',
-        message: 'A apărut o eroare la procesarea votului. Vă rugăm să încercați din nou.'
-      });
+      throw error;
     } finally {
       client.release();
     }
   } catch (error) {
-    console.error('Error processing vote request:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      message: 'A apărut o eroare la procesarea cererii. Vă rugăm să încercați din nou.'
-    });
+    console.error('Error processing comment vote:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -341,96 +314,91 @@ router.post('/:memeId/comments/:commentId/vote', async (req, res) => {
 router.delete('/:memeId/comments/:commentId', async (req, res) => {
   try {
     const { memeId, commentId } = req.params;
-    const { userId, authProvider = PROVIDERS.GOOGLE } = req.body;
+    // Acceptăm userId din body sau din headers
+    const userId = req.header('user-id') || (req.body && req.body.userId);
+    
+    console.log(`Deleting comment request - memeId: ${memeId}, commentId: ${commentId}, userId: ${userId}`);
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
     
     if (!userId) {
-      return res.status(401).json({ 
-        error: 'Authentication required',
-        message: 'Trebuie să fiți autentificat pentru a șterge comentarii.'
-      });
+      return res.status(401).json({ error: 'Authentication required' });
     }
     
-    // Verifică dacă utilizatorul este anonimizat/marcat ca șters
-    const userStatusCheck = await pool.query(
-      'SELECT is_deleted FROM users WHERE auth_provider_id = (SELECT id FROM auth_providers WHERE name = $1) AND auth_provider_user_id = $2',
-      [authProvider, userId]
-    );
+    // Verificăm dacă userId are format de UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      console.log(`Invalid UUID format: ${userId}`);
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
     
-    if (userStatusCheck.rows.length === 0) {
+    // Obține utilizatorul după public_id
+    const user = await userQueries.findByPublicId(userId);
+    
+    if (!user) {
+      console.log(`User not found with public_id: ${userId}`);
       return res.status(404).json({ error: 'User not found' });
     }
     
-    if (userStatusCheck.rows[0].is_deleted) {
-      return res.status(403).json({ 
-        error: 'Account deactivated', 
-        message: 'Contul tău a fost dezactivat și nu poate efectua această acțiune.'
-      });
-    }
+    console.log(`User found: ID=${user.id}, username=${user.username}, role=${user.role_name}`);
     
-    // Verifică dacă comentariul există și dacă utilizatorul este proprietarul
-    const commentCheck = await pool.query(
-      `SELECT c.*, u.auth_provider_id, u.auth_provider_user_id, ap.name as auth_provider_name
-       FROM comments c 
-       LEFT JOIN users u ON c.user_id = u.id
-       LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id 
-       WHERE c.id = $1 AND c.meme_id = $2`,
-      [commentId, memeId]
-    );
+    // Check if comment exists
+    const commentCheck = await pool.query('SELECT * FROM comments WHERE id = $1 AND meme_id = $2', [commentId, memeId]);
     
     if (commentCheck.rows.length === 0) {
-      return res.status(404).json({ 
-        error: 'Comment not found',
-        message: 'Comentariul nu a fost găsit sau a fost șters deja.'
-      });
+      console.log(`Comment not found: commentId=${commentId}, memeId=${memeId}`);
+      return res.status(404).json({ error: 'Comment not found' });
     }
     
     const comment = commentCheck.rows[0];
+    console.log(`Comment found: ID=${comment.id}, user_id=${comment.user_id}, content="${comment.content.substring(0, 30)}..."`);
     
-    // Verifică dacă utilizatorul este proprietarul sau admin
-    const userCheck = await pool.query(
-      `SELECT u.id, u.auth_provider_user_id, u.username, r.name as role
-       FROM users u
-       LEFT JOIN user_roles r ON u.role_id = r.id
-       LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id
-       WHERE ap.name = $1 AND u.auth_provider_user_id = $2`,
-      [authProvider, userId]
-    );
+    // Check if user is the comment owner or admin/moderator
+    const isAdmin = user.role_name === 'admin';
+    const isModerator = user.role_name === 'moderator';
+    const isOwner = Number(comment.user_id) === Number(user.id);
     
-    if (userCheck.rows.length === 0) {
-      return res.status(403).json({ 
-        error: 'Unauthorized', 
-        message: 'Nu aveți permisiunea de a șterge acest comentariu.'
-      });
+    console.log(`Permission check: isAdmin=${isAdmin}, isModerator=${isModerator}, isOwner=${isOwner}`);
+    console.log(`Comment user_id: ${comment.user_id} (${typeof comment.user_id}), Current user.id: ${user.id} (${typeof user.id})`);
+    
+    if (!isAdmin && !isModerator && !isOwner) {
+      console.log(`Permission denied for user ${userId} to delete comment ${commentId}`);
+      return res.status(403).json({ error: 'Not authorized to delete this comment' });
     }
     
-    const user = userCheck.rows[0];
-    const isAdmin = user.role === 'admin';
-    const isModerator = user.role === 'moderator' || user.role === 'admin';
-    
-    // Verifică dacă utilizatorul are dreptul să șteargă comentariul
-    if (comment.auth_provider_user_id !== userId && !isAdmin && !isModerator) {
-      return res.status(403).json({ 
-        error: 'Unauthorized', 
-        message: 'Nu puteți șterge comentariul altcuiva.'
-      });
+    // Determine the appropriate message based on who deleted the comment
+    let deletionMessage = 'Comentariul a fost șters';
+    if (isAdmin || isModerator) {
+      deletionMessage = 'Comentariul a fost șters de către administrator/moderator';
+    } else if (isOwner) {
+      deletionMessage = 'Comentariul a fost șters de către utilizator';
     }
     
-    // Ștergem comentariul logic (marcăm ca șters)
+    // Instead of deleting, update the comment to show a placeholder message
     await pool.query(
-      'UPDATE comments SET is_deleted = TRUE WHERE id = $1',
-      [commentId]
+      'UPDATE comments SET content = $1, is_deleted = TRUE WHERE id = $2',
+      [deletionMessage, commentId]
     );
+    
+    // Log successful soft deletion
+    console.log(`Comment ${commentId} marked as deleted by user ${userId} (${user.username})`);
+    
+    // Return the updated comment
+    const updatedComment = {
+      ...comment,
+      content: deletionMessage,
+      is_deleted: true,
+      owner_id: userId
+    };
     
     res.json({ 
+      success: true, 
       message: 'Comment deleted successfully',
-      commentId: commentId
+      comment: updatedComment
     });
   } catch (error) {
     console.error('Error deleting comment:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      message: 'A apărut o eroare la ștergerea comentariului. Vă rugăm să încercați din nou.'
-    });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

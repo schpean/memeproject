@@ -4,13 +4,13 @@
  * Acest fișier conține middleware-ul de autorizare care:
  * - Verifică dacă utilizatorul este autentificat pentru rutele protejate
  * - Gestionează rolurile utilizatorilor (admin, moderator, user)
- * - Verifică tokenurile JWT pentru sesiuni
- * - Gestionează accesul la resurse bazat pe roluri
  * - Verifică dacă contul utilizatorului este activ și nu șters
+ * 
+ * Sistemul este agnostic față de metoda de autentificare, folosind
+ * exclusiv public_id (UUID) pentru a identifica utilizatorii.
  * 
  * Dependențe:
  * - ../models/user.js pentru interogări legate de utilizatori
- * - ../config pentru configurări JWT
  * 
  * Folosit de:
  * - Toate rutele care necesită autentificare
@@ -29,22 +29,25 @@ const authorize = (roles = []) => {
   }
 
   return async (req, res, next) => {
-    // Get user ID from the request
-    const userId = req.headers['user-id'] || req.query.userId || (req.body && req.body.userId);
+    // Get public_id (UUID) from the request
+    const publicId = req.headers['user-id'] || req.query.userId || (req.body && req.body.userId);
     
-    if (!userId) {
+    if (!publicId) {
       return res.status(401).json({ error: 'Unauthorized - Please log in' });
+    }
+    
+    // Verificăm dacă publicId are format de UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(publicId)) {
+      return res.status(401).json({ 
+        error: 'Unauthorized - Invalid user ID format',
+        redirectToLogin: true 
+      });
     }
 
     try {
-      // Determină provider-ul din header sau query - default la Google pentru compatibilitate
-      const authProvider = req.headers['auth-provider'] || 
-                          req.query.authProvider || 
-                          (req.body && req.body.authProvider) || 
-                          userQueries.PROVIDERS.GOOGLE;
-                          
-      // Găsește utilizatorul folosind provider-ul și ID-ul
-      const user = await userQueries.findByProviderId(authProvider, userId);
+      // Căutăm utilizatorul după public_id
+      const user = await userQueries.findByPublicId(publicId);
       
       if (!user) {
         return res.status(401).json({ 
