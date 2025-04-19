@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS users (
     meme_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
+    password_hash TEXT,
     UNIQUE(auth_provider_id, auth_provider_user_id)
 );
 
@@ -175,6 +176,15 @@ BEGIN
         WHERE table_name = 'users' AND column_name = 'updated_at'
     ) THEN
         ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT NOW();
+    END IF;
+
+    -- Adaugă coloana password_hash dacă nu există deja
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'password_hash'
+    ) THEN
+        ALTER TABLE users ADD COLUMN password_hash TEXT;
+        COMMENT ON COLUMN users.password_hash IS 'Stochează hash-ul parolei pentru autentificarea cu email/parolă';
     END IF;
 
     -- Adaugă coloana approved_by dacă nu există deja

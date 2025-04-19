@@ -185,13 +185,13 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment
     if (comment.id) {  // Adăugăm condiția pentru a evita log-uri inutile
       console.log(`Comment ID ${comment.id} - Delete button visibility check:`, {
         currentUser: currentUser?.uid,
-        commentOwnerId: comment.owner_id,
+      commentOwnerId: comment.owner_id,
         isDeleted,
-        isAdmin,
-        isModerator,
+      isAdmin,
+      isModerator,
         canDeleteComment,
         match: currentUser?.uid === comment.owner_id
-      });
+    });
     }
   }, [comment.id, comment.owner_id, currentUser, isDeleted, isAdmin, isModerator, canDeleteComment]);
   

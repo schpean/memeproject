@@ -37,7 +37,7 @@ export const API_ENDPOINTS = {
   // Auth endpoints
   googleAuth: '/users/google-auth',
   appleAuth: '/users/apple-auth',
-  emailAuth: '/users/email-auth',
+  emailAuth: '/users/email-login',
   updateNickname: '/users/update-nickname',
   verifyEmail: '/verify-email',
   resendVerification: '/resend-verification',
@@ -50,7 +50,7 @@ export const API_ENDPOINTS = {
       case AUTH_PROVIDERS.APPLE:
         return '/users/apple-auth';
       case AUTH_PROVIDERS.EMAIL:
-        return '/users/email-auth';
+        return '/users/email-login';
       default:
         return '/users/google-auth';
     }

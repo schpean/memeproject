@@ -1,5 +1,12 @@
 // Server configuration file
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+// Încarcă explicit variabilele de mediu din fișierul .env din rădăcină
+const dotenvPath = path.resolve(__dirname, '../.env');
+console.log('Config: Calea către .env:', dotenvPath);
+console.log('Config: Fișierul .env există:', fs.existsSync(dotenvPath) ? 'Da' : 'Nu');
+require('dotenv').config({ path: dotenvPath });
 
 // Database configuration
 const dbConfig = {
@@ -40,8 +47,8 @@ const corsConfig = {
 // Email configuration
 const emailConfig = {
   host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: process.env.EMAIL_PORT === '465',
+  port: process.env.EMAIL_PORT ? parseInt(process.env.EMAIL_PORT, 10) : 587,
+  secure: process.env.EMAIL_SECURE === 'true' || process.env.EMAIL_PORT === '465',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,

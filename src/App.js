@@ -18,6 +18,7 @@ import Privacy from './pages/Privacy';
 import Disclaimer from './pages/Disclaimer';
 import Contact from './pages/Contact';
 import CookiePolicy from './pages/CookiePolicy';
+import EmailLoginModal from './components/auth/EmailLoginModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './components/common/Notification';
 import VerifyEmail from './components/auth/VerifyEmail';
@@ -66,11 +67,13 @@ function App() {
                   <Route path="/disclaimer" element={<Disclaimer />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/cookies" element={<CookiePolicy />} />
+                  <Route path="/login" element={<EmailLoginModal />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
               <Footer />
               <CookieBanner />
+              <EmailLoginModal />
             </div>
           </AuthContextConnector>
         </Router>

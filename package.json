@@ -17,7 +17,8 @@
     "react-router-dom": "^6.11.2",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4",
-    "ws": "^8.18.1"
+    "ws": "^8.18.1",
+    "bcryptjs": "^2.4.3"
   },
   "scripts": {
     "start": "npm run start-windows",

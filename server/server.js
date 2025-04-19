@@ -4,7 +4,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const pool = require('./db');
-require('dotenv').config();
+
+// Încarcă explicit variabilele de mediu din fișierul .env din rădăcină
+const dotenvPath = path.resolve(__dirname, '../.env');
+console.log('Calea către .env:', dotenvPath);
+console.log('Fișierul .env există:', fs.existsSync(dotenvPath) ? 'Da' : 'Nu');
+require('dotenv').config({ path: dotenvPath });
+
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const emailService = require('./email');

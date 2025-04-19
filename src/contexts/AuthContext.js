@@ -170,16 +170,23 @@ export const AuthProvider = ({ children }) => {
 
   // Fetch the latest user permissions
   const fetchUserPermissions = useCallback(async (userId, authProvider = AUTH_PROVIDERS.GOOGLE) => {
-    if (!userId) return;
+    if (!userId) {
+      console.warn('[AuthContext] fetchUserPermissions apelat fără userId');
+      return;
+    }
+    
+    console.log('[AuthContext] Obțin permisiunile pentru utilizator:', userId.substring(0, 8) + '...', 'provider:', authProvider);
     
     try {
       const response = await fetch(`${API_ENDPOINTS.users}/me?userId=${userId}&authProvider=${authProvider}`);
+      console.log('[AuthContext] Status răspuns permisiuni:', response.status, response.statusText);
       
       if (!response.ok) {
         throw new Error(`Error fetching user permissions: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('[AuthContext] Permisiuni utilizator primite:', data);
       
       // Update permissions state
       const permissions = {
@@ -196,8 +203,9 @@ export const AuthProvider = ({ children }) => {
       
       setUserPermissions(permissions);
       saveToLocalStorage(STORAGE_KEYS.PERMISSIONS, permissions);
+      console.log('[AuthContext] Permisiuni salvate:', permissions);
     } catch (error) {
-      console.error('Error fetching user permissions:', error);
+      console.error('[AuthContext] Eroare la obținerea permisiunilor:', error);
     }
   }, []);
 
@@ -247,60 +255,128 @@ export const AuthProvider = ({ children }) => {
   }, [currentUser]);
 
   // Funcție abstractizată pentru a procesa rezultatele autentificării
-  const processAuthResult = useCallback(async (providerData, authProvider) => {
+  const processAuthResult = useCallback(async (providerData, authProvider, skipAuthRequest = false) => {
+    console.log('[AuthContext] Start processAuthResult cu provider:', authProvider);
+    console.log('[AuthContext] Provider data:', { 
+      ...providerData, 
+      token: providerData.token ? '[TOKEN PREZENT]' : '[LIPSĂ]'
+    });
+    console.log('[AuthContext] skipAuthRequest:', skipAuthRequest);
+    
     try {
-      // Construiește endpoint-ul corect pentru provider
-      const endpoint = authProvider === AUTH_PROVIDERS.GOOGLE 
-        ? API_ENDPOINTS.googleAuth 
-        : authProvider === AUTH_PROVIDERS.APPLE 
-          ? API_ENDPOINTS.appleAuth 
-          : API_ENDPOINTS.emailAuth;
+      let responseData;
       
-      // Prepare the data based on the provider type
-      let requestData = { ...providerData, authProvider };
-      
-      // Specific provider keys required by the backend
-      if (authProvider === AUTH_PROVIDERS.GOOGLE) {
-        requestData.googleId = providerData.providerUserId;
-      } else if (authProvider === AUTH_PROVIDERS.APPLE) {
-        requestData.appleId = providerData.providerUserId;
-      }
-      
-      // Send provider data to our server for JWT and account creation/verification
-      const serverLoginResponse = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
-      
-      // Parse response JSON indiferent de codul de răspuns pentru a vedea mesajul de eroare
-      const responseData = await serverLoginResponse.json();
-      
-      if (!serverLoginResponse.ok) {
-        // Verifică dacă serverul a returnat un mesaj de eroare specific
-        if (responseData.message) {
-          setAuthError(responseData.message);
-        } else if (responseData.error && responseData.error.includes('previously associated with a deleted account')) {
-          setAuthError('Această adresă de email nu poate fi folosită pentru că a fost asociată anterior cu un cont șters.');
-        } else if (responseData.error && responseData.error.includes('Account deactivated')) {
-          setAuthError('Contul tău a fost dezactivat. Te rugăm să contactezi administratorul pentru asistență.');
-        } else {
-          setAuthError(`Eroare de autentificare: ${responseData.error || 'Necunoscută'}`);
+      // Dacă skipAuthRequest este true, folosim direct datele furnizate
+      // fără a mai face o cerere HTTP către server
+      if (skipAuthRequest) {
+        console.log('[AuthContext] Omitem cererea HTTP către server (skipAuthRequest = true)');
+        
+        if (!providerData.userId && !providerData.public_id) {
+          console.error('[AuthContext] Date incomplete - lipsă userId sau public_id în modul skipAuthRequest');
+          setAuthError('Date incomplete pentru autentificare');
+          return null;
         }
         
-        logout(); // Deconectează utilizatorul în caz de eroare
-        return null;
+        // Folosim direct datele furnizate fără a trimite o cerere HTTP
+        responseData = {
+          token: providerData.token,
+          userId: providerData.userId || providerData.public_id,
+          public_id: providerData.public_id || providerData.userId,
+          username: providerData.displayName,
+          isEmailVerified: providerData.isEmailVerified || false,
+          emailVerificationRequired: providerData.needsVerification || false
+        };
+        
+        console.log('[AuthContext] Date procesate direct fără cerere HTTP:', {
+          ...responseData,
+          token: responseData.token ? '[TOKEN PREZENT]' : '[LIPSĂ]'
+        });
+      } else {
+        // Construiește endpoint-ul corect pentru provider
+        const endpoint = authProvider === AUTH_PROVIDERS.GOOGLE 
+          ? API_ENDPOINTS.googleAuth 
+          : authProvider === AUTH_PROVIDERS.APPLE 
+            ? API_ENDPOINTS.appleAuth 
+            : API_ENDPOINTS.emailAuth;
+        
+        console.log('[AuthContext] Endpoint utilizat:', endpoint);
+        
+        // Prepare the data based on the provider type
+        let requestData = { ...providerData, authProvider };
+        
+        // Asigurăm că avem toate datele necesare pentru cererea HTTP
+        if (authProvider === AUTH_PROVIDERS.EMAIL && (!requestData.email || !requestData.password)) {
+          console.error('[AuthContext] Date incomplete pentru autentificare email:', requestData);
+          setAuthError('Email-ul și parola sunt obligatorii pentru autentificare');
+          return null;
+        }
+        
+        // Specific provider keys required by the backend
+        if (authProvider === AUTH_PROVIDERS.GOOGLE) {
+          requestData.googleId = providerData.providerUserId;
+        } else if (authProvider === AUTH_PROVIDERS.APPLE) {
+          requestData.appleId = providerData.providerUserId;
+        }
+        
+        console.log('[AuthContext] Date trimise către server:', {
+          ...requestData,
+          token: requestData.token ? '[TOKEN PREZENT]' : '[LIPSĂ]'
+        });
+        
+        // Send provider data to our server for JWT and account creation/verification
+        const serverLoginResponse = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        });
+        
+        console.log('[AuthContext] Status răspuns server:', serverLoginResponse.status, serverLoginResponse.statusText);
+        
+        // Parse response JSON indiferent de codul de răspuns pentru a vedea mesajul de eroare
+        responseData = await serverLoginResponse.json();
+        console.log('[AuthContext] Răspuns server detaliat:', JSON.stringify(responseData));
+        
+        if (!serverLoginResponse.ok) {
+          // Verifică dacă serverul a returnat un mesaj de eroare specific
+          console.error('[AuthContext] Eroare de la server:', responseData);
+          
+          if (responseData.message) {
+            setAuthError(responseData.message);
+          } else if (responseData.error && responseData.error.includes('previously associated with a deleted account')) {
+            setAuthError('Această adresă de email nu poate fi folosită pentru că a fost asociată anterior cu un cont șters.');
+          } else if (responseData.error && responseData.error.includes('Account deactivated')) {
+            setAuthError('Contul tău a fost dezactivat. Te rugăm să contactezi administratorul pentru asistență.');
+          } else {
+            setAuthError(`Eroare de autentificare: ${responseData.error || 'Necunoscută'}`);
+          }
+          
+          logout(); // Deconectează utilizatorul în caz de eroare
+          return null;
+        }
+        
+        if (responseData.error) {
+          console.error('[AuthContext] Eroare în răspunsul serverului:', responseData.error);
+          setAuthError(responseData.error);
+          return null;
+        }
       }
       
-      if (responseData.error) {
-        setAuthError(responseData.error);
+      // Verificăm dacă avem răspuns valid
+      if (!responseData) {
+        console.error('[AuthContext] Date de răspuns lipsă sau invalide');
+        setAuthError('Date de autentificare invalide');
         return null;
       }
       
       // Store the JWT token for API requests
-      localStorage.setItem('token', responseData.token);
+      if (responseData.token) {
+        console.log('[AuthContext] Token JWT primit și salvat în localStorage');
+        localStorage.setItem('token', responseData.token);
+      } else {
+        console.warn('[AuthContext] Nu s-a primit token JWT de la server');
+      }
       
       // Create a unified user object using userId (public_id) ca identificator principal
       const user = {
@@ -313,27 +389,59 @@ export const AuthProvider = ({ children }) => {
         authProviderId: providerData.providerUserId
       };
       
+      console.log('[AuthContext] Obiect utilizator creat:', { 
+        ...user,
+        uid: user.uid ? user.uid.substring(0, 8) + '...' : undefined // Arată doar o parte din UID pentru securitate
+      });
+      
       // Set verification needed state
-      setNeedsVerification(
-        responseData.emailVerificationRequired && !responseData.isEmailVerified
-      );
+      const needsEmailVerification = responseData.emailVerificationRequired && !responseData.isEmailVerified;
+      setNeedsVerification(needsEmailVerification);
       
-      // Save user to state and localStorage
-      setCurrentUser(user);
-      saveToLocalStorage(STORAGE_KEYS.USER, user);
+      // Verificăm dacă utilizatorul are nevoie de verificare email înainte de a-l loga
+      // Pentru a decide dacă utilizatorul trebuie să fie logat sau nu
+      const shouldLogin = 
+        // Autentificare cu Google/Apple - autentificare mereu
+        (authProvider !== AUTH_PROVIDERS.EMAIL) || 
+        // Autentificare cu email, dar email-ul e deja verificat
+        (authProvider === AUTH_PROVIDERS.EMAIL && !needsEmailVerification) ||
+        // Autentificare cu email, email neverificat, dar e conectare (nu înregistrare)
+        (authProvider === AUTH_PROVIDERS.EMAIL && providerData.isExistingUser === true);
       
-      // Load any upvoted memes from the server
-      if (responseData.upvotedMemes && Array.isArray(responseData.upvotedMemes)) {
-        setUpvotedMemes(responseData.upvotedMemes);
-        saveToLocalStorage(STORAGE_KEYS.UPVOTED_MEMES, responseData.upvotedMemes);
+      console.log('[AuthContext] Stare verificare email necesar:', needsEmailVerification);
+      console.log('[AuthContext] Decizie logare utilizator:', shouldLogin);
+      
+      if (shouldLogin) {
+        // Save user to state and localStorage doar dacă nu necesită verificare sau este autentificare cu alt provider
+        setCurrentUser(user);
+        saveToLocalStorage(STORAGE_KEYS.USER, user);
+        console.log('[AuthContext] Utilizator salvat în state și localStorage');
+        
+        // Load any upvoted memes from the server
+        if (responseData.upvotedMemes && Array.isArray(responseData.upvotedMemes)) {
+          setUpvotedMemes(responseData.upvotedMemes);
+          saveToLocalStorage(STORAGE_KEYS.UPVOTED_MEMES, responseData.upvotedMemes);
+        }
+        
+        // Fetch user permissions
+        console.log('[AuthContext] Se solicită permisiunile utilizatorului');
+        await fetchUserPermissions(user.uid, authProvider);
+      } else {
+        // Utilizatorul necesită verificare email înainte de autentificare
+        // Golim starea și localStorage pentru a ne asigura că utilizatorul nu este autentificat
+        setCurrentUser(null);
+        localStorage.removeItem(STORAGE_KEYS.USER);
+        localStorage.removeItem(STORAGE_KEYS.UPVOTED_MEMES);
+        // Păstrăm token-ul pentru a putea verifica email-ul
+        
+        console.log('[AuthContext] Utilizator neverificat - nu a fost autentificat automat');
+        setAuthError('Contul tău a fost creat cu succes. Verifică email-ul pentru a-ți confirma contul înainte de a te autentifica.');
       }
       
-      // Fetch user permissions
-      fetchUserPermissions(user.uid, authProvider);
-      
+      console.log('[AuthContext] processAuthResult finalizat cu succes, returnez utilizatorul');
       return user;
     } catch (error) {
-      console.error('Error processing authentication:', error);
+      console.error('[AuthContext] Eroare procesare autentificare:', error);
       
       // Verifică dacă eroarea conține detalii despre un cont șters
       if (error.response && error.response.data && 
@@ -417,19 +525,29 @@ export const AuthProvider = ({ children }) => {
   const loginWithApple = useCallback(async () => {
     setAuthError(null);
     
-    // Aici se va implementa logica pentru autentificare Apple
-    setAuthError('Apple Sign-In is not implemented yet.');
+    alert('Apple login coming soon!');
+    // Implementarea va fi adăugată în viitor
+  }, []);
+
+  // Email login logic
+  const loginWithEmail = useCallback(() => {
+    setAuthError(null);
     
-    // Exemplu: 
-    // const appleUserData = {
-    //   providerUserId: 'apple-user-id',
-    //   displayName: 'Apple User',
-    //   email: 'user@apple.com',
-    //   photoURL: '',
-    //   token: 'apple-token'
-    // };
-    // 
-    // await processAuthResult(appleUserData, AUTH_PROVIDERS.APPLE);
+    console.log('AuthContext: triggerez evenimentul showEmailLoginModal');
+    
+    // În loc să redirecționăm, vom emite un eveniment personalizat
+    // pentru a activa modalul de login cu email
+    const event = new CustomEvent('showEmailLoginModal');
+    window.dispatchEvent(event);
+    
+    console.log('AuthContext: eveniment showEmailLoginModal declanșat');
+    
+  }, []);
+
+  // Funcție pentru verificarea dacă un utilizator trebuie să-și verifice email-ul
+  const isEmailVerificationNeeded = useCallback((authProvider, isUserVerified) => {
+    // Doar utilizatorii care se autentifică cu email trebuie să-și verifice email-ul
+    return authProvider === AUTH_PROVIDERS.EMAIL && isUserVerified === false;
   }, []);
 
   // Check if user has a specific permission
@@ -488,6 +606,7 @@ export const AuthProvider = ({ children }) => {
     removeUpvotedMeme,
     loginWithGoogle,
     loginWithApple,
+    loginWithEmail,
     logout,
     hasPermission,
     resendVerificationEmail,
@@ -498,7 +617,11 @@ export const AuthProvider = ({ children }) => {
     startGlobalLoading,
     stopGlobalLoading,
     // Constants
-    AUTH_PROVIDERS
+    AUTH_PROVIDERS,
+    // Expose functions needed for email login/registration
+    processAuthResult,
+    setAuthError,
+    isEmailVerificationNeeded
   };
 
   return (

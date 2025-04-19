@@ -57,6 +57,21 @@ const userQueries = {
     return result.rows[0];
   },
   
+  // Găsește un utilizator după token-ul de verificare a email-ului
+  findByVerificationToken: async (token) => {
+    if (!token) return null;
+    
+    const result = await pool.query(`
+      SELECT u.*, r.name as role_name, ap.name as auth_provider
+      FROM users u
+      LEFT JOIN user_roles r ON u.role_id = r.id
+      LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id
+      WHERE u.verification_token = $1 
+        AND (u.is_deleted IS NULL OR u.is_deleted = FALSE)
+    `, [token]);
+    return result.rows[0];
+  },
+  
   // Obține ID-ul intern din baza de date pentru un public_id
   getInternalIdByPublicId: async (publicId) => {
     if (!publicId) return null;
@@ -94,7 +109,17 @@ const userQueries = {
 
   // Creează un utilizator nou
   create: async (userData) => {
-    const { auth_provider, auth_provider_user_id, email, username, role_id = 1, verification_token, verification_expires, photo_url } = userData;
+    const { 
+      auth_provider, 
+      auth_provider_user_id, 
+      email, 
+      username, 
+      role_id = 1, 
+      verification_token, 
+      verification_expires, 
+      photo_url,
+      password_hash
+    } = userData;
     
     // Obține ID-ul provider-ului
     const providerId = await userQueries.getProviderId(auth_provider || PROVIDERS.GOOGLE);
@@ -105,16 +130,47 @@ const userQueries = {
     // Generează un UUID unic pentru utilizator
     const publicId = uuidv4();
 
-    const result = await pool.query(`
+    // Construiește query-ul direct, fără a folosi expresiile NOW() în array-ul de valori
+    let query = `
       INSERT INTO users (
         public_id, auth_provider_id, auth_provider_user_id, email, username, 
         role_id, verification_token, verification_expires, photo_url,
         created_at, updated_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-      RETURNING *
-    `, [publicId, providerId, auth_provider_user_id, email, username, role_id, verification_token, verification_expires, photo_url]);
+    `;
     
+    // Adaugă password_hash la query dacă există
+    if (password_hash) {
+      query += `, password_hash`;
+    }
+    
+    query += `) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()`;
+    
+    // Adaugă un parametru pentru password_hash dacă există
+    if (password_hash) {
+      query += `, $10`;
+    }
+    
+    query += `) RETURNING *`;
+    
+    // Pregătește array-ul de valori
+    const values = [
+      publicId, 
+      providerId, 
+      auth_provider_user_id, 
+      email, 
+      username, 
+      role_id, 
+      verification_token, 
+      verification_expires, 
+      photo_url
+    ];
+    
+    // Adaugă password_hash la array-ul de valori dacă există
+    if (password_hash) {
+      values.push(password_hash);
+    }
+    
+    const result = await pool.query(query, values);
     return result.rows[0];
   },
 
@@ -176,8 +232,7 @@ const userQueries = {
 
   // Găsește un utilizator după username
   findByUsername: async (username) => {
-    const result = await pool.query(`
-      SELECT u.*, r.name as role_name, ap.name as auth_provider
+    const result = await pool.query(`      SELECT u.*, r.name as role_name, ap.name as auth_provider
       FROM users u
       LEFT JOIN user_roles r ON u.role_id = r.id
       LEFT JOIN auth_providers ap ON u.auth_provider_id = ap.id

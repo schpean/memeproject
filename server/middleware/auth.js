@@ -35,7 +35,7 @@ const authorize = (roles = []) => {
     if (!publicId) {
       return res.status(401).json({ error: 'Unauthorized - Please log in' });
     }
-    
+
     // Verificăm dacă publicId are format de UUID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(publicId)) {

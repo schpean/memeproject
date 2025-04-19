@@ -214,12 +214,24 @@ router.put('/:id/approval', authorize(['admin', 'moderator']), async (req, res) 
 // Crearea unui meme nou
 router.post('/', upload.single('image'), checkUserStatus, async (req, res) => {
   try {
-    const { company, city, message, userId, username } = req.body;
+    const { company, city, message, userId, username, image_url } = req.body;
     
     console.log('---DETAILED MEME REQUEST INFO---');
     console.log('- Full request body:', req.body);
     
-    if (!req.file) {
+    // Acceptă fie fișier încărcat, fie URL de imagine
+    let imageUrl;
+    
+    if (req.file) {
+      // Dacă avem un fișier încărcat, proceăm ca înainte
+      const imagePath = req.file.path;
+      const relativePath = path.relative(path.join(__dirname, '..'), imagePath);
+      imageUrl = `/${relativePath.replace(/\\/g, '/')}`;
+    } else if (image_url) {
+      // Dacă avem un URL de imagine, îl folosim direct
+      imageUrl = image_url;
+    } else {
+      // Dacă nu avem nici fișier, nici URL, returnăm eroare
       return res.status(400).json({ error: 'Image file is required' });
     }
     
@@ -254,11 +266,6 @@ router.post('/', upload.single('image'), checkUserStatus, async (req, res) => {
     if (!userDbId) {
       console.log('User not found, meme will be anonymous');
     }
-    
-    // Process the image
-    const imagePath = req.file.path;
-    const relativePath = path.relative(path.join(__dirname, '..'), imagePath);
-    const imageUrl = `/${relativePath.replace(/\\/g, '/')}`;
     
     // Insert into database - toate meme-urile au status 'pending' indiferent dacă utilizatorul este autentificat sau nu
     const result = await pool.query(

@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import './LoginButton.css';
-import { FaSignInAlt, FaSignOutAlt, FaUser, FaApple } from 'react-icons/fa';
+import { FaSignInAlt, FaSignOutAlt, FaUser, FaApple, FaEnvelope } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
 import { getAvatarUrl } from '../../utils/avatarUtils';
 
 const LoginButton = ({ className = '', hideUsername = false }) => {
-  const { currentUser, loginWithGoogle, loginWithApple, logout, needsVerification, resendVerificationEmail, AUTH_PROVIDERS } = useAuth();
+  const { currentUser, loginWithGoogle, loginWithApple, loginWithEmail, logout, needsVerification, resendVerificationEmail, AUTH_PROVIDERS } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showLoginOptions, setShowLoginOptions] = useState(false);
 
@@ -27,6 +27,13 @@ const LoginButton = ({ className = '', hideUsername = false }) => {
   
   const handleAppleLogin = () => {
     loginWithApple();
+    setShowLoginOptions(false);
+  };
+  
+  const handleEmailLogin = () => {
+    console.log('LoginButton: apel către loginWithEmail');
+    loginWithEmail();
+    console.log('LoginButton: loginWithEmail apelat, închid meniul de opțiuni');
     setShowLoginOptions(false);
   };
 
@@ -59,6 +66,13 @@ const LoginButton = ({ className = '', hideUsername = false }) => {
             >
               <FcGoogle className="provider-icon" />
               <span>Continue with Google</span>
+            </button>
+            <button 
+              className="login-option email-login"
+              onClick={handleEmailLogin}
+            >
+              <FaEnvelope className="provider-icon" />
+              <span>Log in with email</span>
             </button>
             <button 
               className="login-option apple-login"
