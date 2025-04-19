@@ -334,4 +334,84 @@
 
 .switch-button:hover {
   text-decoration: underline;
+}
+
+/* Stiluri pentru mesajul de succes la înregistrare */
+.registration-success {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.registration-success .success-icon {
+  color: #4CAF50;
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.registration-success h2 {
+  color: #4CAF50;
+  margin-bottom: 1rem;
+}
+
+.registration-success p {
+  margin-bottom: 0.7rem;
+  color: #555;
+}
+
+.email-highlight {
+  font-weight: bold;
+  background-color: #f5f5f5;
+  padding: 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+  margin: 0.5rem 0;
+}
+
+.info-small {
+  font-size: 0.85rem;
+  color: #777;
+  font-style: italic;
+  margin-top: 1rem;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 1.5rem;
+}
+
+.secondary-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.secondary-button:hover {
+  background-color: #e5e5e5;
+}
+
+/* Stiluri pentru nota legală cu termenii și condițiile */
+.terms-notice {
+  font-size: 0.8rem;
+  color: #777;
+  text-align: center;
+  margin-top: 1rem;
+  padding: 0 0.5rem;
+  line-height: 1.4;
+}
+
+.terms-notice a {
+  color: #4285f4;
+  text-decoration: none;
+}
+
+.terms-notice a:hover {
+  text-decoration: underline;
 } 

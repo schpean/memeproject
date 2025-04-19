@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import './EmailLoginModal.css';
-import { FaEnvelope, FaLock, FaTimes } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaTimes, FaCheckCircle } from 'react-icons/fa';
 
 // Constante pentru localStorage
 const STORAGE_KEYS = {
@@ -13,10 +13,15 @@ const STORAGE_KEYS = {
 const EmailLoginModal = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const overlayRef = useRef(null);
+  const mouseDownOnOverlayRef = useRef(false);
   const navigate = useNavigate();
   const { loginWithGoogle, processAuthResult, setAuthError } = useAuth();
 
@@ -28,8 +33,11 @@ const EmailLoginModal = () => {
     setTimeout(() => {
       setEmail('');
       setPassword('');
+      setConfirmPassword('');
       setError('');
       setIsLoading(false);
+      setRegistrationSuccess(false);
+      setRegisteredEmail('');
     }, 300); // Un mic delay pentru a se sincroniza cu animația CSS
   }, []);
 
@@ -38,6 +46,26 @@ const EmailLoginModal = () => {
     console.log('EmailLoginModal: eveniment primit, afișez modalul');
     setIsVisible(true);
   }, []);
+  
+  // Detectăm când mouse-ul este apăsat pe overlay
+  const handleOverlayMouseDown = useCallback((e) => {
+    // Verificăm dacă click-ul a început exact pe overlay
+    if (e.target === overlayRef.current) {
+      mouseDownOnOverlayRef.current = true;
+    } else {
+      mouseDownOnOverlayRef.current = false;
+    }
+  }, []);
+  
+  // Detectăm când mouse-ul este eliberat
+  const handleOverlayMouseUp = useCallback((e) => {
+    // Verificăm dacă și mouse up-ul s-a întâmplat pe overlay și dacă mouse down-ul a fost tot pe overlay
+    if (e.target === overlayRef.current && mouseDownOnOverlayRef.current) {
+      closeModal();
+    }
+    // Resetăm pentru următoarea interacțiune
+    mouseDownOnOverlayRef.current = false;
+  }, [closeModal]);
 
   // Ascultăm evenimentul pentru afișarea modalului
   useEffect(() => {
@@ -165,6 +193,12 @@ const EmailLoginModal = () => {
       setIsLoading(false);
       return;
     }
+    
+    if (password !== confirmPassword) {
+      setError('Parolele introduse nu coincid');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const displayNameValue = email.split('@')[0]; // Folosim prima parte a emailului ca displayName
@@ -195,51 +229,19 @@ const EmailLoginModal = () => {
         throw new Error(data.message || 'Eroare la înregistrare');
       }
 
-      // Salvăm token-ul dacă există
+      // În loc să procesăm autentificarea, afișăm un mesaj de succes
+      setRegistrationSuccess(true);
+      setRegisteredEmail(email);
+      setIsLoading(false);
+      
+      // Salvăm token-ul dacă există, dar nu-l folosim pentru autentificare încă
       if (data.token) {
         localStorage.setItem('token', data.token);
       }
 
-      // Folosim processAuthResult furnizat de context, dar cu un obiect adaptat
-      // care conține toate câmpurile necesare
-      const userData = {
-        providerUserId: email,
-        displayName: data.username || displayNameValue,
-        email: email,
-        // Includem parola pentru a o avea disponibilă la a doua cerere dacă este necesar
-        password: password,
-        photoURL: data.photo_url || null,
-        token: data.token, // Important: transmite token-ul dacă există
-        // Adăugăm informații suplimentare care vor fi transmise de processAuthResult
-        public_id: data.public_id || data.userId,
-        userId: data.userId || data.public_id,
-        isEmailVerified: data.is_verified || false,
-        needsVerification: data.needsVerification || true,
-        // Marcăm ca utilizator nou (înregistrare, nu conectare)
-        isExistingUser: false
-      };
-
-      console.log('[EmailLoginModal] Procesare date utilizator:', { 
-        ...userData, 
-        password: userData.password ? '[PAROLĂ PREZENTĂ]' : '[LIPSĂ]',
-        token: userData.token ? '[TOKEN PREZENT]' : '[LIPSĂ]',
-        public_id: userData.public_id ? userData.public_id.substring(0, 8) + '...' : null
-      });
-
-      // Actualizăm permisiunile direct
-      const permissions = {
-        isAdmin: data.isAdmin || false,
-        isModerator: data.isModerator || false
-      };
-      localStorage.setItem(STORAGE_KEYS.PERMISSIONS, JSON.stringify(permissions));
-
-      // Folosim funcția standard din context pentru a procesa autentificarea
-      // și a actualiza starea aplicației
-      // Transmitem skipAuthRequest=true pentru a evita cererea HTTP redundantă
-      processAuthResult(userData, 'email', true);
+      // Nu mai executăm redirectarea sau processAuthResult
+      // doar afișăm un mesaj că utilizatorul trebuie să-și verifice emailul
       
-      // Încheiem procesul închizând modalul
-      closeModal();
     } catch (error) {
       console.error('[EmailLoginModal] Eroare înregistrare detaliată:', error);
       setAuthError(error.message || 'A apărut o eroare la înregistrare. Te rugăm să încerci din nou.');
@@ -251,6 +253,8 @@ const EmailLoginModal = () => {
   const switchMode = () => {
     setIsLogin(!isLogin);
     setError('');
+    setConfirmPassword('');
+    setRegistrationSuccess(false);
   };
 
   const handleGoogleLogin = async () => {
@@ -274,88 +278,152 @@ const EmailLoginModal = () => {
   if (!isVisible) return null;
 
   return (
-    <div className="email-login-overlay" onClick={closeModal}>
-      <div className="email-login-modal" onClick={e => e.stopPropagation()}>
+    <div 
+      className="email-login-overlay" 
+      ref={overlayRef}
+      onMouseDown={handleOverlayMouseDown}
+      onMouseUp={handleOverlayMouseUp}
+    >
+      <div 
+        className="email-login-modal" 
+      >
         <button className="close-modal" onClick={closeModal} aria-label="Închide">
           <FaTimes />
         </button>
         
-        <h2>{isLogin ? 'Conectare' : 'Înregistrare'} cu email</h2>
-        
-        {error && <div className="error-message">{error}</div>}
-        
-        <form onSubmit={isLogin ? handleEmailLogin : handleEmailRegister}>
-          <div className="form-group">
-            <label htmlFor="email">
-              <FaEnvelope /> Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="Adresa ta de email"
-              disabled={isLoading}
-            />
+        {registrationSuccess ? (
+          <div className="registration-success">
+            <FaCheckCircle className="success-icon" />
+            <h2>Înregistrare reușită!</h2>
+            <p>Am trimis un email de confirmare la adresa:</p>
+            <p className="email-highlight">{registeredEmail}</p>
+            <p>Te rugăm să verifici căsuța de email și să confirmi contul tău apăsând pe linkul din email.</p>
+            <p className="info-small">Nu uita să verifici și în folderul de Spam dacă nu găsești emailul în Inbox.</p>
+            
+            <div className="action-buttons">
+              <button 
+                className="submit-button" 
+                onClick={() => {
+                  setIsLogin(true);
+                  setRegistrationSuccess(false);
+                }}
+              >
+                Mergi la conectare
+              </button>
+              <button 
+                className="secondary-button" 
+                onClick={closeModal}
+              >
+                Închide
+              </button>
+            </div>
           </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">
-              <FaLock /> Parolă
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Parola ta"
-              minLength="6"
+        ) : (
+          <>
+            <h2>{isLogin ? 'Conectare' : 'Înregistrare'} cu email</h2>
+            
+            {error && <div className="error-message">{error}</div>}
+            
+            <form onSubmit={isLogin ? handleEmailLogin : handleEmailRegister}>
+              <div className="form-group">
+                <label htmlFor="email">
+                  <FaEnvelope /> Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="Adresa ta de email"
+                  disabled={isLoading}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="password">
+                  <FaLock /> Parolă
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Parola ta"
+                  minLength="6"
+                  disabled={isLoading}
+                />
+              </div>
+              
+              {!isLogin && (
+                <div className="form-group">
+                  <label htmlFor="confirmPassword">
+                    <FaLock /> Confirmă parola
+                  </label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    placeholder="Confirmă parola"
+                    minLength="6"
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
+              
+              <button 
+                type="submit" 
+                className={`submit-button ${isLoading ? 'loading' : ''}`}
+                disabled={isLoading}
+              >
+                {isLoading 
+                  ? 'Se procesează...' 
+                  : isLogin 
+                    ? 'Conectare' 
+                    : 'Înregistrare'
+                }
+              </button>
+              
+              <div className="terms-notice">
+                {isLogin 
+                  ? 'Prin conectare, accepți ' 
+                  : 'Prin înregistrare, accepți '
+                }
+                <a href="/terms" target="_blank">Termenii și Condițiile</a> și <a href="/privacy" target="_blank">Politica de Confidențialitate</a> ale bossme.me
+              </div>
+            </form>
+            
+            <div className="auth-separator">
+              <span>sau</span>
+            </div>
+            
+            <button 
+              onClick={handleGoogleLogin}
+              className="google-button"
               disabled={isLoading}
-            />
-          </div>
-          
-          <button 
-            type="submit" 
-            className={`submit-button ${isLoading ? 'loading' : ''}`}
-            disabled={isLoading}
-          >
-            {isLoading 
-              ? 'Se procesează...' 
-              : isLogin 
-                ? 'Conectare' 
-                : 'Înregistrare'
-            }
-          </button>
-        </form>
-        
-        <div className="auth-separator">
-          <span>sau</span>
-        </div>
-        
-        <button 
-          onClick={handleGoogleLogin}
-          className="google-button"
-          disabled={isLoading}
-        >
-          Continuă cu Google
-        </button>
-        
-        <p className="switch-mode">
-          {isLogin 
-            ? 'Nu ai cont?' 
-            : 'Ai deja un cont?'
-          } 
-          <button 
-            type="button"
-            onClick={switchMode}
-            className="switch-button"
-            disabled={isLoading}
-          >
-            {isLogin ? 'Înregistrează-te' : 'Conectează-te'}
-          </button>
-        </p>
+            >
+              Continuă cu Google
+            </button>
+            
+            <p className="switch-mode">
+              {isLogin 
+                ? 'Nu ai cont?' 
+                : 'Ai deja un cont?'
+              } 
+              <button 
+                type="button"
+                onClick={switchMode}
+                className="switch-button"
+                disabled={isLoading}
+              >
+                {isLogin ? 'Înregistrează-te' : 'Conectează-te'}
+              </button>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
