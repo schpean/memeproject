@@ -320,9 +320,9 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment
             <button 
               className="delete-comment-button" 
               onClick={handleDeleteComment}
-              title="Șterge comentariul"
+              title="Delete comment"
             >
-              <FaTrash /> Șterge
+              <FaTrash /> delete
             </button>
           )}
           

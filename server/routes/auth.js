@@ -28,6 +28,10 @@ const emailService = require('../email');
 const { authorize } = require('../middleware/auth');
 const { PROVIDERS, ...userQueries } = require('../models/user');
 const bcrypt = require('bcryptjs');
+// Importăm librăria pentru detectarea email-urilor temporare
+const disposableEmailDetector = require('disposable-email-detector');
+// Importăm și lista noastră personalizată de domenii
+const { isDisposableEmail } = require('../utils/disposableEmails');
 
 // Abstractizarea procesului de autentificare pentru orice provider
 const handleAuthProvider = async (req, res, providerName) => {
@@ -316,6 +320,31 @@ router.post('/email-register', async (req, res) => {
       });
     }
     
+    // Verificăm dacă adresa de email este temporară/de unică folosință
+    // 1. Verificăm cu lista noastră personalizată
+    if (isDisposableEmail(email)) {
+      console.warn(`Încercare de înregistrare cu email temporar blocată (listă personalizată): ${email}`);
+      return res.status(400).json({
+        error: 'Disposable email',
+        message: 'Nu puteți folosi o adresă de email temporară pentru înregistrare. Vă rugăm să folosiți o adresă de email validă.'
+      });
+    }
+    
+    // 2. Verificăm și cu librăria, ca o verificare suplimentară
+    try {
+      const isDisposable = await disposableEmailDetector(email);
+      if (isDisposable) {
+        console.warn(`Încercare de înregistrare cu email temporar blocată (librărie): ${email}`);
+        return res.status(400).json({
+          error: 'Disposable email',
+          message: 'Nu puteți folosi o adresă de email temporară pentru înregistrare. Vă rugăm să folosiți o adresă de email validă.'
+        });
+      }
+    } catch (error) {
+      // Dacă verificarea eșuează, continuăm procesul (nu blocăm utilizatorii din cauza unei erori în verificare)
+      console.error('Eroare la verificarea email-ului temporar:', error);
+    }
+    
     // Verificăm dacă email-ul e deja folosit
     const existingUser = await userQueries.findByEmail(email);
     if (existingUser) {
@@ -390,6 +419,30 @@ router.post('/email-login', async (req, res) => {
         error: 'Date incomplete', 
         message: 'Email-ul și parola sunt obligatorii pentru autentificare'
       });
+    }
+    
+    // Verificăm dacă email-ul este unul temporar
+    if (isDisposableEmail(email)) {
+      console.warn(`[AUTH] Încercare de autentificare cu email temporar blocată: ${email}`);
+      return res.status(400).json({
+        error: 'Disposable email',
+        message: 'Nu puteți folosi o adresă de email temporară pentru autentificare. Vă rugăm să folosiți o adresă de email validă.'
+      });
+    }
+    
+    // Încercăm să verificăm și cu librăria externă
+    try {
+      const isDisposable = await disposableEmailDetector(email);
+      if (isDisposable) {
+        console.warn(`[AUTH] Încercare de autentificare cu email temporar blocată (librărie): ${email}`);
+        return res.status(400).json({
+          error: 'Disposable email',
+          message: 'Nu puteți folosi o adresă de email temporară pentru autentificare. Vă rugăm să folosiți o adresă de email validă.'
+        });
+      }
+    } catch (error) {
+      // În caz de eroare, continuăm procesul
+      console.error('[AUTH] Eroare la verificarea email-ului temporar:', error);
     }
     
     // Căutăm utilizatorul după email
@@ -525,6 +578,30 @@ router.post('/resend-verification', async (req, res) => {
     
     if (!userId || !email) {
       return res.status(400).json({ error: 'User ID și email sunt obligatorii' });
+    }
+    
+    // Verificăm dacă email-ul este unul temporar
+    if (isDisposableEmail(email)) {
+      console.warn(`Încercare de retrimitere a email-ului de verificare blocată (email temporar): ${email}`);
+      return res.status(400).json({
+        error: 'Disposable email',
+        message: 'Nu puteți folosi o adresă de email temporară. Vă rugăm să folosiți o adresă de email validă.'
+      });
+    }
+    
+    // Încercăm să verificăm și cu librăria externă
+    try {
+      const isDisposable = await disposableEmailDetector(email);
+      if (isDisposable) {
+        console.warn(`Încercare de retrimitere a email-ului de verificare blocată (librărie): ${email}`);
+        return res.status(400).json({
+          error: 'Disposable email',
+          message: 'Nu puteți folosi o adresă de email temporară. Vă rugăm să folosiți o adresă de email validă.'
+        });
+      }
+    } catch (error) {
+      // În caz de eroare, continuăm procesul
+      console.error('Eroare la verificarea email-ului temporar:', error);
     }
     
     // Verifică dacă avem un public_id UUID valid
