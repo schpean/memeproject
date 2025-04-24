@@ -177,12 +177,17 @@ body {
 }
 
 .company-grid-container {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   overflow: hidden;
   border-radius: 20px;
   background-color: var(--bg-light) !important;
-  padding: 12px;
+  padding: 8px 12px;
   box-shadow: inset 0 0 8px var(--shadow-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  min-height: 65px;
 }
 
 .company-grid {
@@ -200,6 +205,7 @@ body {
   transition: all 0.3s ease;
   border: 2px solid transparent;
   min-height: 50px;
+  min-width: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -225,10 +231,24 @@ body {
   color: var(--text-dark) !important;
   font-weight: 600;
   font-size: 0.95rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   padding: 0 0.5rem;
+  text-align: center;
+  width: 100%;
+}
+
+/* Media queries pentru a gestiona afișarea numelui în funcție de dimensiunea ecranului */
+@media (max-width: 1200px) {
+  .company-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 576px) {
+  .company-name {
+    font-size: 0.85rem;
+  }
 }
 
 .company-card.show-more {
@@ -390,6 +410,8 @@ body {
   grid-template-columns: repeat(6, 1fr);
   gap: 10px;
   flex: 1;
+  padding: 4px;
+  margin: 0 40px;
 }
 
 .company-nav {
@@ -405,17 +427,32 @@ body {
   color: var(--text-dark);
   transition: all 0.2s ease;
   flex-shrink: 0;
-  margin: 0 4px;
+  margin: 0;
+  visibility: visible !important;
+  opacity: 1;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+}
+
+.company-nav.prev {
+  left: 8px;
+}
+
+.company-nav.next {
+  right: 8px;
 }
 
 .company-nav:hover:not(:disabled) {
   background-color: var(--accent-dark);
-  transform: translateY(-2px);
+  transform: translateY(-50%) scale(1.1);
 }
 
 .company-nav:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  visibility: visible !important;
 }
 
 .pagination-indicator {
@@ -429,18 +466,42 @@ body {
 @media (max-width: 768px) {
   .company-grid.single-row {
     grid-template-columns: repeat(4, 1fr);
+    margin: 0 36px;
+  }
+  
+  .company-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9rem;
+  }
+  
+  .company-nav {
+    width: 30px;
+    height: 30px;
   }
 }
 
 @media (max-width: 576px) {
   .company-grid.single-row {
     grid-template-columns: repeat(3, 1fr);
+    margin: 0 32px;
   }
   
   .company-nav {
     width: 28px;
     height: 28px;
     font-size: 0.8rem;
+  }
+  
+  .company-name {
+    font-size: 0.85rem;
+    padding: 0 0.25rem;
+  }
+  
+  .company-card {
+    padding: 8px 5px;
+    min-width: 80px;
   }
 }
 

@@ -114,14 +114,14 @@ function Privacy() {
                 <li>File a complaint with the appropriate data protection authority (e.g., ANSPDCP in Romania).</li>
               </ul>
               <p>
-                To exercise these rights, contact us at: privacy@bossme.me
+                To exercise these rights, contact us at: contact@bossme.me
               </p>
             </div>
             
             <div className="legal-section">
               <h2>8. Children's Privacy</h2>
               <p>
-                Our platform is not intended for use by individuals under the age of 18. We do not knowingly collect personal information from children under 18. If you are a parent or guardian and believe that your child has provided us with personal information, please contact us immediately at privacy@bossme.me, and we will take steps to remove that information from our servers.
+                Our platform is not intended for use by individuals under the age of 18. We do not knowingly collect personal information from children under 18. If you are a parent or guardian and believe that your child has provided us with personal information, please contact us immediately at contact@bossme.me, and we will take steps to remove that information from our servers.
               </p>
               <p>
                 In the EU and EEA, different age limits may apply according to local laws (generally between 13 and 16 years). If you're a resident of these areas and under the applicable age limit, you must have parental consent before providing any personal data to the website.
@@ -139,7 +139,7 @@ function Privacy() {
               <h2>10. Contact Information</h2>
               <p>
                 If you have any questions about this Privacy Policy or your data, please contact us at:<br />
-                Email: privacy@bossme.me<br />
+                Email: contact@bossme.me<br />
                 Website: https://bossme.me/contact
               </p>
             </div>
@@ -237,14 +237,14 @@ function Privacy() {
                 <li>Depui o plângere la autoritatea competentă de protecție a datelor (de exemplu, ANSPDCP în România).</li>
               </ul>
               <p>
-                Pentru a-ți exercita aceste drepturi, contactează-ne la: privacy@bossme.me
+                Pentru a-ți exercita aceste drepturi, contactează-ne la: contact@bossme.me
               </p>
             </div>
             
             <div className="legal-section">
               <h2>8. Confidențialitatea Copiilor</h2>
               <p>
-                Platforma noastră nu este destinată utilizării de către persoane cu vârsta sub 18 ani. Nu colectăm cu bună știință informații personale de la copii sub 18 ani. Dacă ești părinte sau tutore și crezi că copilul tău ne-a furnizat informații personale, te rugăm să ne contactezi imediat la privacy@bossme.me, și vom lua măsuri pentru a elimina aceste informații de pe serverele noastre.
+                Platforma noastră nu este destinată utilizării de către persoane cu vârsta sub 18 ani. Nu colectăm cu bună știință informații personale de la copii sub 18 ani. Dacă ești părinte sau tutore și crezi că copilul tău ne-a furnizat informații personale, te rugăm să ne contactezi imediat la contact@bossme.me, și vom lua măsuri pentru a elimina aceste informații de pe serverele noastre.
               </p>
               <p>
                 În UE și SEE, pot fi aplicabile diferite limite de vârstă în conformitate cu legile locale (în general între 13 și 16 ani). Dacă ești rezident al acestor zone și sub limita de vârstă aplicabilă, trebuie să ai consimțământul părinților înainte de a furniza orice date personale pe website.
@@ -262,7 +262,7 @@ function Privacy() {
               <h2>10. Informații de contact</h2>
               <p>
                 Dacă ai întrebări despre această Politică de Confidențialitate sau despre datele tale, te rugăm să ne contactezi la:<br />
-                Email: privacy@bossme.me<br />
+                Email: contact@bossme.me<br />
                 Website: https://bossme.me/contact
               </p>
             </div>

@@ -106,10 +106,63 @@
 
 @media (max-width: 768px) {
   .my-memes {
-    padding: 1rem;
+    padding: 1rem 10px;
+    box-sizing: border-box;
+  }
+  
+  .my-memes h1 {
+    padding: 0;
   }
   
   .my-memes-container {
     gap: 1rem;
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+  }
+
+  .my-memes-container .meme-card {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 0;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+  }
+
+  .my-memes-container .meme-image {
+    max-height: none;
+    width: 100%;
+    min-height: 250px;
+    object-fit: cover;
+    background-color: #000;
+    margin: 0 auto;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+    max-width: 100%;
+  }
+
+  .my-memes-container .meme-image-container {
+    padding: 0;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    width: 100% !important;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+  }
+
+  .my-memes .empty-state,
+  .my-memes .error {
+    margin-left: 0;
+    margin-right: 0;
   }
 } 

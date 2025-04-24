@@ -101,7 +101,7 @@ function CookiePolicy() {
                 If you have any questions about our use of cookies or this Cookie Policy, please contact us at:
               </p>
               <p>
-                Email: privacy@bossme.me<br />
+                Email: contact@bossme.me<br />
                 Website: https://bossme.me/contact
               </p>
             </div>
@@ -187,7 +187,7 @@ function CookiePolicy() {
                 Dacă ai întrebări despre utilizarea cookie-urilor sau despre această Politică de Cookie-uri, te rugăm să ne contactezi la:
               </p>
               <p>
-                Email: privacy@bossme.me<br />
+                Email: contact@bossme.me<br />
                 Website: https://bossme.me/contact
               </p>
             </div>

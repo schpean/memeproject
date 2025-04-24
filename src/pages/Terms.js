@@ -164,7 +164,7 @@ function Terms() {
                 bossme.me is intended for use by individuals who are at least 18 years of age or the age of legal majority in their jurisdiction, whichever is greater. By using our platform, you represent and warrant that you meet this age requirement. If we become aware that a user is under the age of 18, we reserve the right to terminate their account and remove their content.
               </p>
               <p>
-                If you are a parent or guardian and you believe your child has provided us with personal information without your consent, please contact us at privacy@bossme.me.
+                If you are a parent or guardian and you believe your child has provided us with personal information without your consent, please contact us at contact@bossme.me.
               </p>
             </div>
           </div>
@@ -312,7 +312,7 @@ function Terms() {
                 bossme.me este destinat utilizării de către persoane care au cel puțin 18 ani sau vârsta majoratului legal în jurisdicția lor, oricare dintre acestea este mai mare. Prin utilizarea platformei noastre, declari și garantezi că îndeplinești această cerință de vârstă. Dacă aflăm că un utilizator are sub 18 ani, ne rezervăm dreptul de a-i închide contul și de a-i elimina conținutul.
               </p>
               <p>
-                Dacă ești părinte sau tutore și crezi că copilul tău ne-a furnizat informații personale fără consimțământul tău, te rugăm să ne contactezi la privacy@bossme.me.
+                Dacă ești părinte sau tutore și crezi că copilul tău ne-a furnizat informații personale fără consimțământul tău, te rugăm să ne contactezi la contact@bossme.me.
               </p>
             </div>
           </div>
