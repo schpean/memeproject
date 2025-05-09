@@ -1,6 +1,22 @@
 import axios from 'axios';
 import { API_BASE_URL, API_ENDPOINTS } from '../utils/config';
 
+// Store pentru a păstra track de numărul de cereri active
+// Folosim un obiect în loc de un număr simplu pentru a face referința mutabilă
+const activeRequestsStore = { count: 0 };
+
+// Funcție pentru a obține store-ul AuthContext din afara contextului React
+// Va fi setată din afară după inițializarea aplicației
+let getAuthContext = () => ({ 
+  startGlobalLoading: () => console.warn('AuthContext not yet initialized'),
+  stopGlobalLoading: () => console.warn('AuthContext not yet initialized')
+});
+
+// Funcție pentru a seta getter-ul pentru AuthContext
+export const setAuthContextGetter = (getter) => {
+  getAuthContext = getter;
+};
+
 console.log('API Configuration:', { 
   baseURL: API_BASE_URL,
   endpoints: API_ENDPOINTS ? 'Available' : 'Not available'
@@ -16,10 +32,85 @@ const api = axios.create({
   timeout: 10000 // 10 second timeout
 });
 
-// Add error handling
+// Request interceptor with loading indicator
+api.interceptors.request.use(config => {
+  // Incrementăm numărul de cereri active
+  activeRequestsStore.count++;
+  
+  // Afișăm indicatorul de loading doar dacă durează mai mult de 300ms
+  // pentru a evita flickering pentru cereri rapide
+  const loadingTimeout = setTimeout(() => {
+    if (activeRequestsStore.count > 0) {
+      const authContext = getAuthContext();
+      if (authContext?.startGlobalLoading) {
+        authContext.startGlobalLoading();
+      }
+    }
+  }, 300);
+  
+  // Stocăm timeout-ul în config pentru a-l putea anula mai târziu
+  config._loadingTimeout = loadingTimeout;
+  
+  // Add auth token to requests when available
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  
+  return config;
+}, error => {
+  // În caz de eroare, ne asigurăm că decrementăm contorul
+  activeRequestsStore.count = Math.max(0, activeRequestsStore.count - 1);
+  
+  // Și ascundem loading-ul dacă nu mai sunt cereri active
+  if (activeRequestsStore.count === 0) {
+    const authContext = getAuthContext();
+    if (authContext?.stopGlobalLoading) {
+      authContext.stopGlobalLoading();
+    }
+  }
+  
+  return Promise.reject(error);
+});
+
+// Response interceptor with loading indicator and error handling
 api.interceptors.response.use(
-  response => response,
+  response => {
+    // Decrementăm numărul de cereri active
+    activeRequestsStore.count = Math.max(0, activeRequestsStore.count - 1);
+    
+    // Anulăm timeout-ul dacă încă există
+    if (response.config._loadingTimeout) {
+      clearTimeout(response.config._loadingTimeout);
+    }
+    
+    // Ascundem loading-ul dacă nu mai sunt cereri active
+    if (activeRequestsStore.count === 0) {
+      const authContext = getAuthContext();
+      if (authContext?.stopGlobalLoading) {
+        authContext.stopGlobalLoading();
+      }
+    }
+    
+    return response;
+  },
   error => {
+    // Decrementăm numărul de cereri active
+    activeRequestsStore.count = Math.max(0, activeRequestsStore.count - 1);
+    
+    // Anulăm timeout-ul dacă încă există
+    if (error.config?._loadingTimeout) {
+      clearTimeout(error.config._loadingTimeout);
+    }
+    
+    // Ascundem loading-ul dacă nu mai sunt cereri active
+    if (activeRequestsStore.count === 0) {
+      const authContext = getAuthContext();
+      if (authContext?.stopGlobalLoading) {
+        authContext.stopGlobalLoading();
+      }
+    }
+    
     // Avoid logging 401s for authentication routes as they're expected
     const isAuthRoute = error.config?.url?.includes('/auth/');
     if (!isAuthRoute || error.response?.status !== 401) {
@@ -34,15 +125,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// Add auth token to requests when available
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-}, error => Promise.reject(error));
 
 // Helper function to parse user data from localStorage
 const getCurrentUser = () => {
@@ -109,10 +191,30 @@ export const memeApi = {
       throw new Error('Meme ID is required');
     }
     try {
-      const response = await api.get(`/memes/${id}`);
+      const user = getCurrentUser();
+      const headers = user ? { 'user-id': user.uid } : {};
+      const response = await api.get(`/memes/${id}`, { headers });
       return response.data;
     } catch (error) {
       console.error(`Error fetching meme ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  // Get all memes for the current user
+  getUserMemes: async () => {
+    try {
+      const user = getCurrentUser();
+      if (!user) {
+        throw new Error('User not logged in');
+      }
+      
+      const response = await api.get('/users/me/memes', {
+        headers: { 'user-id': user.uid }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user memes:', error);
       throw error;
     }
   },
@@ -301,6 +403,31 @@ export const commentApi = {
         }
       }
       
+      throw error;
+    }
+  },
+  
+  // "Delete" a comment (mark as deleted)
+  deleteComment: async (memeId, commentId) => {
+    if (!memeId || !commentId) {
+      throw new Error('Meme ID and Comment ID are required');
+    }
+    
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User not logged in');
+    }
+    
+    try {
+      const response = await api.delete(`/memes/${memeId}/comments/${commentId}`, {
+        data: {
+          userId: user.uid
+        }
+      });
+      
+      return response.data.comment; // Returnăm comentariul actualizat
+    } catch (error) {
+      console.error('Error deleting comment:', error);
       throw error;
     }
   }

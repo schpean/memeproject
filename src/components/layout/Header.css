@@ -249,11 +249,12 @@
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 0.4rem 0.6rem;
+  padding: 0.5rem 0.6rem;
   color: var(--text-dark);
   text-decoration: none;
   transition: background-color 0.2s;
   font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .menu-item:hover {
@@ -263,10 +264,31 @@
 .menu-item.nickname-link {
   color: var(--secondary-color);
   font-weight: 600;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  outline: none;
+}
+
+.menu-item.nickname-link:focus {
+  outline: none;
 }
 
 .menu-item.nickname-link::before {
   content: "👤";
+  margin-right: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.menu-item.mymemes-link {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.menu-item.mymemes-link::before {
+  content: "🖼️";
   margin-right: 0.3rem;
   font-size: 0.8rem;
 }
