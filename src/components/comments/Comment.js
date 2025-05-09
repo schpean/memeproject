@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaArrowUp, FaReply, FaUser, FaFire, FaTrash } from 'react-icons/fa';
 import './styles/Comment.css';
+import './styles/CommentMobile.css';
 import { getDicebearAvatarUrl } from '../../utils/avatarUtils';
 import { formatCount } from '../../utils/format';
 import useConfirmDialog from '../../hooks/useConfirmDialog';
@@ -32,6 +33,115 @@ const formatTimeAgo = (dateString) => {
   return date.toLocaleDateString(undefined, options);
 };
 
+// Injectăm un stil global pentru a forța suprascrierea pentru mobile
+// Aceasta este o tehnică ultimă soluție pentru a garanta aplicarea stilurilor
+const injectMobileStyles = () => {
+  // Verifică dacă stilul a fost deja injectat
+  if (document.getElementById('force-mobile-comment-styles')) return;
+  
+  // Creează elementul de stil
+  const styleElement = document.createElement('style');
+  styleElement.id = 'force-mobile-comment-styles';
+  styleElement.innerHTML = `
+    @media only screen and (max-width: 576px) {
+      /* Container principal */
+      .reddit-comment-section {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      
+      /* Comentarii - super compacte */
+      .reddit-comment {
+        margin: 4px 0 !important;
+        padding: 8px 10px !important;
+        border-radius: 8px !important;
+        background-color: rgba(255, 255, 255, 0.7) !important;
+        border: 1px solid #efefef !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+      }
+      
+      /* Extra resetare pentru text */
+      .comment-text, .comment-author, .comment-time {
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        white-space: normal !important;
+        text-align: left !important;
+      }
+      
+      /* Comment replies - fără indentare, direct una sub alta */
+      .comment-replies {
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        position: static !important;
+        left: 0 !important;
+      }
+      
+      /* Resetare agresivă pentru orice element care ar putea cauza indentare */
+      .comment-replies .reddit-comment,
+      .comment-replies .comment-replies .reddit-comment,
+      .comment-replies .comment-replies .comment-replies .reddit-comment {
+        margin-left: 0 !important;
+        padding-left: 10px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        left: 0 !important;
+      }
+      
+      /* Diferențiere vizuală a reply-urilor */
+      .comment-replies .reddit-comment {
+        background-color: transparent !important;
+        border-color: #e9ecef !important;
+      }
+      
+      /* Marker vertical pentru reply-uri */
+      .comment-replies .reddit-comment::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: 3px !important;
+        background-color: #4dabf7 !important;
+        border-top-left-radius: 8px !important;
+        border-bottom-left-radius: 8px !important;
+        display: block !important;
+      }
+      
+      /* Utilizează spațiul din stânga cât mai eficient */
+      .reddit-comment,
+      .comment-replies .reddit-comment,
+      .comment-replies .comment-replies .reddit-comment,
+      .comment-replies .comment-replies .comment-replies .reddit-comment {
+        margin-left: -5px !important;
+        width: calc(100% + 5px) !important;
+        max-width: calc(100% + 5px) !important;
+      }
+    }
+  `;
+  
+  // Adaugă stilul în head cu prioritate ridicată
+  document.head.appendChild(styleElement);
+};
+
+// Apelăm funcția o singură dată când aplicația se încarcă
+if (typeof window !== 'undefined') {
+  // Asigură-te că DOM-ul este încărcat complet
+  if (document.readyState === 'complete') {
+    injectMobileStyles();
+  } else {
+    window.addEventListener('load', injectMobileStyles);
+  }
+}
+
 const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment, isAdmin, isModerator }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
@@ -40,9 +150,231 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment
   const [voteCount, setVoteCount] = useState(comment.votes || 0);
   const [isVoting, setIsVoting] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const commentRepliesRef = useRef(null);
 
   // Dialog de confirmare
   const { isOpen, dialogConfig, confirmDialog, closeDialog } = useConfirmDialog();
+
+  // Verifică dacă este pe mobil și aplică stiluri direct DOM-ului
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth <= 576;
+      setIsMobile(mobile);
+    };
+
+    // Verifică la încărcare
+    checkMobile();
+
+    // Verifică la redimensionare
+    window.addEventListener('resize', checkMobile);
+    
+    // Aplică stiluri direct elementului dacă este pe mobil
+    if (commentRepliesRef.current && isMobile) {
+      const repliesElement = commentRepliesRef.current;
+      
+      // Resetare absolută - elimină toate stilurile care ar putea cauza indentare
+      repliesElement.style.margin = '0';
+      repliesElement.style.marginLeft = '0';
+      repliesElement.style.marginRight = '0';
+      repliesElement.style.marginTop = '2px';
+      repliesElement.style.marginBottom = '0';
+      repliesElement.style.padding = '0';
+      repliesElement.style.paddingLeft = '0';
+      repliesElement.style.border = 'none';
+      repliesElement.style.borderLeft = 'none';
+      repliesElement.style.width = '100%';
+      repliesElement.style.maxWidth = '100%';
+      repliesElement.style.boxSizing = 'border-box';
+      repliesElement.style.position = 'static';
+      repliesElement.style.left = '0';
+      repliesElement.style.display = 'block';
+
+      // Sfat: Extinde în stânga pentru a utiliza mai mult spațiu
+      try {
+        repliesElement.style.marginLeft = '-5px';
+        repliesElement.style.width = 'calc(100% + 5px)';
+        repliesElement.style.maxWidth = 'calc(100% + 5px)';
+      } catch (e) {
+        console.log('Nu se poate extinde în stânga', e);
+      }
+      
+      // Determină nivelul de reply pentru a aplica stilul corect
+      const isNestedReply = repliesElement.closest('.comment-replies .comment-replies') !== null;
+      const isDeepNestedReply = repliesElement.closest('.comment-replies .comment-replies .comment-replies') !== null;
+      
+      // Aplică stiluri pentru toate reply-urile din container
+      const replyComments = repliesElement.querySelectorAll('.reddit-comment');
+      replyComments.forEach(reply => {
+        // Stiluri absolute pentru reply-uri
+        reply.style.position = 'relative';
+        reply.style.margin = '3px 0';
+        reply.style.marginLeft = '0';
+        reply.style.padding = '8px 10px';
+        reply.style.paddingLeft = '10px';
+        reply.style.borderRadius = '8px';
+        reply.style.border = '1px solid #e9ecef';
+        reply.style.width = '100%';
+        reply.style.maxWidth = '100%';
+        reply.style.boxSizing = 'border-box';
+        reply.style.wordBreak = 'break-word';
+        reply.style.overflowWrap = 'break-word';
+        reply.style.whiteSpace = 'normal';
+        
+        // Extinde în stânga pentru a utiliza mai mult spațiu
+        try {
+          reply.style.marginLeft = '-5px';
+          reply.style.width = 'calc(100% + 5px)';
+          reply.style.maxWidth = 'calc(100% + 5px)';
+        } catch (e) {
+          console.log('Nu se poate extinde în stânga pentru reply', e);
+        }
+        
+        // Asigură-te că textul nu iese din ecran
+        const textElement = reply.querySelector('.comment-text');
+        if (textElement) {
+          textElement.style.width = '100%';
+          textElement.style.maxWidth = '100%';
+          textElement.style.wordBreak = 'break-word';
+          textElement.style.overflowWrap = 'break-word';
+          textElement.style.whiteSpace = 'normal';
+          textElement.style.textAlign = 'left';
+        }
+        
+        // Asigură-te că numele autorului nu iese din ecran
+        const authorElement = reply.querySelector('.comment-author');
+        if (authorElement) {
+          authorElement.style.maxWidth = '70%';
+          authorElement.style.textOverflow = 'ellipsis';
+          authorElement.style.overflow = 'hidden';
+          authorElement.style.whiteSpace = 'nowrap';
+        }
+        
+        // Diferențiere vizuală în funcție de nivel
+        if (isDeepNestedReply) {
+          reply.style.backgroundColor = 'transparent';
+          reply.style.borderColor = '#ced4da';
+        } else if (isNestedReply) {
+          reply.style.backgroundColor = 'transparent';
+          reply.style.borderColor = '#dee2e6';
+        } else {
+          reply.style.backgroundColor = 'transparent';
+        }
+        
+        // Adaugă marker vertical colorat
+        const existingMarker = reply.querySelector('.reply-marker');
+        if (!existingMarker) {
+          const marker = document.createElement('div');
+          marker.className = 'reply-marker';
+          
+          marker.style.position = 'absolute';
+          marker.style.left = '0';
+          marker.style.top = '0';
+          marker.style.bottom = '0';
+          marker.style.width = '3px';
+          marker.style.borderTopLeftRadius = '8px';
+          marker.style.borderBottomLeftRadius = '8px';
+          
+          if (isDeepNestedReply) {
+            marker.style.backgroundColor = '#a29bfe';
+          } else if (isNestedReply) {
+            marker.style.backgroundColor = '#6c5ce7';
+          } else {
+            marker.style.backgroundColor = '#4dabf7';
+          }
+          
+          reply.appendChild(marker);
+          
+          // Adaugă și indicator textual la numele autorului
+          if (authorElement) {
+            // Indicator miniatural pentru nivelul de reply
+            const replyIndicator = document.createElement('span');
+            replyIndicator.style.fontSize = '8px';
+            replyIndicator.style.fontWeight = 'bold';
+            replyIndicator.style.marginLeft = '3px';
+            
+            if (isDeepNestedReply) {
+              replyIndicator.textContent = " • R3+";
+              replyIndicator.style.color = '#a29bfe';
+            } else if (isNestedReply) {
+              replyIndicator.textContent = " • R2";
+              replyIndicator.style.color = '#6c5ce7';
+            } else {
+              replyIndicator.textContent = " • R1";
+              replyIndicator.style.color = '#4dabf7';
+            }
+            
+            authorElement.appendChild(replyIndicator);
+          }
+        }
+        
+        // Stil super-compact pentru butoane
+        const collapseButton = reply.querySelector('.collapse-toggle-button');
+        if (collapseButton) {
+          collapseButton.style.padding = '1px 4px';
+          collapseButton.style.fontSize = '7px';
+          collapseButton.style.right = '6px';
+          collapseButton.style.top = '4px';
+          collapseButton.style.opacity = '0.8';
+          collapseButton.style.borderRadius = '8px';
+          collapseButton.style.position = 'absolute';
+          collapseButton.style.zIndex = '10';
+        }
+        
+        const deleteButton = reply.querySelector('.delete-comment-button');
+        if (deleteButton) {
+          deleteButton.style.padding = '1px 4px';
+          deleteButton.style.fontSize = '7px';
+          deleteButton.style.right = '55px';
+          deleteButton.style.top = '4px';
+          deleteButton.style.opacity = '0.8';
+          deleteButton.style.borderRadius = '8px';
+          deleteButton.style.position = 'absolute';
+          deleteButton.style.zIndex = '10';
+        }
+        
+        // Stil compact pentru butonul de reply
+        const replyButton = reply.querySelector('.reply-button');
+        if (replyButton) {
+          replyButton.style.fontSize = '10px';
+          replyButton.style.padding = '1px 3px';
+        }
+        
+        // Stil compact pentru form-ul de reply
+        const replyForm = reply.querySelector('.reply-form');
+        if (replyForm) {
+          replyForm.style.marginTop = '3px';
+          replyForm.style.padding = '3px';
+          replyForm.style.width = '100%';
+          replyForm.style.boxSizing = 'border-box';
+          
+          const textarea = replyForm.querySelector('textarea');
+          if (textarea) {
+            textarea.style.minHeight = '40px';
+            textarea.style.padding = '5px';
+            textarea.style.fontSize = '12px';
+            textarea.style.width = '100%';
+            textarea.style.boxSizing = 'border-box';
+          }
+          
+          const replyActions = replyForm.querySelector('.reply-actions');
+          if (replyActions) {
+            replyActions.style.marginTop = '3px';
+            replyActions.style.display = 'flex';
+            replyActions.style.justifyContent = 'flex-end';
+            
+            const buttons = replyActions.querySelectorAll('button');
+            buttons.forEach(button => {
+              button.style.padding = '2px 7px';
+              button.style.fontSize = '10px';
+            });
+          }
+        }
+      });
+    }
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [isMobile]);
 
   // Get avatar URL - use Dicebear as default or fallback
   const getAvatarUrl = () => {
@@ -280,7 +612,7 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     placeholder="What are your thoughts?"
-                    rows="3"
+                    rows="1"
                   />
                   <div className="reply-actions">
                     <button type="button" onClick={() => setIsReplying(false)}>Cancel</button>
@@ -297,7 +629,10 @@ const Comment = ({ comment, onReply, currentUser, onVoteComment, onDeleteComment
               
               {/* Render child comments if any */}
               {hasReplies && (
-                <div className="comment-replies">
+                <div 
+                  className="comment-replies" 
+                  ref={commentRepliesRef}
+                >
                   {comment.replies.map(reply => (
                     <Comment 
                       key={reply.id} 

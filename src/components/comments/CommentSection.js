@@ -361,6 +361,7 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="What are your thoughts?"
               disabled={isSubmitting}
+              rows="1"
             />
             <button 
               type="submit" 

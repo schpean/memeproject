@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import './LoginButton.css';
 import { FaSignInAlt, FaSignOutAlt, FaUser, FaApple, FaEnvelope } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
-import { getAvatarUrl } from '../../utils/avatarUtils';
+import { getDicebearAvatarUrl } from '../../utils/avatarUtils';
 
 const LoginButton = ({ className = '', hideUsername = false }) => {
   const { currentUser, loginWithGoogle, loginWithApple, loginWithEmail, logout, needsVerification, resendVerificationEmail, AUTH_PROVIDERS } = useAuth();
@@ -94,7 +94,7 @@ const LoginButton = ({ className = '', hideUsername = false }) => {
     <div className="user-menu-container">
       {!hideUsername ? (
         <div className="user-profile" onClick={toggleMenu}>
-          <img src={getAvatarUrl(currentUser.username, currentUser.photoURL)} alt={currentUser.displayName} className="user-avatar" />
+          <img src={getDicebearAvatarUrl(currentUser.username || currentUser.displayName)} alt={currentUser.displayName} className="user-avatar" />
           <span className="user-name">{currentUser.displayName}</span>
           {currentUser.authProvider && (
             <small className="auth-provider-badge">

@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoginButton from '../auth/LoginButton';
 import './Header.css';
 import { FaAngleDown } from 'react-icons/fa';
-import { getAvatarUrl } from '../../utils/avatarUtils';
+import { getDicebearAvatarUrl } from '../../utils/avatarUtils';
 import NicknameModal from '../auth/NicknameModal';
 
 function Header() {
@@ -69,7 +69,7 @@ function Header() {
               <div className="user-menu-container" ref={menuRef}>
                 <button className="user-menu-button" onClick={toggleMenu}>
                   <img 
-                    src={getAvatarUrl(currentUser.username, currentUser.photoURL)} 
+                    src={getDicebearAvatarUrl(currentUser.username || currentUser.displayName)} 
                     alt={currentUser.username} 
                     className="user-icon" 
                   />
