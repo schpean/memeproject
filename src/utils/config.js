@@ -25,56 +25,79 @@ export const WS_URL = `${wsBaseURL}/ws`;
 // Fallback HTTP polling URL for environments where WebSockets are blocked
 export const POLLING_URL = `${API_BASE_URL}/api/updates`;
 
+// Constantele pentru providerii de autentificare
+export const AUTH_PROVIDERS = {
+  GOOGLE: 'google',
+  APPLE: 'apple',
+  EMAIL: 'email'
+};
+
 // IMPORTANT: Acest obiect defineşte toate endpoint-urile API utilizate în aplicaţie
-// Important! Când se adaugă endpoint-uri noi în server.js, adaugă-le și aici pentru consistență
 export const API_ENDPOINTS = {
-  // Base endpoints
-  memes: `${API_BASE_URL}/memes`,
-  users: `${API_BASE_URL}/users`,
+  // Auth endpoints
+  googleAuth: '/users/google-auth',
+  appleAuth: '/users/apple-auth',
+  emailAuth: '/users/email-login',
+  updateNickname: '/users/update-nickname',
+  verifyEmail: '/verify-email',
+  resendVerification: '/resend-verification',
   
-  // WebSocket endpoint with polling fallback
+  // Helper pentru endpoint-uri de autentificare în funcție de provider
+  authEndpoint: (provider) => {
+    switch(provider) {
+      case AUTH_PROVIDERS.GOOGLE:
+        return '/users/google-auth';
+      case AUTH_PROVIDERS.APPLE:
+        return '/users/apple-auth';
+      case AUTH_PROVIDERS.EMAIL:
+        return '/users/email-login';
+      default:
+        return '/users/google-auth';
+    }
+  },
+  
+  // User endpoints
+  users: '/users',
+  userStats: (id) => `/admin/users/${id}/stats`,
+  deleteUser: (id) => `/admin/users/${id}`,
+  currentUser: '/users/me',
+  userMemes: '/users/me/memes',
+  userUpvotes: (userId) => `/users/${userId}/upvoted`,
+  
+  // Admin endpoints
+  adminUsers: '/admin/users',
+  adminRoles: '/admin/roles',
+  updateUserRole: (userId) => `/admin/users/${userId}/role`,
+  
+  // Meme endpoints
+  memes: '/memes',
+  meme: (id) => `/memes/${id}`,
+  memesTop: '/memes/top',
+  memeVote: (id) => `/memes/${id}/vote`,
+  memePending: '/memes/pending',
+  memeApproval: (id) => `/memes/${id}/approval`,
+  
+  // Comment endpoints
+  getComments: (memeId) => `/memes/${memeId}/comments`,
+  addComment: (memeId) => `/memes/${memeId}/comments`,
+  commentVote: (memeId, commentId) => `/memes/${memeId}/comments/${commentId}/vote`,
+  deleteComment: (memeId, commentId) => `/memes/${memeId}/comments/${commentId}`,
+  
+  // Updates endpoint
+  updates: '/api/updates',
+  
+  // WebSocket endpoint
   websocket: WS_URL,
   polling: POLLING_URL,
   
-  // Meme-related endpoints
-  getMeme: (id) => `${API_BASE_URL}/memes/${id}`,
-  vote: (id) => `${API_BASE_URL}/memes/${id}/vote`,
-  topMemes: `${API_BASE_URL}/memes/top`,
-  memesByCompany: (company) => `${API_BASE_URL}/memes?company=${encodeURIComponent(company)}`,
-  
-  // Add filtered meme endpoints - This helper function constructs URLs with query parameters
-  filteredMemes: (params) => {
-    const url = new URL(`${API_BASE_URL}/memes`);
-    if (params) {
-      Object.keys(params).forEach(key => {
-        if (params[key]) url.searchParams.append(key, params[key]);
-      });
-    }
+  // Helper function pentru construirea URL-urilor cu parametri
+  buildUrl: (endpoint, params = {}) => {
+    const url = new URL(endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`);
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        url.searchParams.append(key, params[key]);
+      }
+    });
     return url.toString();
-  },
-  
-  // Meme approval endpoints
-  pendingMemes: `${API_BASE_URL}/memes/pending`,
-  memeApproval: (id) => `${API_BASE_URL}/memes/${id}/approval`,
-  
-  // Comment-related endpoints
-  getComments: (memeId) => `${API_BASE_URL}/memes/${memeId}/comments`,
-  addComment: (memeId) => `${API_BASE_URL}/memes/${memeId}/comments`,
-  voteComment: (memeId, commentId) => `${API_BASE_URL}/memes/${memeId}/comments/${commentId}/vote`,
-  
-  // Auth-related endpoints
-  googleAuth: `${API_BASE_URL}/users/google-auth`,
-  updateNickname: `${API_BASE_URL}/users/update-nickname`,
-  userUpvotes: (userId) => `${API_BASE_URL}/users/${userId}/upvoted`,
-  userMemes: `${API_BASE_URL}/users/me/memes`,
-  
-  // Admin endpoints
-  adminUsers: `${API_BASE_URL}/admin/users`,
-  adminRoles: `${API_BASE_URL}/admin/roles`,
-  updateUserRole: (userId) => `${API_BASE_URL}/admin/users/${userId}/role`,
-  userStats: (userId) => `${API_BASE_URL}/users/${userId}/stats`,
-  deleteUser: (userId) => `${API_BASE_URL}/users/${userId}`,
-  
-  // User management endpoints
-  currentUser: `${API_BASE_URL}/users/me`
+  }
 }; 

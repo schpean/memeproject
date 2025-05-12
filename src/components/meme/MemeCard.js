@@ -251,9 +251,14 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
     
     switch (status) {
       case 'approved':
-        return <span className="approval-status approved"><FaCheck /> Approved</span>;
+        return <span className="approval-status approved">
+          <FaCheck /> Approved {meme.approved_by_username ? `by ${meme.approved_by_username}` : ''}
+        </span>;
       case 'rejected':
-        return <span className="approval-status rejected"><FaTimes /> Rejected{meme.rejection_reason ? `: ${meme.rejection_reason}` : ''}</span>;
+        return <span className="approval-status rejected">
+          <FaTimes /> Rejected {meme.approved_by_username ? `by ${meme.approved_by_username}` : ''} 
+          {meme.rejection_reason ? `: ${meme.rejection_reason}` : ''}
+        </span>;
       case 'pending':
       default:
         return <span className="approval-status pending"><FaHourglassHalf /> Pending</span>;

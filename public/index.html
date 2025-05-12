@@ -2,14 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <!-- Favicon configuration -->
+    <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
+    <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="bossme.me" />
+    <link rel="manifest" href="%PUBLIC_URL%/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
       content="Expose the Fun. Share the Struggles. Meme Your Workplace!"
     />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <!-- Inline critical CSS to prevent FOUC -->
     <style>
       :root {
@@ -90,7 +95,7 @@
     <!-- Loading spinner that will be shown until React renders -->
     <div id="app-loading" class="app-loading">
       <div class="app-loading-spinner"></div>
-      <div class="app-loading-text">BossMe.me se încarcă...</div>
+      <div class="app-loading-text">bossme.me se încarcă...</div>
     </div>
     <div id="root"></div>
     <!--

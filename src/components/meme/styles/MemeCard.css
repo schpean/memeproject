@@ -255,8 +255,16 @@
 /* For smaller screens */
 @media (max-width: 600px) {
   .meme-card {
-    border-radius: 0;
     margin-bottom: 1rem;
+    width: calc(100vw - 30px);
+    max-width: 100%;
+    border-radius: 0;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+    position: relative;
+    left: 0;
+    transform: translateX(0);
   }
   
   .meme-title {
@@ -264,11 +272,43 @@
   }
   
   .meme-metadata {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
   
   .meme-actions {
-    padding: 0.4rem;
+    padding: 0.35rem;
+  }
+
+  /* Adaugă reguli pentru mărirea imaginilor pe mobil */
+  .meme-image {
+    max-height: none;
+    width: 100%;
+    object-fit: cover;
+    min-height: 250px;
+    background-color: #000;
+    transform: translateX(0);
+    left: 0;
+  }
+
+  .meme-card.compact .meme-image {
+    max-height: none;
+    min-height: 250px;
+    object-fit: cover;
+  }
+
+  /* Îmbunătățiri pentru containerul de imagine */
+  .meme-image-container {
+    min-height: 250px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    overflow: hidden;
+    left: 0;
+    transform: translateX(0);
   }
 }
 

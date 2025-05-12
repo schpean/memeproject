@@ -190,8 +190,23 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
     
     return commentTree.map(comment => {
       if (comment.id === commentId) {
-        // Return the updated comment with its original replies
-        return { ...safeUpdatedComment, replies: comment.replies };
+        // Păstrăm proprietatea owner_id originală dacă nu este definită în updatedComment
+        // Acest lucru previne suprascrierea owner_id-ului cu null sau undefined
+        const preservedOwnerComment = {
+          ...safeUpdatedComment,
+          owner_id: safeUpdatedComment.owner_id !== undefined ? 
+                    safeUpdatedComment.owner_id : 
+                    comment.owner_id,
+          replies: comment.replies
+        };
+        
+        console.log(`Updating comment ${commentId} in tree:`, {
+          originalOwner: comment.owner_id,
+          updatedOwner: safeUpdatedComment.owner_id,
+          finalOwner: preservedOwnerComment.owner_id
+        });
+        
+        return preservedOwnerComment;
       } else if (comment.replies && comment.replies.length > 0) {
         // Check the replies recursively
         return {
@@ -262,7 +277,21 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
       return;
     }
     
+    console.log('Deleting comment:', commentId);
+    console.log('Current user:', currentUser);
+    
     try {
+      // Find the comment in the tree to log details
+      const commentToDelete = findCommentById(comments, commentId);
+      if (commentToDelete) {
+        console.log('Comment to delete:', {
+          id: commentToDelete.id,
+          owner_id: commentToDelete.owner_id,
+          currentUserUid: currentUser.uid,
+          isMatch: commentToDelete.owner_id === currentUser.uid
+        });
+      }
+      
       // Call API to delete the comment
       await commentApi.deleteComment(memeId, commentId);
       
@@ -278,8 +307,15 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
       });
       
       setComments(updatedComments);
+      console.log('Comment deleted successfully');
     } catch (error) {
       console.error('Error deleting comment:', error);
+      
+      if (error.response) {
+        console.error('Error response status:', error.response.status);
+        console.error('Error response data:', error.response.data);
+      }
+      
       alert('Failed to delete comment. Please try again.');
     }
   };
@@ -325,6 +361,7 @@ const CommentSection = ({ memeId, initialComments = [] }) => {
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="What are your thoughts?"
               disabled={isSubmitting}
+              rows="1"
             />
             <button 
               type="submit" 

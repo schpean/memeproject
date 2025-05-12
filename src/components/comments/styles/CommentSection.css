@@ -28,23 +28,32 @@
 /* Comment form */
 .comment-form-container {
   margin-bottom: 6px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: transparent;
+  margin-left: -10px !important;
+  width: calc(100% + 20px) !important;
+  position: relative !important;
 }
 
 .reddit-comment-form {
   display: flex;
   flex-direction: column;
+  position: relative;
+  padding: 0;
 }
 
 .reddit-comment-form textarea {
   width: 100%;
-  min-height: 80px;
-  padding: 8px;
+  min-height: 50px;
+  padding: 12px;
   border: 1px solid #edeff1;
-  border-radius: 4px;
+  border-radius: 8px;
   font-family: inherit;
-  font-size: 13px;
-  resize: vertical;
-  background-color: white;
+  font-size: 14px;
+  resize: none;
+  background-color: transparent !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .reddit-comment-form textarea:focus {
@@ -55,19 +64,21 @@
 
 .comment-submit {
   margin-top: 8px;
-  padding: 5px 12px;
+  padding: 6px 16px;
   align-self: flex-end;
   background-color: #0079d3;
   color: white;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
   border: none;
-  border-radius: 4px;
+  border-radius: 20px;
   cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
 .comment-submit:hover {
   background-color: #0060a8;
+  transform: translateY(-1px);
 }
 
 .comment-submit:disabled {
@@ -123,7 +134,13 @@
 @media (max-width: 576px) {
   .reddit-comment-section {
     padding: 8px;
-    margin-top: 12px;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    position: relative;
+    box-sizing: border-box;
+    margin-left: -15px !important;
+    width: calc(100% + 30px) !important;
   }
   
   .comments-header {
@@ -134,10 +151,41 @@
   
   .comment-form-container {
     margin-bottom: 12px;
+    border-radius: 20px;
+    margin-left: -15px !important;
+    width: calc(100% + 30px) !important;
+    background-color: transparent !important;
+  }
+  
+  .reddit-comment-form {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 8px;
+    width: 90% !important;
+    box-sizing: border-box !important;
   }
   
   .reddit-comment-form textarea {
-    min-height: 60px;
+    min-height: 40px;
+    padding: 10px 12px;
+    border-radius: 20px;
+    margin-bottom: 0;
+    flex: 1 1 70%;
+    font-size: 13px;
+    max-width: calc(100% - 90px) !important;
+    background-color: transparent !important;
+  }
+  
+  .comment-submit {
+    margin: 0 0 0 8px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+    flex: 0 0 auto;
+    min-width: 70px !important;
   }
   
   .login-prompt {
@@ -148,5 +196,62 @@
   .no-comments {
     padding: 12px;
     font-size: 13px;
+  }
+}
+
+/* Extra small screens - fix alignment of comment form */
+@media (max-width: 400px) {
+  .reddit-comment-form {
+    flex-direction: column;
+    padding: 8px;
+  }
+  
+  .reddit-comment-form textarea {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  
+  .comment-submit {
+    margin: 0;
+    align-self: flex-end;
+  }
+  
+  .comment-form-container {
+    margin-left: -15px !important;
+    width: calc(100% + 30px) !important;
+  }
+}
+
+/* Extra small screens - force zero margin and padding */
+@media (max-width: 576px) {
+  /* Keep just enough spacing for readability */
+  .comment-list,
+  .comment-replies,
+  .reddit-comment,
+  .reddit-comment-section {
+    padding: 4px !important;
+    margin: 0 !important;
+    border-left: none !important;
+  }
+  
+  /* Override din nou pentru a ne asigura că se deplasează la stânga */
+  .comment-form-container {
+    margin-left: -15px !important;
+    width: calc(100% + 30px) !important;
+    padding-right: 5px !important;
+    overflow: visible !important;
+  }
+  
+  .reddit-comment-section {
+    margin-left: -15px !important;
+    width: calc(100% + 30px) !important;
+  }
+  
+  /* Extra override pentru ecrane foarte mici */
+  @media (max-width: 400px) {
+    .comment-form-container {
+      margin-left: -20px !important;
+      width: calc(100% + 40px) !important;
+    }
   }
 }

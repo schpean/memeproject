@@ -252,42 +252,45 @@
 /* Reply form */
 .reply-form {
   margin-top: 8px;
-  background-color: transparent;
-  border-radius: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #edeff1;
+  background-color: transparent !important;
+  border-radius: 8px;
   padding: 8px;
-  border: 1px solid #edeff1;
 }
 
 .reply-form textarea {
   width: 100%;
-  min-height: 70px;
-  padding: 8px;
+  min-height: 60px;
+  padding: 10px;
   border: 1px solid #edeff1;
-  border-radius: 4px;
+  border-radius: 8px;
+  resize: vertical;
   font-family: inherit;
   font-size: 13px;
-  background-color: white;
-  resize: vertical;
+  background-color: transparent !important;
+  transition: all 0.2s ease;
 }
 
 .reply-form textarea:focus {
-  border-color: #0079d3;
   outline: none;
+  border-color: #0079d3;
   box-shadow: 0 0 0 2px rgba(0, 121, 211, 0.2);
 }
 
 .reply-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 6px;
-  gap: 6px;
+  margin-top: 8px;
+  gap: 8px;
 }
 
 .reply-actions button {
-  padding: 4px 10px;
-  border: 1px solid #edeff1;
-  border-radius: 4px;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 20px;
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -295,6 +298,7 @@
 .reply-actions button[type="button"] {
   background-color: transparent;
   color: #878a8c;
+  border: 1px solid #edeff1;
 }
 
 .reply-actions button[type="button"]:hover {
@@ -324,22 +328,88 @@
   margin-top: 8px;
 }
 
-/* Mobile responsiveness */
+/* Mobile responsiveness - ZERO INDENTATION */
 @media (max-width: 576px) {
+  /* Override ALL margins and paddings for mobile */
+  .comment-replies {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    border-left: none !important;
+    margin-top: 1px !important;
+  }
+  
+  /* Force unindented layout */
   .reddit-comment {
-    padding: 8px 0;
+    padding: 4px 4px 4px 0 !important;
+    margin: 1px 0 !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+    background-color: transparent !important;
   }
   
-  .comment-vote {
-    min-width: 28px;
+  /* Force comment lines to be visible at left edge */
+  .comment-replies .reddit-comment::before {
+    content: "" !important;
+    position: absolute !important;
+    left: -1px !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 2px !important;
+    background-color: #4dabf7 !important;
+    display: block !important;
+    z-index: 10 !important;
   }
   
-  .comment-text {
+  .comment-replies .comment-replies .reddit-comment::before {
+    left: 1px !important;
+    width: 2px !important;
+    background-color: #6c5ce7 !important;
+    z-index: 9 !important;
+  }
+  
+  .comment-replies .comment-replies .comment-replies .reddit-comment::before {
+    left: 3px !important;
+    width: 2px !important;
+    background-color: #a29bfe !important;
+    z-index: 8 !important;
+  }
+  
+  /* Ultra compact layout */
+  .comment-avatar {
+    margin-right: 2px !important;
+    margin-left: 5px !important;
+  }
+  
+  .avatar-image {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  
+  .comment-content {
+    margin-left: 5px !important;
+  }
+  
+  .reply-form {
+    padding: 6px;
+    margin-top: 6px;
+    border-radius: 20px;
+    background-color: transparent !important;
+  }
+  
+  .reply-form textarea {
+    min-height: 40px;
+    padding: 8px;
+    border-radius: 20px;
     font-size: 12px;
+    background-color: transparent !important;
   }
   
-  .collapse-toggle-button {
-    padding: 1px 6px;
-    font-size: 9px;
+  .reply-actions {
+    margin-top: 6px;
+    gap: 6px;
+  }
+  
+  .reply-actions button {
+    padding: 4px 10px;
+    font-size: 11px;
   }
 }

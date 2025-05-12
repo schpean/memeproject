@@ -183,9 +183,23 @@
   transform: translateY(-2px);
 }
 
-.replies {
-  margin-top: 1rem;
-  margin-left: 2.5rem;
-  padding-left: 1rem;
-  border-left: 2px solid var(--accent-color) !important;
+/* Nested comments - ELIMINAT PENTRU MOBILE */
+@media (min-width: 577px) {
+  .replies {
+    margin-top: 1rem;
+    margin-left: 2.5rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--accent-color) !important;
+  }
+}
+
+/* CLEAR ALL NESTED COMMENT STYLES FOR MOBILE */
+@media (max-width: 576px) {
+  .replies {
+    margin-left: 0 !important;
+    border-left: none !important;
+    padding-left: 0 !important;
+    margin-top: 0 !important;
+    position: static !important;
+  }
 } 

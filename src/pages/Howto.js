@@ -321,7 +321,7 @@ const Howto = () => {
         <FaInfoCircle className="info-icon" />
         <div className="notice-content">
           <h3>Moderation Notice</h3>
-          <p>All memes are reviewed by our moderation team before being published. Thank you for your understanding!</p>
+          <p>All memes are reviewed by our moderation team before being published. This applies to all users, regardless of login status. Thank you for your understanding!</p>
         </div>
       </div>
       
