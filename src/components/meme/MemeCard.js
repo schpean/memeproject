@@ -133,7 +133,11 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
     
     // Handle server-relative URLs (those starting with /uploads/)
     if (imageUrl && imageUrl.startsWith('/uploads/')) {
-      return `${API_BASE_URL}${imageUrl}`;
+      // Determine base URL based on environment
+      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+        ? 'https://bossme.me'
+        : API_BASE_URL;
+      return `${baseUrl}${imageUrl}`;
     }
     
     // Handle absolute URLs - ensure they're preserved as-is
@@ -208,11 +212,24 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
     }
   };
 
+  // Generăm URL-ul absolut pentru partajare
+  const getShareUrl = () => {
+    const relativePath = `/meme/${meme.id}`;
+    const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+      ? 'https://bossme.me'
+      : window.location.origin;
+    return `${baseUrl}${relativePath}`;
+  };
+  
   // URL-ul pentru share
-  const shareUrl = `${window.location.origin}/meme/${meme.id}`;
+  const shareUrl = getShareUrl();
+  
+  // Imagine pentru partajare
+  const shareImageUrl = getImageUrl();
   
   // Debug pentru a vedea url-ul
   console.log('MemeCard share URL:', shareUrl);
+  console.log('MemeCard image URL:', shareImageUrl);
 
   return (
     <div className={`meme-card ${compact ? 'compact' : ''}`}>
@@ -277,6 +294,7 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
             url={shareUrl}
             title={getMemeTitle()}
             message={meme.message || ''}
+            imageUrl={shareImageUrl}
           />
           
           {showApprovalStatus && (isAdmin || isModerator) && meme.approval_status === 'pending' && (

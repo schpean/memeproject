@@ -8,15 +8,74 @@ import './styles/ShareDropdown.css';
  * Componentă pentru butonul de share cu dropdown
  * Oferă opțiuni pentru partajare pe Facebook, WhatsApp, X/Twitter și copiere link
  */
-const ShareDropdown = ({ url, title = '', message = '' }) => {
+const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef(null);
   const dropdownRef = useRef(null);
   
+  // Asigurăm că URL-ul este absolut (conține domeniul complet)
+  const getAbsoluteUrl = () => {
+    if (!url) return window.location.href;
+    
+    // Dacă URL-ul conține deja protocol (http/https), este deja absolut
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // Detectăm mediul și folosim domeniul corect
+    let baseUrl;
+    if (window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production') {
+      baseUrl = 'https://bossme.me';
+    } else {
+      baseUrl = window.location.origin;
+    }
+    
+    // Adăugăm parametrul de cache-busting pentru a forța reîmprospătarea cache-ului
+    const separator = url.includes('?') ? '&' : '?';
+    const timestamp = new Date().getTime();
+    
+    // Construim URL-ul absolut
+    if (url.startsWith('/')) {
+      return `${baseUrl}${url}${separator}_t=${timestamp}`;
+    } else {
+      return `${baseUrl}/${url}${separator}_t=${timestamp}`;
+    }
+  };
+  
+  // URL-ul absolut cu parametru pentru cache-busting
+  const absoluteUrl = getAbsoluteUrl();
+  
+  // Asigurăm că URL-ul imaginii este absolut
+  const getAbsoluteImageUrl = () => {
+    if (!imageUrl) return '';
+    
+    // Dacă URL-ul imaginii conține deja protocol (http/https), este deja absolut
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    
+    // Detectăm mediul și folosim domeniul corect
+    const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+      ? 'https://bossme.me'
+      : window.location.origin;
+    
+    // Construim URL-ul absolut pentru imagine
+    if (imageUrl.startsWith('/')) {
+      return `${baseUrl}${imageUrl}`;
+    } else {
+      return `${baseUrl}/${imageUrl}`;
+    }
+  };
+  
+  // URL-ul absolut pentru imagine
+  const absoluteImageUrl = getAbsoluteImageUrl();
+  
   // Log pentru debugging
   useEffect(() => {
-    console.log('ShareDropdown mounted with URL:', url);
-  }, [url]);
+    console.log('ShareDropdown mounted with original URL:', url);
+    console.log('ShareDropdown absolute URL:', absoluteUrl);
+    console.log('ShareDropdown image URL:', absoluteImageUrl);
+  }, [url, absoluteUrl, absoluteImageUrl]);
 
   // Actualizare poziție dropdown la scroll
   useEffect(() => {
@@ -137,12 +196,20 @@ const ShareDropdown = ({ url, title = '', message = '' }) => {
         
         try {
           if (isMobile) {
-            // Deschide direct aplicația Messenger pe mobil
-            // Folosim window.open pentru a încerca să păstrăm contextul
-            window.open(`fb-messenger://share?link=${encodeURIComponent(url)}`, '_self');
+            // Deschide direct aplicația Messenger pe mobil cu URL absolut
+            window.open(`fb-messenger://share?link=${encodeURIComponent(absoluteUrl)}`, '_self');
           } else {
-            // Pentru desktop, folosim dialog/send direct
-            window.open(`https://www.facebook.com/dialog/send?app_id=936362457330483&link=${encodeURIComponent(url)}&redirect_uri=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+            // Pentru desktop, folosim dialog/send direct cu URL absolut și parametri optimizați
+            const fbUrl = new URL('https://www.facebook.com/dialog/send');
+            fbUrl.searchParams.append('app_id', '936362457330483');
+            fbUrl.searchParams.append('link', absoluteUrl);
+            fbUrl.searchParams.append('redirect_uri', absoluteUrl);
+            
+            if (title) {
+              fbUrl.searchParams.append('quote', title);
+            }
+            
+            window.open(fbUrl.toString(), '_blank', 'width=600,height=400');
           }
         } catch (e) {
           // Fallback general în caz de eroare
@@ -156,28 +223,41 @@ const ShareDropdown = ({ url, title = '', message = '' }) => {
         let shareText = '';
         if (title) shareText += title;
         if (message) shareText += shareText ? ` - ${message}` : message;
-        shareText += shareText ? '\n\n' + url : url;
+        shareText += shareText ? '\n\n' + absoluteUrl : absoluteUrl;
         
         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, '_blank');
         closeDropdown();
       });
       
       twButton.addEventListener('click', () => {
-        const tweetText = title ? `${title}\n\n${url}` : url;
-        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`, '_blank', 'width=600,height=400');
+        const tweetText = title ? `${title}` : '';
+        const twitterUrl = new URL('https://twitter.com/intent/tweet');
+        
+        if (tweetText) {
+          twitterUrl.searchParams.append('text', tweetText);
+        }
+        
+        twitterUrl.searchParams.append('url', absoluteUrl);
+        
+        if (absoluteImageUrl) {
+          // Twitter nu suportă direct imagini, dar putem include hashtag-uri relevante
+          twitterUrl.searchParams.append('hashtags', 'bossme,meme');
+        }
+        
+        window.open(twitterUrl.toString(), '_blank', 'width=600,height=400');
         closeDropdown();
       });
       
       cpButton.addEventListener('click', () => {
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(url)
+          navigator.clipboard.writeText(absoluteUrl)
             .then(() => {
               notify('Link copiat în clipboard!', 'success');
             })
             .catch(() => {
               // Fallback
               const textArea = document.createElement('textarea');
-              textArea.value = url;
+              textArea.value = absoluteUrl;
               document.body.appendChild(textArea);
               textArea.focus();
               textArea.select();
@@ -188,7 +268,7 @@ const ShareDropdown = ({ url, title = '', message = '' }) => {
         } else {
           // Fallback vechi
           const textArea = document.createElement('textarea');
-          textArea.value = url;
+          textArea.value = absoluteUrl;
           document.body.appendChild(textArea);
           textArea.focus();
           textArea.select();
@@ -260,7 +340,7 @@ const ShareDropdown = ({ url, title = '', message = '' }) => {
         document.removeEventListener('keydown', handleEsc);
       };
     }
-  }, [isOpen, url, title, message]);
+  }, [isOpen, absoluteUrl, absoluteImageUrl, title, message]);
 
   // Funcție pentru a închide dropdown-ul
   const closeDropdown = () => {

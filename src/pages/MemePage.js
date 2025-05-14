@@ -15,6 +15,12 @@ const MemePage = () => {
       try {
         const memeData = await memeApi.getMemeById(id);
         setMeme(memeData);
+        
+        // Log pentru debugging
+        console.log('Meme data loaded:', memeData);
+        if (memeData) {
+          console.log('Meme image URL:', memeData.imageUrl || memeData.image_url);
+        }
       } catch (error) {
         console.error('Eroare la încărcarea datelor meme:', error);
       }
@@ -28,21 +34,37 @@ const MemePage = () => {
     if (!meme) return null;
     
     const imageUrl = meme.imageUrl || meme.image_url;
+    if (!imageUrl) return null;
     
-    // Handle server-relative URLs (those starting with /uploads/)
-    if (imageUrl && imageUrl.startsWith('/uploads/')) {
-      const apiBaseUrl = process.env.NODE_ENV === 'production'
-        ? (process.env.REACT_APP_API_BASE_URL || 'https://bossme.me')
-        : (process.env.REACT_APP_API_BASE_URL || 'http://localhost:1337');
-      return `${apiBaseUrl}${imageUrl}`;
+    // Pentru URL-uri relative începând cu /uploads/
+    if (imageUrl.startsWith('/uploads/')) {
+      // Folosim întotdeauna domeniul absolut în producție
+      // Folosește bossme.me pentru producție, nu localhost
+      if (window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production') {
+        const url = `https://bossme.me${imageUrl}`;
+        console.log('Production image URL:', url);
+        return url;
+      } else {
+        const url = `${API_BASE_URL}${imageUrl}`;
+        console.log('Development image URL:', url);
+        return url;
+      }
     }
     
-    // Handle absolute URLs - ensure they're preserved as-is
-    if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+    // Pentru URL-uri absolute care încep deja cu http:// sau https://
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
       return imageUrl;
     }
     
-    return null;
+    // Pentru URL-uri care nu încep cu / dar sunt relative (ex: images/xxx.jpg)
+    if (!imageUrl.startsWith('http')) {
+      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+        ? 'https://bossme.me'
+        : window.location.origin;
+      return `${baseUrl}/${imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl}`;
+    }
+    
+    return imageUrl;
   };
   
   // Construiește titlul pentru meta tags
@@ -67,13 +89,26 @@ const MemePage = () => {
     return description;
   };
   
+  // Generează URL-ul canonic absolut
+  const getCanonicalUrl = () => {
+    const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+      ? 'https://bossme.me'
+      : window.location.origin;
+    return `${baseUrl}/meme/${id}`;
+  };
+  
+  // Afișăm URL-ul imaginii pentru debugging
+  const imageUrl = getFullImageUrl();
+  console.log('Final image URL for sharing:', imageUrl);
+  
   return (
     <>
       {/* Meta Tags pentru Open Graph */}
       <MetaTags 
         title={getMetaTitle()}
         description={getMetaDescription()}
-        image={getFullImageUrl()}
+        image={imageUrl}
+        url={getCanonicalUrl()}
         type="article"
       />
       
