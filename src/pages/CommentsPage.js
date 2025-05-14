@@ -4,9 +4,10 @@ import AuthContext from '../contexts/AuthContext';
 import { memeApi, commentApi } from '../api/api';
 import CommentSection from '../components/comments/CommentSection';
 import { notify } from '../components/common/Notification';
+import ShareDropdown from '../components/common/ShareDropdown';
 import { formatCount } from '../utils/format';
 import './styles/CommentsPage.css';
-import { FaArrowUp, FaShare, FaArrowLeft } from 'react-icons/fa';
+import { FaArrowUp, FaArrowLeft } from 'react-icons/fa';
 
 // Accept optional memeId prop, but still use params if not provided
 const CommentsPage = ({ memeId: propMemeId }) => {
@@ -102,60 +103,6 @@ const CommentsPage = ({ memeId: propMemeId }) => {
     }
   };
 
-  // Handle share function
-  const handleShare = () => {
-    // Create the shareable link (current URL)
-    const shareUrl = window.location.href;
-    
-    // Function to notify user that the link is ready to be copied
-    const showShareNotification = () => {
-      const textArea = document.createElement('textarea');
-      textArea.value = shareUrl;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      
-      try {
-        textArea.focus();
-        textArea.select();
-        
-        // Use document.execCommand as fallback
-        const successful = document.execCommand('copy');
-        if (successful) {
-          notify('Link copied to clipboard!', 'success');
-        } else {
-          // Only show alert if execCommand fails
-          alert(`Copy this link to share: ${shareUrl}`);
-          notify('Please copy the link manually', 'info');
-        }
-      } catch (err) {
-        console.error('Fallback clipboard copy failed:', err);
-        // Only show alert if execCommand throws an error
-        alert(`Copy this link to share: ${shareUrl}`);
-      } finally {
-        document.body.removeChild(textArea);
-      }
-    };
-    
-    // Try the Clipboard API first (modern browsers in secure context)
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(shareUrl)
-        .then(() => {
-          notify('Link copied to clipboard!', 'success');
-        })
-        .catch(() => {
-          // Fall back to the manual method
-          notify(`Share this link: ${shareUrl}`, 'info');
-          showShareNotification();
-        });
-    } else {
-      // Fallback for browsers without Clipboard API support
-      notify(`Share this link: ${shareUrl}`, 'info');
-      showShareNotification();
-    }
-  };
-
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown date';
@@ -205,6 +152,12 @@ const CommentsPage = ({ memeId: propMemeId }) => {
     return imageUrl || '/placeholder-meme.jpg';
   };
 
+  // Get meme title
+  const getMemeTitle = () => {
+    if (!meme) return '';
+    return meme.title || `${meme.company}'s review meme`;
+  };
+
   const renderVoteButton = () => (
     <button 
       className={`vote-button ${hasUpvoted(meme?.id) ? 'voted' : ''}`} 
@@ -245,6 +198,9 @@ const CommentsPage = ({ memeId: propMemeId }) => {
     );
   }
 
+  // Componenta actuală de share URL pentru a fi folosită cu ShareDropdown
+  const shareUrl = `${window.location.origin}/meme/${meme.id}`;
+
   return (
     <div className="comments-page">
       <div className="meme-detail">
@@ -254,7 +210,7 @@ const CommentsPage = ({ memeId: propMemeId }) => {
           </div>
           
           <div className="meme-info">
-            <h1 className="meme-title">{meme.title || `${meme.company}'s review meme`}</h1>
+            <h1 className="meme-title">{getMemeTitle()}</h1>
             <div className="meme-metadata">
               <span className="meme-author">
                 Posted by {meme.username || meme.user?.username || (meme.user_id ? 'unknown user' : 'anonymous')}
@@ -294,14 +250,11 @@ const CommentsPage = ({ memeId: propMemeId }) => {
           </div>
           
           <div className="meme-actions-right">
-            <button 
-              className="share-button" 
-              onClick={handleShare}
-              title="Share this meme"
-            >
-              <FaShare className="icon" />
-              <span>Share</span>
-            </button>
+            <ShareDropdown 
+              url={shareUrl}
+              title={getMemeTitle()}
+              message={meme.message}
+            />
           </div>
         </div>
       </div>

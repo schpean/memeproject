@@ -1,0 +1,128 @@
+.share-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.share-dropdown-container.active .share-button {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #5890ff !important;
+}
+
+.share-button {
+  background: none;
+  border: none;
+  color: var(--text-gray, #878a8c) !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+}
+
+.share-button:hover {
+  background-color: var(--bg-light, rgba(0, 0, 0, 0.05)) !important;
+  color: var(--primary-color, #5890ff) !important;
+  transform: translateY(-2px);
+}
+
+.share-dropdown {
+  position: absolute !important;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background-color: var(--bg-white, #ffffff);
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 0.5rem;
+  z-index: 99999;
+  min-width: 160px;
+  opacity: 1;
+  transform: translateY(0);
+  animation: none;
+  visibility: visible;
+  display: block !important;
+}
+
+.share-dropdown-container.active .share-dropdown {
+  display: block !important;
+}
+
+.share-option {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+  color: var(--text-dark, #333333);
+}
+
+.share-option:hover {
+  background-color: var(--bg-light, #f8f9fa);
+}
+
+.share-icon {
+  margin-right: 0.75rem;
+  font-size: 1rem;
+}
+
+/* Stiluri specifice pentru fiecare opțiune */
+.share-option.facebook .share-icon {
+  color: #1877F2;
+}
+
+.share-option.whatsapp .share-icon {
+  color: #25D366;
+}
+
+.share-option.twitter .share-icon {
+  color: #1DA1F2;
+}
+
+.share-option.copy .share-icon {
+  color: var(--secondary-color, #6c757d);
+}
+
+/* Stiluri responsive */
+@media (max-width: 768px) {
+  .share-dropdown {
+    position: fixed !important;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    border-radius: 12px 12px 0 0;
+    margin-top: 0;
+    padding: 1rem;
+    transform: translateY(0);
+    animation: none;
+    z-index: 99999;
+  }
+  
+  .share-option {
+    padding: 1rem;
+  }
+}
+
+/* Scrie și stiluri dark mode dacă este necesar */
+@media (prefers-color-scheme: dark) {
+  .share-dropdown {
+    background-color: var(--bg-dark, #222);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .share-option {
+    color: var(--text-light, #eee);
+  }
+  
+  .share-option:hover {
+    background-color: var(--bg-darker, #333);
+  }
+} 

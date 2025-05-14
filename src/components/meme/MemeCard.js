@@ -4,9 +4,11 @@ import AuthContext from '../../contexts/AuthContext';
 import { memeApi, commentApi } from '../../api/api';
 import { API_BASE_URL } from '../../utils/config';
 import { notify } from '../common/Notification';
+import ShareDropdown from './ShareDropdown';
 import { formatCount } from '../../utils/format';
 import './styles/MemeCard.css';
-import { FaComment, FaArrowUp, FaShare, FaHourglassHalf, FaCheck, FaTimes, FaEllipsisH } from 'react-icons/fa';
+import './styles/ShareDropdown.css';
+import { FaComment, FaArrowUp, FaHourglassHalf, FaCheck, FaTimes, FaEllipsisH } from 'react-icons/fa';
 
 const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus = false }) => {
   const { currentUser, hasUpvoted, addUpvotedMeme, removeUpvotedMeme, isAdmin, isModerator } = useContext(AuthContext);
@@ -125,65 +127,6 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
     }
   };
 
-  // Handle share button click
-  const handleShare = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Create the shareable link
-    const shareUrl = `${window.location.origin}/meme/${meme.id}`;
-    
-    // Function to notify user that the link is ready to be copied
-    const showShareNotification = () => {
-      const textArea = document.createElement('textarea');
-      textArea.value = shareUrl;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      
-      notify(`Share this link: ${shareUrl}`, 'info');
-      
-      textArea.focus();
-      textArea.select();
-      
-      try {
-        // Use document.execCommand as fallback
-        const successful = document.execCommand('copy');
-        if (successful) {
-          notify('Link copied to clipboard!', 'success');
-        } else {
-          // Only show alert if execCommand fails
-          alert(`Copy this link to share: ${shareUrl}`);
-          notify('Please copy the link manually', 'info');
-        }
-      } catch (err) {
-        console.error('Fallback clipboard copy failed:', err);
-        // Only show alert if execCommand throws an error
-        alert(`Copy this link to share: ${shareUrl}`);
-      }
-      
-      document.body.removeChild(textArea);
-    };
-    
-    // Try the Clipboard API first (modern browsers in secure context)
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(shareUrl)
-        .then(() => {
-          notify('Link copied to clipboard!', 'success');
-        })
-        .catch(err => {
-          console.error('Clipboard API failed:', err);
-          // Fall back to the manual method
-          showShareNotification();
-        });
-    } else {
-      // Fallback for browsers without Clipboard API support
-      console.log('Clipboard API not available, using fallback');
-      showShareNotification();
-    }
-  };
-
   // Get proper image URL
   const getImageUrl = () => {
     const imageUrl = meme.imageUrl || meme.image_url;
@@ -265,6 +208,12 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
     }
   };
 
+  // URL-ul pentru share
+  const shareUrl = `${window.location.origin}/meme/${meme.id}`;
+  
+  // Debug pentru a vedea url-ul
+  console.log('MemeCard share URL:', shareUrl);
+
   return (
     <div className={`meme-card ${compact ? 'compact' : ''}`}>
       <div className="meme-header">
@@ -324,14 +273,11 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
         </div>
         
         <div className="meme-actions-right">
-          <button 
-            className="share-button" 
-            onClick={handleShare}
-            title="Share this meme"
-          >
-            <FaShare className="icon" />
-            <span>Share</span>
-          </button>
+          <ShareDropdown 
+            url={shareUrl}
+            title={getMemeTitle()}
+            message={meme.message || ''}
+          />
           
           {showApprovalStatus && (isAdmin || isModerator) && meme.approval_status === 'pending' && (
             <>
