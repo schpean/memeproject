@@ -58,6 +58,10 @@ app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirnam
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+    
+    // Header-uri pentru a asigura că imaginile sunt accesibile de la orice origine
+    res.setHeader('Timing-Allow-Origin', '*');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
   }
 }));
 

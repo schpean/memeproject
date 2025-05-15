@@ -39,16 +39,20 @@ const staticFilesCorsMiddleware = (req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = config.corsConfig.allowedOrigins.filter(origin => origin !== '*');
   
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-  } else {
-    // For image requests without credentials, we can still use wildcard
-    res.header('Access-Control-Allow-Origin', '*');
-  }
+  // Pentru accesarea imaginilor de către crawlerele rețelelor sociale,
+  // permitem accesul de la orice origine
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, HEAD');
   
-  res.header('Access-Control-Allow-Methods', 'GET');
+  // Setăm header-ul Cross-Origin-Resource-Policy pentru a permite 
+  // accesul cross-origin la resurse (necesar pentru Facebook, Twitter, etc.)
   res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  
+  // Dezactivăm cache-ul pentru a forța reîncărcarea imaginilor
+  res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.header('Pragma', 'no-cache');
+  res.header('Expires', '0');
+  
   next();
 };
 

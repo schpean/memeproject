@@ -23,23 +23,35 @@ const MetaTags = ({
   if (image && image.trim() !== '') {
     // Adăugăm protocolul și domeniul dacă lipsesc
     if (!image.startsWith('http')) {
-      const baseUrl = window.location.protocol + '//' + (window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host);
+      // Folosim întotdeauna HTTPS pentru a preveni mixed content
+      const baseUrl = window.location.hostname === 'bossme.me' 
+        ? 'https://bossme.me' 
+        : (window.location.protocol === 'https:' 
+          ? `${window.location.origin}` 
+          : `https://${window.location.host}`);
+          
       const imagePath = image.startsWith('/') ? image : '/' + image;
       imageUrl = baseUrl + imagePath;
+    } else if (image.startsWith('http://')) {
+      // Convertim http la https pentru a preveni mixed content
+      imageUrl = image.replace('http://', 'https://');
     } else {
       imageUrl = image;
     }
-      
-    // Adăugăm timestamp la URL-ul imaginii pentru a forța reîmprospătarea și a preveni caching
-    const separator = imageUrl.includes('?') ? '&' : '?';
-    imageUrl = `${imageUrl}${separator}t=${timestamp}`;
+    
+    // Verificăm dacă URL-ul conține parametrul de query pentru forțarea cache bust
+    if (!imageUrl.includes('t=') && !imageUrl.includes('_t=')) {
+      // Adăugăm timestamp la URL-ul imaginii pentru a forța reîmprospătarea și a preveni caching
+      const separator = imageUrl.includes('?') ? '&' : '?';
+      imageUrl = `${imageUrl}${separator}t=${timestamp}`;
+    }
     
     // Afișăm URL-ul complet al imaginii pentru debugging
     console.log('MetaTags - Folosesc imaginea reală:', imageUrl);
   } else {
     // Nu mai folosim imagini default de pe imgur
-    // Folosim o imagine locală din folder-ul public care sigur există
-    imageUrl = `${window.location.protocol}//${window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host}/images/bossme-cover.jpg?t=${timestamp}`;
+    // Folosim o imagine locală din folder-ul public care sigur există și are dimensiunea corectă
+    imageUrl = `${window.location.protocol === 'https:' ? 'https' : 'http'}://${window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host}/images/bossme-cover.jpg?t=${timestamp}`;
     console.log('MetaTags - Nu am găsit imagine, folosesc cover local:', imageUrl);
   }
 
@@ -68,23 +80,25 @@ const MetaTags = ({
       <meta property="og:site_name" content={siteName} />
       <meta property="og:locale" content={locale} />
       
-      {/* Imagine Open Graph - forțăm imaginea să fie definită corect */}
+      {/* Imagine Open Graph - forțăm imaginea să fie definită corect pentru preview */}
       <meta property="og:image" content={imageUrl} />
       <meta property="og:image:secure_url" content={imageUrl} />
       <meta property="og:image:url" content={imageUrl} />
+      
+      {/* Important: Dimensiuni exacte pentru Facebook - minim 200x200px, recomandat 1200x630px */}
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       <meta property="og:image:alt" content={title} />
       <meta property="og:image:type" content="image/jpeg" />
       
-      {/* Dimensiuni suplimentare pentru Facebook */}
+      {/* Dimensiuni minime pentru Facebook - FOARTE IMPORTANTE */}
       <meta property="og:image:width:min" content="200" />
       <meta property="og:image:height:min" content="200" />
       
       {/* Facebook-specific meta */}
       <meta property="fb:app_id" content="936362457330483" />
       
-      {/* Meta tag-uri pentru Facebook Scraper */}
+      {/* Meta tag-uri pentru Facebook Scraper - Forțează reincărcarea */}
       <meta property="og:rich_attachment" content="true" />
       <meta property="og:updated_time" content={new Date().toISOString()} />
       
@@ -117,9 +131,9 @@ const MetaTags = ({
       )}
       
       {/* Meta tag suplimentar pentru a preveni caching în unele cazuri */}
-      <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-      <meta http-equiv="Pragma" content="no-cache" />
-      <meta http-equiv="Expires" content="0" />
+      <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+      <meta httpEquiv="Pragma" content="no-cache" />
+      <meta httpEquiv="Expires" content="0" />
     </Helmet>
   );
 };

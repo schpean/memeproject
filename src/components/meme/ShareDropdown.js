@@ -61,21 +61,29 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
       return imageUrl;
     }
     
-    // Detectăm mediul și folosim domeniul corect
+    // Detectăm mediul și folosim domeniul corect - întotdeauna HTTPS pentru partajări
     const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
       ? 'https://bossme.me'
-      : window.location.origin;
+      : `https://${window.location.host}`;
     
     // Construim URL-ul absolut pentru imagine
+    let fullUrl;
     if (imageUrl.startsWith('/')) {
-      const fullUrl = `${baseUrl}${imageUrl}`;
-      console.log('ShareDropdown - URL imagine absolut:', fullUrl);
-      return fullUrl;
+      fullUrl = `${baseUrl}${imageUrl}`;
     } else {
-      const fullUrl = `${baseUrl}/${imageUrl}`;
-      console.log('ShareDropdown - URL imagine absolut:', fullUrl);
-      return fullUrl;
+      fullUrl = `${baseUrl}/${imageUrl}`;
     }
+    
+    // Verificăm dacă URL-ul conține parametrul de cache-busting
+    if (!fullUrl.includes('t=') && !fullUrl.includes('_t=')) {
+      // Adăugăm timestamp la URL pentru a forța reîncărcarea imaginii
+      const separator = fullUrl.includes('?') ? '&' : '?';
+      const timestamp = new Date().getTime();
+      fullUrl = `${fullUrl}${separator}t=${timestamp}`;
+    }
+    
+    console.log('ShareDropdown - URL imagine absolut final:', fullUrl);
+    return fullUrl;
   };
   
   // URL-ul absolut pentru imagine

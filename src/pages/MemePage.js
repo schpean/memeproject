@@ -38,47 +38,39 @@ const MemePage = () => {
     
     console.log('Procesez URL imagine original:', imageUrl);
     
-    // Verificăm dacă avem deja un URL absolut
-    const isAbsoluteUrl = imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
-    
-    // Construim URL-ul complet
+    // Construim URL-ul complet - folosim întotdeauna HTTPS pentru partajare
     let fullImageUrl;
     
-    // Pentru URL-uri relative începând cu /uploads/ - cel mai frecvent caz
-    if (imageUrl.startsWith('/uploads/')) {
-      // Folosim întotdeauna domeniul absolut și HTTPS pentru Facebook Open Graph
-      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-        ? 'https://bossme.me'
-        : (window.location.protocol === 'https:' 
-           ? `${window.location.origin}` 
-           : `https://${window.location.host}`);
-      
-      fullImageUrl = `${baseUrl}${imageUrl}`;
-    }
-    // Pentru URL-uri absolute HTTP, le convertim la HTTPS
-    else if (imageUrl.startsWith('http://')) {
+    // Verificăm tipul de URL
+    if (imageUrl.startsWith('http://')) {
+      // Convertim http la https pentru a preveni mixed content
       fullImageUrl = imageUrl.replace('http://', 'https://');
     }
     // URL-uri HTTPS le păstrăm ca atare
     else if (imageUrl.startsWith('https://')) {
       fullImageUrl = imageUrl;
     }
-    // Alte cazuri de URL-uri relative
+    // Pentru URL-uri relative - construim URL-ul complet
     else {
+      // Baza URL trebuie să fie întotdeauna HTTPS pentru Facebook și alte platforme
       const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
         ? 'https://bossme.me'
         : `https://${window.location.host}`;
       
+      // Asigurăm formatul corect al path-ului
       const imagePath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
       fullImageUrl = `${baseUrl}${imagePath}`;
     }
     
     // Adăugăm un timestamp pentru a preveni caching-ul și a forța reîncărcarea
-    const timestamp = new Date().getTime();
-    const separator = fullImageUrl.includes('?') ? '&' : '?';
-    fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}`;
+    // Verificăm întâi dacă URL-ul nu conține deja un parametru de timestamp
+    if (!fullImageUrl.includes('t=') && !fullImageUrl.includes('_t=')) {
+      const timestamp = new Date().getTime();
+      const separator = fullImageUrl.includes('?') ? '&' : '?';
+      fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}`;
+    }
     
-    console.log('URL final pentru imaginea meme-ului:', fullImageUrl);
+    console.log('URL final pentru imaginea meme-ului cu timestamp:', fullImageUrl);
     return fullImageUrl;
   };
   
@@ -106,6 +98,7 @@ const MemePage = () => {
   
   // Generează URL-ul canonic absolut
   const getCanonicalUrl = () => {
+    // URL-ul canonic trebuie să fie întotdeauna HTTPS pentru rețelele sociale
     const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
       ? 'https://bossme.me'
       : `https://${window.location.host}`;
