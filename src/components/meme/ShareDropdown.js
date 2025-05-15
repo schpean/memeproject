@@ -49,8 +49,15 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
   const getAbsoluteImageUrl = () => {
     if (!imageUrl) return '';
     
+    console.log('ShareDropdown - Procesez URL imagine:', imageUrl);
+    
     // Dacă URL-ul imaginii conține deja protocol (http/https), este deja absolut
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    if (imageUrl.startsWith('http://')) {
+      // Convertim http la https pentru a preveni mixed content
+      return imageUrl.replace('http://', 'https://');
+    }
+    
+    if (imageUrl.startsWith('https://')) {
       return imageUrl;
     }
     
@@ -61,9 +68,13 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
     
     // Construim URL-ul absolut pentru imagine
     if (imageUrl.startsWith('/')) {
-      return `${baseUrl}${imageUrl}`;
+      const fullUrl = `${baseUrl}${imageUrl}`;
+      console.log('ShareDropdown - URL imagine absolut:', fullUrl);
+      return fullUrl;
     } else {
-      return `${baseUrl}/${imageUrl}`;
+      const fullUrl = `${baseUrl}/${imageUrl}`;
+      console.log('ShareDropdown - URL imagine absolut:', fullUrl);
+      return fullUrl;
     }
   };
   

@@ -43,10 +43,30 @@ app.use(corsMiddleware);
 app.use(express.json());
 
 // Add CORS headers for static files
-app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '0', // Oprim cache-ul pentru a forța reîncărcarea imaginilor
+  etag: false, // Dezactivăm etags pentru a preveni caching-ul
+  lastModified: false, // Dezactivăm lastModified pentru a preveni caching-ul
+  setHeaders: (res) => {
+    // Permite accesul cross-origin pentru imagini (esențial pentru Facebook OG și alte platforme)
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD');
+    res.setHeader('Access-Control-Max-Age', '86400'); // 24 ore
+    
+    // Prevenim cache-ul complet pentru a forța Facebook și alte platforme să reîncarce imaginile
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
 
-app.use('/uploads', express.static('uploads'));
-app.use('/images', express.static(path.join(__dirname, '../public/images')));
+// Asigură-te că nu avem dubluri pentru aceleași path-uri
+// app.use('/uploads', express.static('uploads')); // Comentat pentru a evita duplicate
+app.use('/images', express.static(path.join(__dirname, '../public/images'), {
+  maxAge: '7d', // Cachează imaginile statice pentru o săptămână
+  etag: true
+}));
 
 // Use routes
 app.use('/users', authRoutes);

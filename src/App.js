@@ -45,42 +45,42 @@ const AuthContextConnector = ({ children }) => {
 function App() {
   return (
     <HelmetProvider>
-      <AuthProvider>
-        <NotificationProvider>
-          <Router>
-            <AuthContextConnector>
-              <div className="App">
-                <Header />
-                <main className="container">
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/howto" element={<Howto />} />
-                    <Route path="/browse" element={<BrowseMemes />} />
-                    <Route path="/company/:companyName" element={<CompanyPage />} />
-                    <Route path="/meme/:id" element={<MemePage />} />
-                    <Route path="/meme/:id/comments" element={<CommentsPage />} />
-                    <Route path="/admin" element={<AdminPanel />} />
-                    <Route path="/admin/users/:id" element={<UserDetails />} />
-                    <Route path="/pending" element={<PendingMemes />} />
-                    <Route path="/mymemes" element={<MyMemes />} />
-                    <Route path="/verify-email" element={<VerifyEmail />} />
-                    <Route path="/terms" element={<Terms />} />
-                    <Route path="/privacy" element={<Privacy />} />
-                    <Route path="/disclaimer" element={<Disclaimer />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/cookies" element={<CookiePolicy />} />
-                    <Route path="/login" element={<EmailLoginModal />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </main>
-                <Footer />
-                <CookieBanner />
-                <EmailLoginModal />
-              </div>
-            </AuthContextConnector>
-          </Router>
-        </NotificationProvider>
-      </AuthProvider>
+    <AuthProvider>
+      <NotificationProvider>
+        <Router>
+          <AuthContextConnector>
+            <div className="App">
+              <Header />
+              <main className="container">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/howto" element={<Howto />} />
+                  <Route path="/browse" element={<BrowseMemes />} />
+                  <Route path="/company/:companyName" element={<CompanyPage />} />
+                  <Route path="/meme/:id" element={<MemePage />} />
+                  <Route path="/meme/:id/comments" element={<CommentsPage />} />
+                  <Route path="/admin" element={<AdminPanel />} />
+                  <Route path="/admin/users/:id" element={<UserDetails />} />
+                  <Route path="/pending" element={<PendingMemes />} />
+                  <Route path="/mymemes" element={<MyMemes />} />
+                  <Route path="/verify-email" element={<VerifyEmail />} />
+                  <Route path="/terms" element={<Terms />} />
+                  <Route path="/privacy" element={<Privacy />} />
+                  <Route path="/disclaimer" element={<Disclaimer />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/cookies" element={<CookiePolicy />} />
+                  <Route path="/login" element={<EmailLoginModal />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+              <Footer />
+              <CookieBanner />
+              <EmailLoginModal />
+            </div>
+          </AuthContextConnector>
+        </Router>
+      </NotificationProvider>
+    </AuthProvider>
     </HelmetProvider>
   );
 }

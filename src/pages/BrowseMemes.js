@@ -206,118 +206,118 @@ const BrowseMemes = () => {
         type="website"
       />
       
-      <div className="browse-memes">
-        <h1>Browse meme based reviews</h1>
-        
-        <div className="browse-controls">
-          <div className="controls-header">
-            <h2><FaBuilding /> Filter by Company</h2>
-            
-            <div className="sort-control">
-              <button className="sort-button" onClick={toggleSortMenu}>
-                <FaSort />
-                <span>Sort: {sortOptions.find(opt => opt.id === sortBy)?.label}</span>
-              </button>
-              
-              {sortMenuOpen && (
-                <div className="sort-menu">
-                  {sortOptions.map(option => (
-                    <button
-                      key={option.id}
-                      className={`sort-option ${sortBy === option.id ? 'active' : ''}`}
-                      onClick={() => selectSortOption(option.id)}
-                    >
-                      {option.icon}
-                      <span>{option.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+    <div className="browse-memes">
+      <h1>Browse meme based reviews</h1>
+      
+      <div className="browse-controls">
+        <div className="controls-header">
+          <h2><FaBuilding /> Filter by Company</h2>
           
-          <div className="company-filter-section compact">
-            <div className="search-wrapper">
-              <div className="search-box">
-                <FaSearch className="search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search companies..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="company-search"
-                />
-                {searchTerm && (
-                  <button className="clear-search" onClick={clearSearch}>
-                    <FaTimes />
-                  </button>
-                )}
-              </div>
-            </div>
+          <div className="sort-control">
+            <button className="sort-button" onClick={toggleSortMenu}>
+              <FaSort />
+              <span>Sort: {sortOptions.find(opt => opt.id === sortBy)?.label}</span>
+            </button>
             
-            <div className="company-grid-container">
-              <button 
-                className="company-nav prev"
-                onClick={prevCompanyPage}
-                disabled={companyPageIndex === 0}
-              >
-                <FaChevronLeft />
-              </button>
-              
-              <div className="company-grid single-row">
-                {getCurrentPageCompanies().map(company => (
-                  <div 
-                    key={company}
-                    className={`company-card ${selectedCompany === company ? 'selected' : ''} ${isBossmeMeCompany(company) ? 'bossme-card' : ''}`}
-                    onClick={() => handleCompanySelect(company)}
+            {sortMenuOpen && (
+              <div className="sort-menu">
+                {sortOptions.map(option => (
+                  <button
+                    key={option.id}
+                    className={`sort-option ${sortBy === option.id ? 'active' : ''}`}
+                    onClick={() => selectSortOption(option.id)}
                   >
-                    {isBossmeMeCompany(company) && <FaHome className="bossme-icon" />}
-                    <span className="company-name">{company}</span>
-                  </div>
+                    {option.icon}
+                    <span>{option.label}</span>
+                  </button>
                 ))}
-              </div>
-              
-              <button 
-                className="company-nav next"
-                onClick={nextCompanyPage}
-                disabled={companyPageIndex >= totalCompanyPages - 1}
-              >
-                <FaChevronRight />
-              </button>
-            </div>
-            
-            <div className="pagination-indicator">
-              <span>Page {companyPageIndex + 1} of {totalCompanyPages}</span>
-            </div>
-            
-            {selectedCompany && (
-              <div className="selected-filter">
-                <span>Filtering by: <strong>{selectedCompany}</strong></span>
-                {selectedCompany === 'bossme.me' && (
-                  <div className="bossme-description">General workplace memes not specific to any company</div>
-                )}
-                <button className="clear-filter" onClick={() => handleCompanySelect(selectedCompany)}>
-                  Clear filter
-                </button>
               </div>
             )}
           </div>
         </div>
-
-        <div className="meme-grid">
-          {sortedMemes.length > 0 ? (
-            sortedMemes.map(meme => (
-              <MemeCard key={meme.id} meme={meme} onVote={handleVote} compact={true} />
-            ))
-          ) : (
-            <div className="no-memes-message">
-              <h2>No memes found</h2>
-              <p>{selectedCompany ? `No memes found for ${selectedCompany}` : 'Be the first to share a meme!'}</p>
-              <Link to="/howto" className="create-meme-link">Create New Meme</Link>
+        
+        <div className="company-filter-section compact">
+          <div className="search-wrapper">
+            <div className="search-box">
+              <FaSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search companies..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="company-search"
+              />
+              {searchTerm && (
+                <button className="clear-search" onClick={clearSearch}>
+                  <FaTimes />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div className="company-grid-container">
+            <button 
+              className="company-nav prev"
+              onClick={prevCompanyPage}
+              disabled={companyPageIndex === 0}
+            >
+              <FaChevronLeft />
+            </button>
+            
+            <div className="company-grid single-row">
+              {getCurrentPageCompanies().map(company => (
+                <div 
+                  key={company}
+                  className={`company-card ${selectedCompany === company ? 'selected' : ''} ${isBossmeMeCompany(company) ? 'bossme-card' : ''}`}
+                  onClick={() => handleCompanySelect(company)}
+                >
+                  {isBossmeMeCompany(company) && <FaHome className="bossme-icon" />}
+                  <span className="company-name">{company}</span>
+                </div>
+              ))}
+            </div>
+            
+            <button 
+              className="company-nav next"
+              onClick={nextCompanyPage}
+              disabled={companyPageIndex >= totalCompanyPages - 1}
+            >
+              <FaChevronRight />
+            </button>
+          </div>
+          
+          <div className="pagination-indicator">
+            <span>Page {companyPageIndex + 1} of {totalCompanyPages}</span>
+          </div>
+          
+          {selectedCompany && (
+            <div className="selected-filter">
+              <span>Filtering by: <strong>{selectedCompany}</strong></span>
+              {selectedCompany === 'bossme.me' && (
+                <div className="bossme-description">General workplace memes not specific to any company</div>
+              )}
+              <button className="clear-filter" onClick={() => handleCompanySelect(selectedCompany)}>
+                Clear filter
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      <div className="meme-grid">
+        {sortedMemes.length > 0 ? (
+          sortedMemes.map(meme => (
+            <MemeCard key={meme.id} meme={meme} onVote={handleVote} compact={true} />
+          ))
+        ) : (
+          <div className="no-memes-message">
+            <h2>No memes found</h2>
+            <p>{selectedCompany ? `No memes found for ${selectedCompany}` : 'Be the first to share a meme!'}</p>
+            <Link to="/howto" className="create-meme-link">Create New Meme</Link>
+          </div>
+        )}
+      </div>
+    </div>
     </>
   );
 };

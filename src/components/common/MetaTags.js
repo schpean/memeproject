@@ -19,14 +19,28 @@ const MetaTags = ({
   const timestamp = new Date().getTime();
   
   // Asigură-te că avem un URL complet pentru imagine
-  let imageUrl = image && !image.startsWith('http') 
-    ? `${window.location.origin}${image.startsWith('/') ? '' : '/'}${image}` 
-    : image;
-    
-  // Adăugăm timestamp la URL-ul imaginii pentru a forța reîmprospătarea
-  if (imageUrl) {
+  let imageUrl;
+  if (image && image.trim() !== '') {
+    // Adăugăm protocolul și domeniul dacă lipsesc
+    if (!image.startsWith('http')) {
+      const baseUrl = window.location.protocol + '//' + (window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host);
+      const imagePath = image.startsWith('/') ? image : '/' + image;
+      imageUrl = baseUrl + imagePath;
+    } else {
+      imageUrl = image;
+    }
+      
+    // Adăugăm timestamp la URL-ul imaginii pentru a forța reîmprospătarea și a preveni caching
     const separator = imageUrl.includes('?') ? '&' : '?';
     imageUrl = `${imageUrl}${separator}t=${timestamp}`;
+    
+    // Afișăm URL-ul complet al imaginii pentru debugging
+    console.log('MetaTags - Folosesc imaginea reală:', imageUrl);
+  } else {
+    // Nu mai folosim imagini default de pe imgur
+    // Folosim o imagine locală din folder-ul public care sigur există
+    imageUrl = `${window.location.protocol}//${window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host}/images/bossme-cover.jpg?t=${timestamp}`;
+    console.log('MetaTags - Nu am găsit imagine, folosesc cover local:', imageUrl);
   }
 
   // URL-ul canonic
@@ -55,12 +69,17 @@ const MetaTags = ({
       <meta property="og:locale" content={locale} />
       
       {/* Imagine Open Graph - forțăm imaginea să fie definită corect */}
-      {imageUrl && <meta property="og:image" content={imageUrl} />}
-      {imageUrl && <meta property="og:image:secure_url" content={imageUrl} />}
-      {imageUrl && <meta property="og:image:width" content="1200" />}
-      {imageUrl && <meta property="og:image:height" content="630" />}
-      {imageUrl && <meta property="og:image:alt" content={title} />}
-      {imageUrl && <meta property="og:image:type" content="image/jpeg" />}
+      <meta property="og:image" content={imageUrl} />
+      <meta property="og:image:secure_url" content={imageUrl} />
+      <meta property="og:image:url" content={imageUrl} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt" content={title} />
+      <meta property="og:image:type" content="image/jpeg" />
+      
+      {/* Dimensiuni suplimentare pentru Facebook */}
+      <meta property="og:image:width:min" content="200" />
+      <meta property="og:image:height:min" content="200" />
       
       {/* Facebook-specific meta */}
       <meta property="fb:app_id" content="936362457330483" />
@@ -76,9 +95,9 @@ const MetaTags = ({
       <meta name="twitter:url" content={canonicalUrl} />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
-      {imageUrl && <meta name="twitter:image" content={imageUrl} />}
-      {imageUrl && <meta name="twitter:image:alt" content={title} />}
-      {/* Forțăm Twitter să folosească un card mare */}
+      <meta name="twitter:image" content={imageUrl} />
+      <meta name="twitter:image:src" content={imageUrl} />
+      <meta name="twitter:image:alt" content={title} />
       <meta name="twitter:image:width" content="1200" />
       <meta name="twitter:image:height" content="630" />
       

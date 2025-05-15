@@ -131,22 +131,43 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
   const getImageUrl = () => {
     const imageUrl = meme.imageUrl || meme.image_url;
     
+    // Dacă nu există URL de imagine, returnăm placeholder
+    if (!imageUrl) {
+      return '/placeholder-meme.jpg';
+    }
+    
+    // Construim URL-ul complet pentru imagine
+    let fullImageUrl;
+    
     // Handle server-relative URLs (those starting with /uploads/)
-    if (imageUrl && imageUrl.startsWith('/uploads/')) {
+    if (imageUrl.startsWith('/uploads/')) {
       // Determine base URL based on environment
       const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
         ? 'https://bossme.me'
-        : API_BASE_URL;
-      return `${baseUrl}${imageUrl}`;
+        : `${window.location.origin}`;
+      
+      // Asigură-te că URL-ul rezultat este complet
+      fullImageUrl = `${baseUrl}${imageUrl}`;
+    }
+    // Handle absolute URLs with HTTP - convert to HTTPS
+    else if (imageUrl.startsWith('http://')) {
+      fullImageUrl = imageUrl.replace('http://', 'https://');
+    }
+    // Handle absolute URLs with HTTPS - keep as is
+    else if (imageUrl.startsWith('https://')) {
+      fullImageUrl = imageUrl;
+    }
+    // Handle other relative URLs
+    else {
+      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+        ? 'https://bossme.me'
+        : window.location.origin;
+      
+      const imagePath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+      fullImageUrl = `${baseUrl}${imagePath}`;
     }
     
-    // Handle absolute URLs - ensure they're preserved as-is
-    if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
-      return imageUrl;
-    }
-    
-    // For completely broken image paths, use a placeholder
-    return imageUrl || '/placeholder-meme.jpg';
+    return fullImageUrl;
   };
 
   // Get meme title or fallback

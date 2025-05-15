@@ -24,7 +24,23 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage });
+// Configurarea limitelor și filtrelor pentru multer
+const fileFilter = (req, file, cb) => {
+  // Acceptă doar imagini
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Doar fișierele imagine sunt acceptate!'), false);
+  }
+};
+
+const upload = multer({ 
+  storage, 
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // Limită de 5MB pentru fișiere
+  }
+});
 
 // Get all memes or filter by company or city
 router.get('/', async (req, res) => {
@@ -223,6 +239,28 @@ router.post('/', upload.single('image'), checkUserStatus, async (req, res) => {
     let imageUrl;
     
     if (req.file) {
+      // Verifica dimensiunea și tipul imaginii doar pentru fișierele locale
+      // Facebook necesită imagini de minim 200x200px
+      try {
+        const sharp = require('sharp');
+        const imageInfo = await sharp(req.file.path).metadata();
+        
+        if (imageInfo.width < 200 || imageInfo.height < 200) {
+          console.warn(`Imagine prea mică: ${imageInfo.width}x${imageInfo.height}. Facebook necesită minim 200x200px.`);
+          
+          // Opțional: ai putea redimensiona imaginea aici pentru a satisface cerințele
+          // await sharp(req.file.path)
+          //   .resize(Math.max(imageInfo.width, 200), Math.max(imageInfo.height, 200), { fit: 'fill' })
+          //   .toFile(req.file.path + '_resized');
+          // fs.renameSync(req.file.path + '_resized', req.file.path);
+        }
+        
+        console.log(`Imagine încărcată: ${imageInfo.width}x${imageInfo.height}px, format: ${imageInfo.format}`);
+      } catch (err) {
+        console.error('Eroare la verificarea imaginii:', err);
+        // Continuă chiar dacă verificarea a eșuat
+      }
+      
       // Dacă avem un fișier încărcat, proceăm ca înainte
       const imagePath = req.file.path;
       const relativePath = path.relative(path.join(__dirname, '..'), imagePath);

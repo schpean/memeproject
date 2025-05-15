@@ -442,124 +442,124 @@ const Home = () => {
         type="website"
       />
       
-      <div className="home">
-        {/* Hero Section */}
-        <section className="hero-section">
-          <div className="hero-content">
-            <h1>Expose the Fun. Share the Struggles. Meme Your Workplace!</h1>
-            <p>Review your company the way it deserves—with memes and fire.</p>
-            <div className="hero-cta-buttons">
-              <Link to="/howto" className="btn btn-primary">Upload a meme review</Link>
-              <Link to="/browse" className="btn btn-secondary">Find your company</Link>
-            </div>
+    <div className="home">
+      {/* Hero Section */}
+      <section className="hero-section">
+        <div className="hero-content">
+          <h1>Expose the Fun. Share the Struggles. Meme Your Workplace!</h1>
+          <p>Review your company the way it deserves—with memes and fire.</p>
+          <div className="hero-cta-buttons">
+            <Link to="/howto" className="btn btn-primary">Upload a meme review</Link>
+            <Link to="/browse" className="btn btn-secondary">Find your company</Link>
           </div>
-          <div className="hero-background">
-            {/* Animated meme icons or carousel could be added here */}
+        </div>
+        <div className="hero-background">
+          {/* Animated meme icons or carousel could be added here */}
+        </div>
+      </section>
+      
+      <div className="memes-section compact-view">
+        <div className="section-header">
+          <div className="section-title">
+            <h2>Reviews</h2>
           </div>
-        </section>
-        
-        <div className="memes-section compact-view">
-          <div className="section-header">
-            <div className="section-title">
-              <h2>Reviews</h2>
+          
+          <div className="filter-controls">
+            {/* Sort filter dropdown */}
+            <div className="filter-dropdown" ref={sortDropdownRef}>
+              <button 
+                className="dropdown-toggle" 
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+              >
+                <span className="icon">{getSortIcon()}</span>
+                <span>{getSortLabel()}</span>
+                <FaAngleDown />
+              </button>
+              
+              {showSortDropdown && (
+                <div className="dropdown-menu">
+                  <button 
+                    className={sortBy === 'recent' ? 'active' : ''} 
+                    onClick={() => { setSortBy('recent'); setShowSortDropdown(false); }}
+                  >
+                    <FaCalendarAlt /> Most Recent
+                  </button>
+                  <button 
+                    className={sortBy === 'upvoted' ? 'active' : ''} 
+                    onClick={() => { setSortBy('upvoted'); setShowSortDropdown(false); }}
+                  >
+                    <FaArrowUp /> Most Upvoted
+                  </button>
+                  <button 
+                    className={sortBy === 'commented' ? 'active' : ''} 
+                    onClick={() => { setSortBy('commented'); setShowSortDropdown(false); }}
+                  >
+                    <FaComment /> Most Commented
+                  </button>
+                </div>
+              )}
             </div>
             
-            <div className="filter-controls">
-              {/* Sort filter dropdown */}
-              <div className="filter-dropdown" ref={sortDropdownRef}>
-                <button 
-                  className="dropdown-toggle" 
-                  onClick={() => setShowSortDropdown(!showSortDropdown)}
-                >
-                  <span className="icon">{getSortIcon()}</span>
-                  <span>{getSortLabel()}</span>
-                  <FaAngleDown />
-                </button>
-                
-                {showSortDropdown && (
-                  <div className="dropdown-menu">
-                    <button 
-                      className={sortBy === 'recent' ? 'active' : ''} 
-                      onClick={() => { setSortBy('recent'); setShowSortDropdown(false); }}
-                    >
-                      <FaCalendarAlt /> Most Recent
-                    </button>
-                    <button 
-                      className={sortBy === 'upvoted' ? 'active' : ''} 
-                      onClick={() => { setSortBy('upvoted'); setShowSortDropdown(false); }}
-                    >
-                      <FaArrowUp /> Most Upvoted
-                    </button>
-                    <button 
-                      className={sortBy === 'commented' ? 'active' : ''} 
-                      onClick={() => { setSortBy('commented'); setShowSortDropdown(false); }}
-                    >
-                      <FaComment /> Most Commented
-                    </button>
-                  </div>
-                )}
-              </div>
+            {/* Time filter dropdown */}
+            <div className="filter-dropdown" ref={timeDropdownRef}>
+              <button 
+                className="dropdown-toggle" 
+                onClick={() => setShowTimeDropdown(!showTimeDropdown)}
+              >
+                <span>{getTimeFilterLabel()}</span>
+                <FaAngleDown />
+              </button>
               
-              {/* Time filter dropdown */}
-              <div className="filter-dropdown" ref={timeDropdownRef}>
-                <button 
-                  className="dropdown-toggle" 
-                  onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-                >
-                  <span>{getTimeFilterLabel()}</span>
-                  <FaAngleDown />
-                </button>
-                
-                {showTimeDropdown && (
-                  <div className="dropdown-menu">
-                    <button 
-                      className={timeFilter === 'now' ? 'active' : ''} 
-                      onClick={() => { setTimeFilter('now'); setShowTimeDropdown(false); }}
-                    >
-                      Now
-                    </button>
-                    <button 
-                      className={timeFilter === 'today' ? 'active' : ''} 
-                      onClick={() => { setTimeFilter('today'); setShowTimeDropdown(false); }}
-                    >
-                      Today
-                    </button>
-                    <button 
-                      className={timeFilter === 'week' ? 'active' : ''} 
-                      onClick={() => { setTimeFilter('week'); setShowTimeDropdown(false); }}
-                    >
-                      This Week
-                    </button>
-                    <button 
-                      className={timeFilter === 'all' ? 'active' : ''} 
-                      onClick={() => { setTimeFilter('all'); setShowTimeDropdown(false); }}
-                    >
-                      All Time
-                    </button>
-                  </div>
-                )}
-              </div>
-              
-              <Link to="/browse" className="view-all-link">View All</Link>
+              {showTimeDropdown && (
+                <div className="dropdown-menu">
+                  <button 
+                    className={timeFilter === 'now' ? 'active' : ''} 
+                    onClick={() => { setTimeFilter('now'); setShowTimeDropdown(false); }}
+                  >
+                    Now
+                  </button>
+                  <button 
+                    className={timeFilter === 'today' ? 'active' : ''} 
+                    onClick={() => { setTimeFilter('today'); setShowTimeDropdown(false); }}
+                  >
+                    Today
+                  </button>
+                  <button 
+                    className={timeFilter === 'week' ? 'active' : ''} 
+                    onClick={() => { setTimeFilter('week'); setShowTimeDropdown(false); }}
+                  >
+                    This Week
+                  </button>
+                  <button 
+                    className={timeFilter === 'all' ? 'active' : ''} 
+                    onClick={() => { setTimeFilter('all'); setShowTimeDropdown(false); }}
+                  >
+                    All Time
+                  </button>
+                </div>
+              )}
             </div>
+            
+            <Link to="/browse" className="view-all-link">View All</Link>
           </div>
-          
-          <div className="memes-grid">
-            {memes.length > 0 ? (
-              memes.map(meme => (
-                <MemeCard key={meme.id} meme={meme} onVote={handleVote} compact={true} />
-              ))
-            ) : (
-              <div className="no-memes">
-                <p>No memes found for the selected filters.</p>
-                <Link to="/howto" className="btn btn-primary">Create a Meme</Link>
-              </div>
-            )}
-          </div>
-          
-          {loading && <div className="loading-more">Loading more memes...</div>}
         </div>
+        
+        <div className="memes-grid">
+          {memes.length > 0 ? (
+            memes.map(meme => (
+              <MemeCard key={meme.id} meme={meme} onVote={handleVote} compact={true} />
+            ))
+          ) : (
+            <div className="no-memes">
+              <p>No memes found for the selected filters.</p>
+              <Link to="/howto" className="btn btn-primary">Create a Meme</Link>
+            </div>
+          )}
+        </div>
+        
+        {loading && <div className="loading-more">Loading more memes...</div>}
       </div>
+    </div>
     </>
   );
 };
