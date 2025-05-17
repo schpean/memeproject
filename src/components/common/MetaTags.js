@@ -19,6 +19,9 @@ const MetaTags = ({
   // Generăm un timestamp pentru a forța platforma socială să reincarce imaginile
   const timestamp = new Date().getTime();
   
+  // Flag pentru a determina dacă folosim imagine de fallback sau o imagine reală de meme
+  let isFallbackImage = false;
+  
   // Asigură-te că avem un URL complet pentru imagine
   let imageUrl;
   if (image && image.trim() !== '') {
@@ -47,12 +50,22 @@ const MetaTags = ({
       imageUrl = `${imageUrl}${separator}t=${timestamp}`;
     }
     
+    // Adăugăm parametri de dimensiune pentru Twitter Card
+    if (!imageUrl.includes('tw_width=') && !imageUrl.includes('tw_height=')) {
+      const separator = imageUrl.includes('?') ? '&' : '?';
+      imageUrl = `${imageUrl}${separator}tw_width=1200&tw_height=630`;
+    }
+    
     // Afișăm URL-ul complet al imaginii pentru debugging
     console.log('MetaTags - Folosesc imaginea reală:', imageUrl);
   } else {
-    // Folosim favicon-ul care există sigur
-    imageUrl = `${window.location.protocol === 'https:' ? 'https' : 'http'}://${window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host}/favicon-96x96.png?t=${timestamp}`;
-    console.log('MetaTags - Nu am găsit imagine, folosesc favicon:', imageUrl);
+    // Folosim imaginea de fallback de dimensiune mare în loc de favicon
+    // web-app-manifest-512x512.png are dimensiuni suficient de mari pentru preview-uri
+    const baseUrl = window.location.protocol === 'https:' ? 'https' : 'http';
+    const hostname = window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host;
+    imageUrl = `${baseUrl}://${hostname}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+    console.log('MetaTags - Nu am găsit imagine, folosesc imaginea fallback:', imageUrl);
+    isFallbackImage = true;
   }
 
   // URL-ul canonic
@@ -69,7 +82,8 @@ const MetaTags = ({
     console.log('MetaTags - Image URL:', imageUrl);
     console.log('MetaTags - Canonical URL:', canonicalUrl);
     console.log('MetaTags - WhatsApp Description:', whatsappDescription);
-  }, [imageUrl, canonicalUrl, timestamp, whatsappDescription]);
+    console.log('MetaTags - Using fallback image:', isFallbackImage);
+  }, [imageUrl, canonicalUrl, timestamp, whatsappDescription, isFallbackImage]);
 
   return (
     <Helmet>
@@ -91,15 +105,28 @@ const MetaTags = ({
       <meta property="og:image:secure_url" content={imageUrl} />
       <meta property="og:image:url" content={imageUrl} />
       
-      {/* Dimensiuni pentru favicon (96x96px) */}
-      <meta property="og:image:width" content="96" />
-      <meta property="og:image:height" content="96" />
-      <meta property="og:image:alt" content={title} />
-      <meta property="og:image:type" content="image/png" />
+      {/* Dimensiuni pentru imagine */}
+      {isFallbackImage ? (
+        // Dimensiuni pentru imaginea de fallback (512x512)
+        <>
+          <meta property="og:image:width" content="512" />
+          <meta property="og:image:height" content="512" />
+          <meta property="og:image:type" content="image/png" />
+          <meta property="og:image:width:min" content="200" />
+          <meta property="og:image:height:min" content="200" />
+        </>
+      ) : (
+        // Dimensiuni pentru meme (imagini reale)
+        <>
+          <meta property="og:image:width" content="1200" />
+          <meta property="og:image:height" content="630" />
+          <meta property="og:image:type" content="image/jpeg" />
+          <meta property="og:image:width:min" content="200" />
+          <meta property="og:image:height:min" content="200" />
+        </>
+      )}
       
-      {/* Dimensiuni minime pentru Facebook - FOARTE IMPORTANTE */}
-      <meta property="og:image:width:min" content="96" />
-      <meta property="og:image:height:min" content="96" />
+      <meta property="og:image:alt" content={title} />
       
       {/* Facebook-specific meta */}
       <meta property="fb:app_id" content="936362457330483" />
@@ -120,13 +147,33 @@ const MetaTags = ({
       <meta name="twitter:image:alt" content={title} />
       <meta name="twitter:domain" content="bossme.me" />
       
-      {/* Dimensiuni pentru Twitter - pentru favicon */}
-      <meta name="twitter:image:width" content="96" />
-      <meta name="twitter:image:height" content="96" />
+      {/* Dimensiuni pentru Twitter */}
+      {isFallbackImage ? (
+        // Dimensiuni pentru imaginea de fallback
+        <>
+          <meta name="twitter:image:width" content="512" />
+          <meta name="twitter:image:height" content="512" />
+        </>
+      ) : (
+        // Dimensiuni pentru meme (imagini reale)
+        <>
+          <meta name="twitter:image:width" content="1200" />
+          <meta name="twitter:image:height" content="630" />
+        </>
+      )}
       
       {/* WhatsApp specific - Optimizate pentru link preview */}
-      <meta property="og:image:width" content="96" />
-      <meta property="og:image:height" content="96" />
+      {isFallbackImage ? (
+        <>
+          <meta property="og:image:width" content="512" />
+          <meta property="og:image:height" content="512" />
+        </>
+      ) : (
+        <>
+          <meta property="og:image:width" content="1200" />
+          <meta property="og:image:height" content="630" />
+        </>
+      )}
       
       {/* WhatsApp necesită aspect ratio de maxim 4:1 și minim 300px lățime */}
       <meta property="whatsapp:title" content={title} />
@@ -135,8 +182,17 @@ const MetaTags = ({
       <meta property="whatsapp:image:alt" content={title} />
       
       {/* WhatsApp dimension requirements for image */}
-      <meta property="whatsapp:image:width" content="96" />
-      <meta property="whatsapp:image:height" content="96" />
+      {isFallbackImage ? (
+        <>
+          <meta property="whatsapp:image:width" content="512" />
+          <meta property="whatsapp:image:height" content="512" />
+        </>
+      ) : (
+        <>
+          <meta property="whatsapp:image:width" content="1200" />
+          <meta property="whatsapp:image:height" content="630" />
+        </>
+      )}
       
       {/* Specificări WhatsApp pentru browsere mobile */}
       <meta name="format-detection" content="telephone=no" />

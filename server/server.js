@@ -42,16 +42,36 @@ broadcastService.setWebSocketHandler(websocketHandler);
 app.use(corsMiddleware);
 app.use(express.json());
 
+// Creează directorul images dacă nu există
+const imagesDir = path.join(__dirname, 'uploads/images');
+if (!fs.existsSync(imagesDir)) {
+  console.log('Creez directorul pentru imagini:', imagesDir);
+  fs.mkdirSync(imagesDir, { recursive: true });
+}
+
+// Detectează tipul de crawler bazat pe User-Agent
+const detectCrawler = (req) => {
+  const userAgent = req.headers['user-agent'] || '';
+  const isWhatsAppCrawler = userAgent.includes('WhatsApp');
+  const isTwitterCrawler = userAgent.includes('Twitterbot') || userAgent.includes('Twitter');
+  const isFacebookCrawler = userAgent.includes('facebookexternalhit') || userAgent.includes('Facebook');
+  
+  if (isWhatsAppCrawler) return 'whatsapp';
+  if (isTwitterCrawler) return 'twitter';
+  if (isFacebookCrawler) return 'facebook';
+  if (userAgent.includes('bot')) return 'bot';
+  return null;
+};
+
 // Add CORS headers for static files
 app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirname, 'uploads'), {
   maxAge: '0', // Oprim cache-ul pentru a forța reîncărcarea imaginilor
   etag: false, // Dezactivăm etags pentru a preveni caching-ul
   lastModified: false, // Dezactivăm lastModified pentru a preveni caching-ul
   setHeaders: (res, filePath, stat) => {
-    // Detectăm request-urile de la WhatsApp crawler
+    // Detectăm tipul de crawler
     const req = res.req;
-    const userAgent = req.headers['user-agent'] || '';
-    const isWhatsAppCrawler = userAgent.includes('WhatsApp');
+    const crawlerType = detectCrawler(req);
     
     // Permite accesul cross-origin pentru imagini (esențial pentru Facebook OG și alte platforme)
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -59,14 +79,25 @@ app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirnam
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD');
     res.setHeader('Access-Control-Max-Age', '86400'); // 24 ore
     
-    if (isWhatsAppCrawler) {
-      console.log('WhatsApp crawler detected, optimizing response for:', req.url);
-      // WhatsApp necesită un cache mai relaxat pentru a putea procesa și afișa imaginile
+    if (crawlerType) {
+      console.log(`${crawlerType.toUpperCase()} crawler detected for:`, req.url);
+      
+      // Un cache mai relaxat pentru crawlere ca să poată procesa și afișa imaginile
       res.setHeader('Cache-Control', 'public, max-age=300');
-      res.setHeader('X-WhatsApp-Crawler', 'allow');
-      res.setHeader('X-Image-Max-Preview', 'large');
+      
+      // Header-uri comune pentru toate crawler-ele
+      res.setHeader('X-Robots-Tag', 'all');
+      
+      // Header-uri specifice pentru diferite platforme
+      if (crawlerType === 'whatsapp') {
+        res.setHeader('X-WhatsApp-Crawler', 'allow');
+        res.setHeader('X-Image-Max-Preview', 'large');
+      } else if (crawlerType === 'twitter') {
+        res.setHeader('X-Twitter-Image-Access', 'allow');
+        res.setHeader('X-Twitter-Crawler', 'allow');
+      }
     } else {
-      // Prevenim cache-ul complet pentru a forța Facebook și alte platforme să reîncarce imaginile
+      // Prevenim cache-ul complet pentru utilizatori normali
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
@@ -75,11 +106,6 @@ app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirnam
     // Header-uri pentru a asigura că imaginile sunt accesibile de la orice origine
     res.setHeader('Timing-Allow-Origin', '*');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    
-    // Header-uri specifice pentru Twitter/X pentru a permite crawlerului să acceseze imaginile
-    res.setHeader('X-Twitter-Image-Access', 'allow');
-    res.setHeader('X-Robots-Tag', 'all');
-    res.setHeader('X-Twitter-Crawler', 'allow');
     
     // Adăugăm Content-Type corect pentru imagini
     const ext = path.extname(req.path).toLowerCase();
@@ -95,11 +121,34 @@ app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirnam
   }
 }));
 
-// Asigură-te că nu avem dubluri pentru aceleași path-uri
-// app.use('/uploads', express.static('uploads')); // Comentat pentru a evita duplicate
-app.use('/images', express.static(path.join(__dirname, '../public/images'), {
+// Servim imaginile statice din public/images pentru a avea acces la imaginile de fallback
+app.use('/images', staticFilesCorsMiddleware, express.static(path.join(__dirname, '../public/images'), {
   maxAge: '7d', // Cachează imaginile statice pentru o săptămână
-  etag: true
+  etag: true,
+  setHeaders: (res, filePath, stat) => {
+    // Detectăm tipul de crawler
+    const req = res.req;
+    const crawlerType = detectCrawler(req);
+    
+    // Permiterea accesului cross-origin pentru imagini
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    if (crawlerType) {
+      // Cache relaxat pentru crawlere
+      res.setHeader('Cache-Control', 'public, max-age=300');
+    }
+  }
+}));
+
+// Servim și imaginile din public direct pentru a asigura accesul la web-app-manifest
+app.use(staticFilesCorsMiddleware, express.static(path.join(__dirname, '../public'), {
+  maxAge: '7d',
+  etag: true,
+  setHeaders: (res, filePath, stat) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
 }));
 
 // Use routes

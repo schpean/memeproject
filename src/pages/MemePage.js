@@ -8,10 +8,12 @@ import { API_BASE_URL } from '../utils/config';
 const MemePage = () => {
   const { id } = useParams();
   const [meme, setMeme] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Preluarea datelor meme-ului pentru meta tags
   useEffect(() => {
     const fetchMemeData = async () => {
+      setIsLoading(true);
       try {
         const memeData = await memeApi.getMemeById(id);
         setMeme(memeData);
@@ -23,6 +25,8 @@ const MemePage = () => {
         }
       } catch (error) {
         console.error('Eroare la încărcarea datelor meme:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -37,6 +41,11 @@ const MemePage = () => {
     if (!imageUrl) return null;
     
     console.log('Procesez URL imagine original:', imageUrl);
+    
+    // Verificăm dacă este un URL relativ sau absolut
+    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+      console.log('Imagine cu URL relativ, adăugăm domeniul...');
+    }
     
     // Construim URL-ul complet - folosim întotdeauna HTTPS pentru partajare
     let fullImageUrl;
@@ -60,6 +69,14 @@ const MemePage = () => {
       // Asigurăm formatul corect al path-ului
       const imagePath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
       fullImageUrl = `${baseUrl}${imagePath}`;
+    }
+    
+    // Verificăm dacă URL-ul este valid
+    try {
+      new URL(fullImageUrl);
+    } catch (e) {
+      console.error('URL invalid pentru imagine:', fullImageUrl);
+      return null;
     }
     
     // Verificăm dacă URL-ul conține parametrul de timestamp pentru a forța reîncărcarea
@@ -111,8 +128,21 @@ const MemePage = () => {
   const imageUrl = getFullImageUrl();
   console.log('Final image URL for sharing:', imageUrl);
   
+  // Force URL pentru debugging
+  useEffect(() => {
+    console.log('Current canonical URL:', getCanonicalUrl());
+    console.log('Current image URL:', imageUrl);
+  }, [imageUrl]);
+  
   return (
     <>
+      {/* Debugging info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{ background: '#fafafa', padding: '5px', fontSize: '12px', color: '#666' }}>
+          <strong>Debug Meta:</strong> {isLoading ? 'Loading...' : (imageUrl ? 'Image URL OK' : 'No image URL')}
+        </div>
+      )}
+      
       {/* Meta Tags pentru Open Graph */}
       <MetaTags 
         title={getMetaTitle()}
