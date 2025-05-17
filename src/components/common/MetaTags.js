@@ -22,17 +22,55 @@ const MetaTags = ({
   // Flag pentru a determina dacă folosim imagine de fallback sau o imagine reală de meme
   let isFallbackImage = false;
   
+  // Detectăm platforma de partajare din URL (dacă există)
+  const detectPlatform = () => {
+    try {
+      const urlObj = url ? new URL(url) : new URL(window.location.href);
+      return urlObj.searchParams.get('_platform') || '';
+    } catch (e) {
+      return '';
+    }
+  };
+  
+  const sharingPlatform = detectPlatform();
+  
   // Asigură-te că avem un URL complet pentru imagine
   let imageUrl;
   if (image && image.trim() !== '') {
-    // Dacă este un URL de la imgur, folosim imaginea de fallback
+    // Verificăm și blocăm referințele la imgur sau alte platforme externe nedorite
     if (image.includes('imgur.com')) {
-      console.log('MetaTags - Imagine de pe imgur detectată, folosim fallback');
-      const baseUrl = window.location.protocol === 'https:' ? 'https' : 'http';
-      const hostname = window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host;
-      imageUrl = `${baseUrl}://${hostname}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+      console.error('Detected imgur URL, not using it:', image);
+      // Folosim imaginea de fallback în loc
+      const baseUrl = window.location.hostname === 'bossme.me' 
+        ? 'https://bossme.me' 
+        : (window.location.protocol === 'https:' 
+          ? `${window.location.origin}` 
+          : `https://${window.location.host}`);
+          
       isFallbackImage = true;
-    } else {
+      imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+      console.log('MetaTags - Folosim imaginea de fallback în loc de imgur:', imageUrl);
+    }
+    // Verificăm și convertim link-urile de la imgflip la URL-uri directe
+    else if (image.includes('imgflip.com/i/')) {
+      const match = image.match(/imgflip\.com\/i\/([a-zA-Z0-9]+)/);
+      if (match && match[1]) {
+        const identifier = match[1];
+        imageUrl = `https://i.imgflip.com/${identifier}.jpg?t=${timestamp}`;
+        console.log('MetaTags - Am transformat URL-ul imgflip în URL direct:', imageUrl);
+      } else {
+        // Folosim fallback dacă nu putem converti URL-ul
+        const baseUrl = window.location.hostname === 'bossme.me' 
+          ? 'https://bossme.me' 
+          : (window.location.protocol === 'https:' 
+            ? `${window.location.origin}` 
+            : `https://${window.location.host}`);
+        
+        isFallbackImage = true;
+        imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+      }
+    }
+    else {
       // Adăugăm protocolul și domeniul dacă lipsesc
       if (!image.startsWith('http')) {
         // Folosim întotdeauna HTTPS pentru a preveni mixed content
@@ -64,6 +102,12 @@ const MetaTags = ({
         imageUrl = `${imageUrl}${separator}tw_width=1200&tw_height=630`;
       }
       
+      // Adăugăm parametru pentru platforma de partajare
+      if (sharingPlatform && !imageUrl.includes('_platform=')) {
+        const separator = imageUrl.includes('?') ? '&' : '?';
+        imageUrl = `${imageUrl}${separator}_platform=${sharingPlatform}`;
+      }
+      
       // Afișăm URL-ul complet al imaginii pentru debugging
       console.log('MetaTags - Folosesc imaginea reală:', imageUrl);
     }
@@ -73,6 +117,12 @@ const MetaTags = ({
     const baseUrl = window.location.protocol === 'https:' ? 'https' : 'http';
     const hostname = window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host;
     imageUrl = `${baseUrl}://${hostname}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+    
+    // Adăugăm parametru pentru platformă
+    if (sharingPlatform) {
+      imageUrl += `&_platform=${sharingPlatform}`;
+    }
+    
     console.log('MetaTags - Nu am găsit imagine, folosesc imaginea fallback:', imageUrl);
     isFallbackImage = true;
   }
@@ -92,7 +142,8 @@ const MetaTags = ({
     console.log('MetaTags - Canonical URL:', canonicalUrl);
     console.log('MetaTags - WhatsApp Description:', whatsappDescription);
     console.log('MetaTags - Using fallback image:', isFallbackImage);
-  }, [imageUrl, canonicalUrl, timestamp, whatsappDescription, isFallbackImage]);
+    console.log('MetaTags - Detected sharing platform:', sharingPlatform);
+  }, [imageUrl, canonicalUrl, timestamp, whatsappDescription, isFallbackImage, sharingPlatform]);
 
   return (
     <Helmet>
@@ -203,7 +254,7 @@ const MetaTags = ({
         </>
       )}
       
-      {/* Specificări WhatsApp pentru browsere mobile */}
+      {/* Specificații WhatsApp pentru browsere mobile */}
       <meta name="format-detection" content="telephone=no" />
       <meta name="robots" content="max-image-preview:large" />
       
@@ -215,6 +266,22 @@ const MetaTags = ({
           <meta property="article:author" content="bossme.me" />
           <meta property="article:section" content="Workplace Memes" />
           <meta property="article:tag" content="workplace,reviews,meme" />
+        </>
+      )}
+      
+      {/* Tag-uri speciale pentru diferite platforme */}
+      {sharingPlatform === 'whatsapp' && (
+        <>
+          <meta name="whatsapp:platform" content="true" />
+          <meta property="og:whatsapp" content="true" />
+        </>
+      )}
+      
+      {sharingPlatform === 'twitter' && (
+        <>
+          <meta name="twitter:platform" content="true" />
+          <meta property="twitter:label1" content="Via" />
+          <meta property="twitter:data1" content="@bossme_me" />
         </>
       )}
       

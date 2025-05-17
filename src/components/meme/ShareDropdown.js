@@ -51,17 +51,26 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
     
     console.log('ShareDropdown - Procesez URL imagine:', imageUrl);
     
-    // Dacă URL-ul conține referințe către servicii externe neautorizate, folosim imaginea de fallback
-    // Permitem imgflip.com, blocăm doar imgur.com
+    // Verificăm și eliminăm referințele la imgur sau alte platforme externe nedorite
     if (imageUrl.includes('imgur.com')) {
-      console.log('ShareDropdown - URL extern imgur detectat, folosim imaginea de fallback');
-      
+      console.error('Detected imgur URL, not using it:', imageUrl);
+      // Folosim imaginea de fallback în loc
       const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
         ? 'https://bossme.me'
         : `https://${window.location.host}`;
-        
-      const timestamp = new Date().getTime();
-      return `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&source=share`;
+      return `${baseUrl}/images/web-app-manifest-512x512.png?t=${new Date().getTime()}`;
+    }
+    
+    // Verificăm dacă imaginea vine de la un serviciu extern (imgflip, etc)
+    if (imageUrl.includes('imgflip.com/i/')) {
+      // Convertim URL-ul imgflip la URL-ul direct către imagine
+      const match = imageUrl.match(/imgflip\.com\/i\/([a-zA-Z0-9]+)/);
+      if (match && match[1]) {
+        const identifier = match[1];
+        const directUrl = `https://i.imgflip.com/${identifier}.jpg?t=${new Date().getTime()}`;
+        console.log('Am transformat URL-ul imgflip în URL direct:', directUrl);
+        return directUrl;
+      }
     }
     
     // Dacă URL-ul imaginii conține deja protocol (http/https), este deja absolut
@@ -259,8 +268,9 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
         // Adăugăm parametrii specifici pentru WhatsApp pentru a optimiza preview-ul
         const whatsappUrl = new URL(absoluteUrl);
         if (!whatsappUrl.searchParams.has('_platform')) {
-          whatsappUrl.searchParams.append('_platform', 'whatsapp');
+          whatsappUrl.searchParams.set('_platform', 'whatsapp');
         }
+        whatsappUrl.searchParams.set('_t', new Date().getTime());
         const optimizedUrl = whatsappUrl.toString();
         
         // Construim link-ul pentru WhatsApp Share
@@ -288,8 +298,9 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
         // Adăugăm parametrii specifici pentru Twitter pentru a optimiza preview-ul
         const twitterUrl = new URL(absoluteUrl);
         if (!twitterUrl.searchParams.has('_platform')) {
-          twitterUrl.searchParams.append('_platform', 'twitter');
+          twitterUrl.searchParams.set('_platform', 'twitter');
         }
+        twitterUrl.searchParams.set('_t', new Date().getTime());
         const optimizedUrl = twitterUrl.toString();
         
         // Construim URL-ul pentru Twitter share

@@ -37,31 +37,21 @@ const MemePage = () => {
   const getFullImageUrl = () => {
     if (!meme) return null;
     
-    // Obține URL-ul imaginii din meme
     const imageUrl = meme.imageUrl || meme.image_url;
     if (!imageUrl) return null;
     
     console.log('Procesez URL imagine original:', imageUrl);
     
-    // Dacă URL-ul conține imgur, trebuie să folosim imaginea noastră de fallback
-    // NOTĂ: Permitem imagini de pe imgflip.com, doar imgur.com este blocat
-    if (imageUrl.includes('imgur.com')) {
-      console.log('Imagine externă imgur detectată, folosim imaginea de fallback');
-      
-      // Folosim imaginea de fallback din directorul public
-      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-        ? 'https://bossme.me'
-        : (window.location.protocol === 'https:' 
-          ? `${window.location.origin}` 
-          : `https://${window.location.host}`);
-          
-      const timestamp = new Date().getTime();
-      return `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&source=meme_${id}`;
-    }
-    
-    // Verificăm dacă este un URL relativ sau absolut
-    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-      console.log('Imagine cu URL relativ, adăugăm domeniul...');
+    // Verificăm dacă imaginea vine de la un serviciu extern (imgflip, etc)
+    if (imageUrl.includes('imgflip.com')) {
+      // Convertim URL-ul imgflip la URL-ul direct către imagine
+      const match = imageUrl.match(/imgflip\.com\/i\/([a-zA-Z0-9]+)/);
+      if (match && match[1]) {
+        const identifier = match[1];
+        const directUrl = `https://i.imgflip.com/${identifier}.jpg`;
+        console.log('Am transformat URL-ul imgflip în URL direct:', directUrl);
+        return directUrl;
+      }
     }
     
     // Construim URL-ul complet - folosim întotdeauna HTTPS pentru partajare
@@ -74,6 +64,15 @@ const MemePage = () => {
     }
     // URL-uri HTTPS le păstrăm ca atare
     else if (imageUrl.startsWith('https://')) {
+      // Nu acceptăm URL-uri de la imgur (acestea nu sunt permise în aplicația noastră)
+      if (imageUrl.includes('imgur.com')) {
+        console.error('Detected imgur URL, not using it:', imageUrl);
+        // Folosim imaginea fallback în loc
+        const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+          ? 'https://bossme.me'
+          : `https://${window.location.host}`;
+        return `${baseUrl}/images/web-app-manifest-512x512.png`;
+      }
       fullImageUrl = imageUrl;
     }
     // Pentru URL-uri relative - construim URL-ul complet
@@ -93,27 +92,16 @@ const MemePage = () => {
       new URL(fullImageUrl);
     } catch (e) {
       console.error('URL invalid pentru imagine:', fullImageUrl);
-      
-      // Folosim imaginea de fallback în caz de URL invalid
-      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-        ? 'https://bossme.me'
-        : (window.location.protocol === 'https:' 
-          ? `${window.location.origin}` 
-          : `https://${window.location.host}`);
-          
-      const timestamp = new Date().getTime();
-      return `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&source=meme_${id}_error`;
+      return null;
     }
     
-    // Verificăm dacă URL-ul conține parametrul de timestamp pentru a forța reîncărcarea
-    if (!fullImageUrl.includes('t=') && !fullImageUrl.includes('_t=')) {
-      const timestamp = new Date().getTime();
-      const separator = fullImageUrl.includes('?') ? '&' : '?';
-      
-      // Adăugăm și dimensiunile minime pentru Twitter Card (summary_large_image) care necesită minim 300x157
-      // Indicăm explicit că imaginea are dimensiunile corecte pentru Twitter
-      fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&tw_width=1200&tw_height=630&source=meme_${id}`;
-    }
+    // Adăugăm parametrul de cache-busting pentru a forța reîncărcarea imaginii
+    const timestamp = new Date().getTime();
+    const separator = fullImageUrl.includes('?') ? '&' : '?';
+    
+    // Adăugăm și dimensiunile explicite pentru platformele sociale
+    // Indicăm platforma pentru care este optimizată imaginea
+    fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&tw_width=1200&tw_height=630&_platform=share`;
     
     console.log('URL final pentru imaginea meme-ului cu timestamp:', fullImageUrl);
     return fullImageUrl;
@@ -148,10 +136,8 @@ const MemePage = () => {
       ? 'https://bossme.me'
       : `https://${window.location.host}`;
     
-    // Adăugăm parametru pentru a forța reîmprospătarea cache-ului pentru platformele sociale
-    const canonical = `${baseUrl}/meme/${id}`;
-    const timestamp = new Date().getTime();
-    return `${canonical}?_t=${timestamp}`;
+    // Adăugăm parametru pentru a indica platforma de partajare
+    return `${baseUrl}/meme/${id}?_source=share`;
   };
   
   // Afișăm URL-ul imaginii pentru debugging
@@ -170,8 +156,6 @@ const MemePage = () => {
       {process.env.NODE_ENV === 'development' && (
         <div style={{ background: '#fafafa', padding: '5px', fontSize: '12px', color: '#666' }}>
           <strong>Debug Meta:</strong> {isLoading ? 'Loading...' : (imageUrl ? 'Image URL OK' : 'No image URL')}
-          <br />
-          <small>{imageUrl}</small>
         </div>
       )}
       

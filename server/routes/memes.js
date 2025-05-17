@@ -475,10 +475,13 @@ router.get('/top', async (req, res) => {
   }
 });
 
-// Get a specific meme by id
+// Get a single meme by ID with detailed information
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const publicId = req.header('user-id');
+    
+    // Obține meme-ul
     const result = await pool.query('SELECT * FROM memes WHERE id = $1', [id]);
     
     if (result.rows.length === 0) {
@@ -487,52 +490,61 @@ router.get('/:id', async (req, res) => {
     
     const meme = result.rows[0];
     
-    // Verifică URL-ul imaginii și înlocuiește referințele externe cu imaginea fallback
-    // Permitem imgflip.com, blocăm doar imgur.com
-    if (meme.image_url) {
-      if (meme.image_url.includes('imgur.com')) {
-        console.log(`Meme ${id} conține URL extern imgur detectat:`, meme.image_url);
-        // Înlocuim cu imagine de fallback
-        meme.image_url = '/images/web-app-manifest-512x512.png';
-        meme.original_url = meme.image_url; // Salvăm URL-ul original pentru debugging
-        meme.is_external = true; // Marcăm că a fost înlocuit
+    // Verifică permisiunile pentru meme-uri care nu sunt aprobate
+    if (meme.approval_status !== 'approved') {
+      // Dacă nu există user ID, nu are acces
+      if (!publicId) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have permission to view this meme'
+        });
       }
       
-      // Ne asigurăm că URL-ul este relativ sau absolut cu protocol
-      if (meme.image_url.startsWith('http://')) {
-        meme.image_url = meme.image_url.replace('http://', 'https://');
+      // Verificăm dacă publicId are format de UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(publicId)) {
+        return res.status(400).json({ error: 'Invalid user ID format' });
       }
-    } else {
-      // Setăm imaginea de fallback dacă nu există URL pentru imagine
-      console.log(`Meme ${id} nu are URL de imagine, folosim fallback`);
-      meme.image_url = '/images/web-app-manifest-512x512.png';
-      meme.is_fallback = true;
-    }
-    
-    // Get user info if user-id is provided in headers
-    const publicId = req.headers['user-id'] || req.query.userId;
-    if (publicId) {
-      try {
-        // Check if publicId has UUID format
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (uuidRegex.test(publicId)) {
-          // Get user info by public_id
-          const userCheck = await pool.query(
-            'SELECT * FROM meme_upvotes WHERE meme_id = $1 AND user_public_id = $2',
-            [id, publicId]
-          );
-          
-          // Add upvoted flag to meme data
-          meme.upvoted = userCheck.rows.length > 0;
-        }
-      } catch (error) {
-        console.error('Error checking upvote status:', error);
+      
+      // Verifică dacă utilizatorul este admin/moderator sau creatorul meme-ului
+      const user = await userQueries.findByPublicId(publicId);
+      
+      if (!user) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have permission to view this meme'
+        });
+      }
+      
+      const isAdminOrMod = user.role_name === 'admin' || user.role_name === 'moderator';
+      const isCreator = meme.user_id && user.id === meme.user_id;
+      
+      // Dacă utilizatorul nu este nici admin/moderator, nici creatorul meme-ului, nu are acces
+      if (!isAdminOrMod && !isCreator) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have permission to view this meme'
+        });
       }
     }
     
-    res.json(meme);
+    // Try to get comment count, but don't fail if comments table doesn't exist
+    try {
+      const commentCountResult = await pool.query(
+        'SELECT COUNT(*) FROM comments WHERE meme_id = $1',
+        [id]
+      );
+      
+      meme.comment_count = parseInt(commentCountResult.rows[0].count);
+      
+      res.json(meme);
+    } catch (error) {
+      // If the comments table doesn't exist, just return the meme without comment count
+      console.log('Comments functionality not available yet');
+      res.json(meme);
+    }
   } catch (error) {
-    console.error(`Error getting meme ${req.params.id}:`, error);
+    console.error(`Error fetching meme ${req.params.id}:`, error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
