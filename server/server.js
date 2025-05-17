@@ -52,16 +52,61 @@ if (!fs.existsSync(imagesDir)) {
 // Detectează tipul de crawler bazat pe User-Agent
 const detectCrawler = (req) => {
   const userAgent = req.headers['user-agent'] || '';
+  
+  // Log pentru debugging
+  if (userAgent.toLowerCase().includes('bot') || 
+      userAgent.includes('WhatsApp') || 
+      userAgent.includes('facebook') || 
+      userAgent.includes('Twitter')) {
+    console.log('Crawler detected - User-Agent:', userAgent);
+  }
+  
   const isWhatsAppCrawler = userAgent.includes('WhatsApp');
   const isTwitterCrawler = userAgent.includes('Twitterbot') || userAgent.includes('Twitter');
   const isFacebookCrawler = userAgent.includes('facebookexternalhit') || userAgent.includes('Facebook');
+  const isGenericBot = userAgent.toLowerCase().includes('bot') && !isWhatsAppCrawler && !isTwitterCrawler && !isFacebookCrawler;
   
   if (isWhatsAppCrawler) return 'whatsapp';
   if (isTwitterCrawler) return 'twitter';
   if (isFacebookCrawler) return 'facebook';
-  if (userAgent.includes('bot')) return 'bot';
+  if (isGenericBot) return 'bot';
   return null;
 };
+
+// Middleware special pentru a gestiona request-urile platformelor sociale
+// și a afișa meta tag-urile corecte
+app.use((req, res, next) => {
+  const crawlerType = detectCrawler(req);
+  
+  // Dacă nu este crawler, continuă normal
+  if (!crawlerType) {
+    return next();
+  }
+  
+  // Verifică dacă este o pagină de meme specifică
+  const memeMatch = req.path.match(/^\/meme\/(\d+)/);
+  if (memeMatch) {
+    console.log(`[${crawlerType}] Crawler accessing meme page:`, req.path);
+    
+    // Headere pentru crawlere
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.setHeader('X-Robots-Tag', 'all');
+    
+    // Headere specifice pentru diferite platforme
+    if (crawlerType === 'whatsapp') {
+      res.setHeader('X-WhatsApp-Crawler', 'allow');
+      res.setHeader('X-Image-Max-Preview', 'large');
+    } else if (crawlerType === 'twitter') {
+      res.setHeader('X-Twitter-Image-Access', 'allow');
+      res.setHeader('X-Twitter-Crawler', 'allow');
+    }
+  }
+  
+  // Continuă spre următorul middleware
+  next();
+});
 
 // Add CORS headers for static files
 app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirname, 'uploads'), {

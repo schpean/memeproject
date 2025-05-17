@@ -16,6 +16,12 @@ const MetaTags = ({
   siteName = 'bossme.me',
   locale = 'ro_RO'
 }) => {
+  // Debug info pentru a verifica dacă componenta este apelată
+  console.log('=== MetaTags Component Called ===');
+  console.log('- Title:', title);
+  console.log('- URL:', url);
+  console.log('- Image input:', image);
+  
   // Generăm un timestamp pentru a forța platforma socială să reincarce imaginile
   const timestamp = new Date().getTime();
   
@@ -137,12 +143,26 @@ const MetaTags = ({
 
   // Log pentru debugging
   useEffect(() => {
+    console.log('=== MetaTags Rendered ===');
     console.log('MetaTags - Timestamp:', timestamp);
     console.log('MetaTags - Image URL:', imageUrl);
     console.log('MetaTags - Canonical URL:', canonicalUrl);
     console.log('MetaTags - WhatsApp Description:', whatsappDescription);
     console.log('MetaTags - Using fallback image:', isFallbackImage);
     console.log('MetaTags - Detected sharing platform:', sharingPlatform);
+    
+    // Verificăm încă o dată validitatea URL-ului
+    fetch(imageUrl, { method: 'HEAD' })
+      .then(response => {
+        if (response.ok) {
+          console.log('🟢 Image URL verification SUCCESS:', imageUrl, response.status);
+        } else {
+          console.error('🔴 Image URL verification FAILED:', imageUrl, response.status);
+        }
+      })
+      .catch(error => {
+        console.error('🔴 Image URL verification ERROR:', error.message);
+      });
   }, [imageUrl, canonicalUrl, timestamp, whatsappDescription, isFallbackImage, sharingPlatform]);
 
   return (

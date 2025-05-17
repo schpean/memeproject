@@ -40,6 +40,9 @@ const MemePage = () => {
     const imageUrl = meme.imageUrl || meme.image_url;
     if (!imageUrl) return null;
     
+    // Debug info la nivel de logare
+    console.log('========== MEME IMAGE DEBUG ==========');
+    console.log('Meme ID:', id);
     console.log('Procesez URL imagine original:', imageUrl);
     
     // Verificăm dacă imaginea vine de la un serviciu extern (imgflip, etc)
@@ -54,6 +57,22 @@ const MemePage = () => {
       }
     }
     
+    // Nu acceptăm URL-uri de la imgur (acestea nu sunt permise în aplicația noastră)
+    if (imageUrl.includes('imgur.com')) {
+      console.error('Detected imgur URL, not using it:', imageUrl);
+      console.log('⚠️ Imgur URL detectat - vom folosi imaginea de fallback');
+      // Folosim imaginea fallback în loc
+      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+        ? 'https://bossme.me'
+        : `https://${window.location.host}`;
+      
+      // Adăugăm timestamp pentru a preveni caching
+      const timestamp = new Date().getTime();
+      const fallbackUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+      console.log('URL imagine fallback:', fallbackUrl);
+      return fallbackUrl;
+    }
+    
     // Construim URL-ul complet - folosim întotdeauna HTTPS pentru partajare
     let fullImageUrl;
     
@@ -61,19 +80,12 @@ const MemePage = () => {
     if (imageUrl.startsWith('http://')) {
       // Convertim http la https pentru a preveni mixed content
       fullImageUrl = imageUrl.replace('http://', 'https://');
+      console.log('URL convertit de la HTTP la HTTPS:', fullImageUrl);
     }
     // URL-uri HTTPS le păstrăm ca atare
     else if (imageUrl.startsWith('https://')) {
-      // Nu acceptăm URL-uri de la imgur (acestea nu sunt permise în aplicația noastră)
-      if (imageUrl.includes('imgur.com')) {
-        console.error('Detected imgur URL, not using it:', imageUrl);
-        // Folosim imaginea fallback în loc
-        const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-          ? 'https://bossme.me'
-          : `https://${window.location.host}`;
-        return `${baseUrl}/images/web-app-manifest-512x512.png`;
-      }
       fullImageUrl = imageUrl;
+      console.log('URL HTTPS păstrat ca atare:', fullImageUrl);
     }
     // Pentru URL-uri relative - construim URL-ul complet
     else {
@@ -85,6 +97,7 @@ const MemePage = () => {
       // Asigurăm formatul corect al path-ului
       const imagePath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
       fullImageUrl = `${baseUrl}${imagePath}`;
+      console.log('URL relativ convertit la absolut:', fullImageUrl);
     }
     
     // Verificăm dacă URL-ul este valid
@@ -92,7 +105,16 @@ const MemePage = () => {
       new URL(fullImageUrl);
     } catch (e) {
       console.error('URL invalid pentru imagine:', fullImageUrl);
-      return null;
+      console.log('⚠️ URL invalid - vom folosi imaginea de fallback');
+      
+      // Folosim imaginea fallback în caz de eroare
+      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+        ? 'https://bossme.me'
+        : `https://${window.location.host}`;
+      
+      // Adăugăm timestamp pentru a preveni caching
+      const timestamp = new Date().getTime();
+      return `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}`;
     }
     
     // Adăugăm parametrul de cache-busting pentru a forța reîncărcarea imaginii
@@ -104,6 +126,22 @@ const MemePage = () => {
     fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&tw_width=1200&tw_height=630&_platform=share`;
     
     console.log('URL final pentru imaginea meme-ului cu timestamp:', fullImageUrl);
+    
+    // Facem un HEAD request pentru a verifica dacă imaginea există
+    fetch(fullImageUrl, { method: 'HEAD' })
+      .then(response => {
+        if (response.ok) {
+          console.log('🟢 Imaginea există și este accesibilă:', response.status);
+        } else {
+          console.log('🔴 Imaginea nu este accesibilă:', response.status);
+        }
+      })
+      .catch(error => {
+        console.error('🔴 Eroare la verificarea imaginii:', error.message);
+      });
+    
+    console.log('========== END MEME IMAGE DEBUG ==========');
+    
     return fullImageUrl;
   };
   
