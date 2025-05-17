@@ -25,39 +25,48 @@ const MetaTags = ({
   // Asigură-te că avem un URL complet pentru imagine
   let imageUrl;
   if (image && image.trim() !== '') {
-    // Adăugăm protocolul și domeniul dacă lipsesc
-    if (!image.startsWith('http')) {
-      // Folosim întotdeauna HTTPS pentru a preveni mixed content
-      const baseUrl = window.location.hostname === 'bossme.me' 
-        ? 'https://bossme.me' 
-        : (window.location.protocol === 'https:' 
-          ? `${window.location.origin}` 
-          : `https://${window.location.host}`);
-          
-      const imagePath = image.startsWith('/') ? image : '/' + image;
-      imageUrl = baseUrl + imagePath;
-    } else if (image.startsWith('http://')) {
-      // Convertim http la https pentru a preveni mixed content
-      imageUrl = image.replace('http://', 'https://');
+    // Dacă este un URL de la imgur, folosim imaginea de fallback
+    if (image.includes('imgur.com')) {
+      console.log('MetaTags - Imagine de pe imgur detectată, folosim fallback');
+      const baseUrl = window.location.protocol === 'https:' ? 'https' : 'http';
+      const hostname = window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host;
+      imageUrl = `${baseUrl}://${hostname}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+      isFallbackImage = true;
     } else {
-      imageUrl = image;
+      // Adăugăm protocolul și domeniul dacă lipsesc
+      if (!image.startsWith('http')) {
+        // Folosim întotdeauna HTTPS pentru a preveni mixed content
+        const baseUrl = window.location.hostname === 'bossme.me' 
+          ? 'https://bossme.me' 
+          : (window.location.protocol === 'https:' 
+            ? `${window.location.origin}` 
+            : `https://${window.location.host}`);
+            
+        const imagePath = image.startsWith('/') ? image : '/' + image;
+        imageUrl = baseUrl + imagePath;
+      } else if (image.startsWith('http://')) {
+        // Convertim http la https pentru a preveni mixed content
+        imageUrl = image.replace('http://', 'https://');
+      } else {
+        imageUrl = image;
+      }
+      
+      // Verificăm dacă URL-ul conține parametrul de query pentru forțarea cache bust
+      if (!imageUrl.includes('t=') && !imageUrl.includes('_t=')) {
+        // Adăugăm timestamp la URL-ul imaginii pentru a forța reîmprospătarea și a preveni caching
+        const separator = imageUrl.includes('?') ? '&' : '?';
+        imageUrl = `${imageUrl}${separator}t=${timestamp}`;
+      }
+      
+      // Adăugăm parametri de dimensiune pentru Twitter Card
+      if (!imageUrl.includes('tw_width=') && !imageUrl.includes('tw_height=')) {
+        const separator = imageUrl.includes('?') ? '&' : '?';
+        imageUrl = `${imageUrl}${separator}tw_width=1200&tw_height=630`;
+      }
+      
+      // Afișăm URL-ul complet al imaginii pentru debugging
+      console.log('MetaTags - Folosesc imaginea reală:', imageUrl);
     }
-    
-    // Verificăm dacă URL-ul conține parametrul de query pentru forțarea cache bust
-    if (!imageUrl.includes('t=') && !imageUrl.includes('_t=')) {
-      // Adăugăm timestamp la URL-ul imaginii pentru a forța reîmprospătarea și a preveni caching
-      const separator = imageUrl.includes('?') ? '&' : '?';
-      imageUrl = `${imageUrl}${separator}t=${timestamp}`;
-    }
-    
-    // Adăugăm parametri de dimensiune pentru Twitter Card
-    if (!imageUrl.includes('tw_width=') && !imageUrl.includes('tw_height=')) {
-      const separator = imageUrl.includes('?') ? '&' : '?';
-      imageUrl = `${imageUrl}${separator}tw_width=1200&tw_height=630`;
-    }
-    
-    // Afișăm URL-ul complet al imaginii pentru debugging
-    console.log('MetaTags - Folosesc imaginea reală:', imageUrl);
   } else {
     // Folosim imaginea de fallback de dimensiune mare în loc de favicon
     // web-app-manifest-512x512.png are dimensiuni suficient de mari pentru preview-uri

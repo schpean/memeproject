@@ -79,6 +79,9 @@ app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirnam
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD');
     res.setHeader('Access-Control-Max-Age', '86400'); // 24 ore
     
+    // Permite încărcarea imaginilor de pe imgflip.com și alte domenii externe
+    res.setHeader('Content-Security-Policy', "img-src * 'self' https://*.imgflip.com data:;");
+    
     if (crawlerType) {
       console.log(`${crawlerType.toUpperCase()} crawler detected for:`, req.url);
       

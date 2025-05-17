@@ -51,6 +51,19 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
     
     console.log('ShareDropdown - Procesez URL imagine:', imageUrl);
     
+    // Dacă URL-ul conține referințe către servicii externe neautorizate, folosim imaginea de fallback
+    // Permitem imgflip.com, blocăm doar imgur.com
+    if (imageUrl.includes('imgur.com')) {
+      console.log('ShareDropdown - URL extern imgur detectat, folosim imaginea de fallback');
+      
+      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+        ? 'https://bossme.me'
+        : `https://${window.location.host}`;
+        
+      const timestamp = new Date().getTime();
+      return `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&source=share`;
+    }
+    
     // Dacă URL-ul imaginii conține deja protocol (http/https), este deja absolut
     if (imageUrl.startsWith('http://')) {
       // Convertim http la https pentru a preveni mixed content

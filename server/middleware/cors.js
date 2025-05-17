@@ -85,6 +85,9 @@ const staticFilesCorsMiddleware = (req, res, next) => {
   // accesul cross-origin la resurse
   res.header('Cross-Origin-Resource-Policy', 'cross-origin');
   
+  // Permite încărcarea imaginilor de pe imgflip.com și alte domenii externe
+  res.header('Content-Security-Policy', "img-src * 'self' https://*.imgflip.com data:;");
+  
   // Dacă este un crawler social, folosim cache public pentru a permite
   // încărcarea și procesarea corectă a imaginilor
   if (isSocialCrawler) {
