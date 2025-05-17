@@ -47,21 +47,51 @@ app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirnam
   maxAge: '0', // Oprim cache-ul pentru a forța reîncărcarea imaginilor
   etag: false, // Dezactivăm etags pentru a preveni caching-ul
   lastModified: false, // Dezactivăm lastModified pentru a preveni caching-ul
-  setHeaders: (res) => {
+  setHeaders: (res, filePath, stat) => {
+    // Detectăm request-urile de la WhatsApp crawler
+    const req = res.req;
+    const userAgent = req.headers['user-agent'] || '';
+    const isWhatsAppCrawler = userAgent.includes('WhatsApp');
+    
     // Permite accesul cross-origin pentru imagini (esențial pentru Facebook OG și alte platforme)
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD');
     res.setHeader('Access-Control-Max-Age', '86400'); // 24 ore
     
-    // Prevenim cache-ul complet pentru a forța Facebook și alte platforme să reîncarce imaginile
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    if (isWhatsAppCrawler) {
+      console.log('WhatsApp crawler detected, optimizing response for:', req.url);
+      // WhatsApp necesită un cache mai relaxat pentru a putea procesa și afișa imaginile
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.setHeader('X-WhatsApp-Crawler', 'allow');
+      res.setHeader('X-Image-Max-Preview', 'large');
+    } else {
+      // Prevenim cache-ul complet pentru a forța Facebook și alte platforme să reîncarce imaginile
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
     
     // Header-uri pentru a asigura că imaginile sunt accesibile de la orice origine
     res.setHeader('Timing-Allow-Origin', '*');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    
+    // Header-uri specifice pentru Twitter/X pentru a permite crawlerului să acceseze imaginile
+    res.setHeader('X-Twitter-Image-Access', 'allow');
+    res.setHeader('X-Robots-Tag', 'all');
+    res.setHeader('X-Twitter-Crawler', 'allow');
+    
+    // Adăugăm Content-Type corect pentru imagini
+    const ext = path.extname(req.path).toLowerCase();
+    if (ext === '.jpg' || ext === '.jpeg') {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (ext === '.png') {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (ext === '.gif') {
+      res.setHeader('Content-Type', 'image/gif');
+    } else if (ext === '.webp') {
+      res.setHeader('Content-Type', 'image/webp');
+    }
   }
 }));
 

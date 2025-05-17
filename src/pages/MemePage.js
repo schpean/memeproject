@@ -62,12 +62,14 @@ const MemePage = () => {
       fullImageUrl = `${baseUrl}${imagePath}`;
     }
     
-    // Adăugăm un timestamp pentru a preveni caching-ul și a forța reîncărcarea
-    // Verificăm întâi dacă URL-ul nu conține deja un parametru de timestamp
+    // Verificăm dacă URL-ul conține parametrul de timestamp pentru a forța reîncărcarea
     if (!fullImageUrl.includes('t=') && !fullImageUrl.includes('_t=')) {
       const timestamp = new Date().getTime();
       const separator = fullImageUrl.includes('?') ? '&' : '?';
-      fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}`;
+      
+      // Adăugăm și dimensiunile minime pentru Twitter Card (summary_large_image) care necesită minim 300x157
+      // Indicăm explicit că imaginea are dimensiunile corecte pentru Twitter
+      fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&tw_width=1200&tw_height=630`;
     }
     
     console.log('URL final pentru imaginea meme-ului cu timestamp:', fullImageUrl);

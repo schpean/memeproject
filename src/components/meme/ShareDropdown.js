@@ -242,9 +242,30 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
         let shareText = '';
         if (title) shareText += title;
         if (message) shareText += shareText ? ` - ${message}` : message;
-        shareText += shareText ? '\n\n' + absoluteUrl : absoluteUrl;
         
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, '_blank');
+        // Adăugăm URL-ul la final, fără să-l includem în text
+        // Acest lucru va permite WhatsApp să extragă corect link preview-ul
+        
+        // Construim link-ul pentru WhatsApp Share
+        const whatsappShareUrl = new URL('https://api.whatsapp.com/send');
+        whatsappShareUrl.searchParams.append('text', shareText);
+        
+        // Adăugăm URL-ul separat după un line break pentru a optimiza procesarea
+        // Așa WhatsApp va detecta mai ușor URL-ul
+        if (shareText) {
+          whatsappShareUrl.searchParams.append('text', `${shareText}\n\n${absoluteUrl}`);
+        } else {
+          whatsappShareUrl.searchParams.append('text', absoluteUrl);
+        }
+        
+        // Adăugăm un timestamp pentru a forța WhatsApp să refacă cache-ul
+        whatsappShareUrl.searchParams.append('_t', new Date().getTime());
+        
+        // Debug
+        console.log('WhatsApp share URL:', whatsappShareUrl.toString());
+        
+        // Deschidem fereastra de partajare
+        window.open(whatsappShareUrl.toString(), '_blank');
         closeDropdown();
       });
       
@@ -256,13 +277,16 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
           twitterUrl.searchParams.append('text', tweetText);
         }
         
+        // Adăugăm URL-ul meme-ului
         twitterUrl.searchParams.append('url', absoluteUrl);
         
-        if (absoluteImageUrl) {
-          // Twitter nu suportă direct imagini, dar putem include hashtag-uri relevante
-          twitterUrl.searchParams.append('hashtags', 'bossme,meme');
-        }
+        // Adăugăm card type ca parametru text - Twitter va prelua metadatele de la URL
+        twitterUrl.searchParams.append('card', 'summary_large_image');
         
+        // Adăugăm hashtag-uri specifice pentru a crește vizibilitatea
+        twitterUrl.searchParams.append('hashtags', 'bossme,meme,workplace');
+        
+        // Deschide fereastra de partajare
         window.open(twitterUrl.toString(), '_blank', 'width=600,height=400');
         closeDropdown();
       });

@@ -17,7 +17,20 @@ const corsMiddleware = (req, res, next) => {
     res.header('Access-Control-Allow-Methods', config.corsConfig.methods.join(', '));
     res.header('Access-Control-Allow-Headers', config.corsConfig.allowedHeaders.join(', '));
   } else {
-    // For non-matching origins, return a 403 Forbidden
+    // Verificăm dacă este un request de la WhatsApp crawler bazat pe User-Agent
+    const userAgent = req.headers['user-agent'] || '';
+    
+    if (userAgent.includes('WhatsApp')) {
+      // Permitem accesul pentru crawler-ul WhatsApp
+      console.log('WhatsApp crawler detected:', userAgent);
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, HEAD');
+      
+      // Nu continuăm cu algoritmul de CORS, permitem accesul
+      return next();
+    }
+    
+    // Pentru alte origini nepermise, returnăm 403 Forbidden
     return res.status(403).json({ 
       error: 'CORS Error', 
       message: 'Origin not allowed', 
@@ -39,6 +52,10 @@ const staticFilesCorsMiddleware = (req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = config.corsConfig.allowedOrigins.filter(origin => origin !== '*');
   
+  // Verifică dacă requestul vine de la WhatsApp crawler
+  const userAgent = req.headers['user-agent'] || '';
+  const isWhatsAppCrawler = userAgent.includes('WhatsApp');
+  
   // Pentru accesarea imaginilor de către crawlerele rețelelor sociale,
   // permitem accesul de la orice origine
   res.header('Access-Control-Allow-Origin', '*');
@@ -48,10 +65,23 @@ const staticFilesCorsMiddleware = (req, res, next) => {
   // accesul cross-origin la resurse (necesar pentru Facebook, Twitter, etc.)
   res.header('Cross-Origin-Resource-Policy', 'cross-origin');
   
-  // Dezactivăm cache-ul pentru a forța reîncărcarea imaginilor
-  res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.header('Pragma', 'no-cache');
-  res.header('Expires', '0');
+  // Headerele necesare pentru Twitter/X card crawler
+  res.header('X-Twitter-Image-Access', 'allow');
+  res.header('X-Robots-Tag', 'all');
+  res.header('X-Twitter-Crawler', 'allow');
+  
+  // Headere specifice pentru WhatsApp crawler
+  if (isWhatsAppCrawler) {
+    res.header('X-WhatsApp-Crawler', 'allow');
+    res.header('X-Image-Max-Preview', 'large');
+    // WhatsApp necesită un cache mai relaxat pentru a putea recupera imaginile
+    res.header('Cache-Control', 'public, max-age=300');
+  } else {
+    // Dezactivăm cache-ul pentru a forța reîncărcarea imaginilor pentru alte platforme
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+  }
   
   next();
 };

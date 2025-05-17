@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 /**
  * Componentă optimizată pentru managementul meta tag-urilor și Open Graph
  * Facilitează partajarea optimă a conținutului pe rețelele sociale cu preview-uri mari
+ * Optimizat și pentru WhatsApp, Twitter și Facebook
  */
 const MetaTags = ({ 
   title, 
@@ -49,21 +50,26 @@ const MetaTags = ({
     // Afișăm URL-ul complet al imaginii pentru debugging
     console.log('MetaTags - Folosesc imaginea reală:', imageUrl);
   } else {
-    // Nu mai folosim imagini default de pe imgur
-    // Folosim o imagine locală din folder-ul public care sigur există și are dimensiunea corectă
-    imageUrl = `${window.location.protocol === 'https:' ? 'https' : 'http'}://${window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host}/images/bossme-cover.jpg?t=${timestamp}`;
-    console.log('MetaTags - Nu am găsit imagine, folosesc cover local:', imageUrl);
+    // Folosim favicon-ul care există sigur
+    imageUrl = `${window.location.protocol === 'https:' ? 'https' : 'http'}://${window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host}/favicon-96x96.png?t=${timestamp}`;
+    console.log('MetaTags - Nu am găsit imagine, folosesc favicon:', imageUrl);
   }
 
   // URL-ul canonic
   const canonicalUrl = url || window.location.href;
+
+  // Descriere limitată pentru WhatsApp (max 80 caractere recomandat)
+  const whatsappDescription = description && description.length > 80 
+    ? description.substring(0, 77) + '...' 
+    : description;
 
   // Log pentru debugging
   useEffect(() => {
     console.log('MetaTags - Timestamp:', timestamp);
     console.log('MetaTags - Image URL:', imageUrl);
     console.log('MetaTags - Canonical URL:', canonicalUrl);
-  }, [imageUrl, canonicalUrl, timestamp]);
+    console.log('MetaTags - WhatsApp Description:', whatsappDescription);
+  }, [imageUrl, canonicalUrl, timestamp, whatsappDescription]);
 
   return (
     <Helmet>
@@ -85,15 +91,15 @@ const MetaTags = ({
       <meta property="og:image:secure_url" content={imageUrl} />
       <meta property="og:image:url" content={imageUrl} />
       
-      {/* Important: Dimensiuni exacte pentru Facebook - minim 200x200px, recomandat 1200x630px */}
-      <meta property="og:image:width" content="1200" />
-      <meta property="og:image:height" content="630" />
+      {/* Dimensiuni pentru favicon (96x96px) */}
+      <meta property="og:image:width" content="96" />
+      <meta property="og:image:height" content="96" />
       <meta property="og:image:alt" content={title} />
-      <meta property="og:image:type" content="image/jpeg" />
+      <meta property="og:image:type" content="image/png" />
       
       {/* Dimensiuni minime pentru Facebook - FOARTE IMPORTANTE */}
-      <meta property="og:image:width:min" content="200" />
-      <meta property="og:image:height:min" content="200" />
+      <meta property="og:image:width:min" content="96" />
+      <meta property="og:image:height:min" content="96" />
       
       {/* Facebook-specific meta */}
       <meta property="fb:app_id" content="936362457330483" />
@@ -112,12 +118,29 @@ const MetaTags = ({
       <meta name="twitter:image" content={imageUrl} />
       <meta name="twitter:image:src" content={imageUrl} />
       <meta name="twitter:image:alt" content={title} />
-      <meta name="twitter:image:width" content="1200" />
-      <meta name="twitter:image:height" content="630" />
+      <meta name="twitter:domain" content="bossme.me" />
       
-      {/* WhatsApp specific */}
-      <meta property="og:image:width" content="1200" />
-      <meta property="og:image:height" content="630" />
+      {/* Dimensiuni pentru Twitter - pentru favicon */}
+      <meta name="twitter:image:width" content="96" />
+      <meta name="twitter:image:height" content="96" />
+      
+      {/* WhatsApp specific - Optimizate pentru link preview */}
+      <meta property="og:image:width" content="96" />
+      <meta property="og:image:height" content="96" />
+      
+      {/* WhatsApp necesită aspect ratio de maxim 4:1 și minim 300px lățime */}
+      <meta property="whatsapp:title" content={title} />
+      <meta property="whatsapp:description" content={whatsappDescription} />
+      <meta property="whatsapp:image" content={imageUrl} />
+      <meta property="whatsapp:image:alt" content={title} />
+      
+      {/* WhatsApp dimension requirements for image */}
+      <meta property="whatsapp:image:width" content="96" />
+      <meta property="whatsapp:image:height" content="96" />
+      
+      {/* Specificări WhatsApp pentru browsere mobile */}
+      <meta name="format-detection" content="telephone=no" />
+      <meta name="robots" content="max-image-preview:large" />
       
       {/* Specifice pentru articole */}
       {type === 'article' && (

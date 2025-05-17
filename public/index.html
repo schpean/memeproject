@@ -19,11 +19,11 @@
     <!-- Default Open Graph / Social Media Tags -->
     <meta property="og:title" content="bossme.me - Workplace Memes" />
     <meta property="og:description" content="Expose the Fun. Share the Struggles. Meme Your Workplace!" />
-    <meta property="og:image" content="https://i.imgur.com/QcyJZdx.jpg" />
-    <meta property="og:image:secure_url" content="https://i.imgur.com/QcyJZdx.jpg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image" content="https://bossme.me/favicon-96x96.png" />
+    <meta property="og:image:secure_url" content="https://bossme.me/favicon-96x96.png" />
+    <meta property="og:image:width" content="96" />
+    <meta property="og:image:height" content="96" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:alt" content="bossme.me - Workplace Memes" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://bossme.me" />
@@ -35,8 +35,21 @@
     <meta name="twitter:site" content="@bossme_me" />
     <meta name="twitter:title" content="bossme.me - Workplace Memes" />
     <meta name="twitter:description" content="Expose the Fun. Share the Struggles. Meme Your Workplace!" />
-    <meta name="twitter:image" content="https://i.imgur.com/QcyJZdx.jpg" />
+    <meta name="twitter:image" content="https://bossme.me/favicon-96x96.png" />
     <meta name="twitter:image:alt" content="bossme.me - Workplace Memes" />
+    <meta name="twitter:domain" content="bossme.me" />
+    
+    <!-- WhatsApp Specific Tags -->
+    <meta property="whatsapp:title" content="bossme.me - Workplace Memes" />
+    <meta property="whatsapp:description" content="Expose the Fun. Share the Struggles. Meme Your Workplace!" />
+    <meta property="whatsapp:image" content="https://bossme.me/favicon-96x96.png" />
+    <meta property="whatsapp:image:width" content="96" />
+    <meta property="whatsapp:image:height" content="96" />
+    <meta property="whatsapp:image:alt" content="bossme.me - Workplace Memes" />
+    
+    <!-- Headers to optimize for content crawlers -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="robots" content="max-image-preview:large" />
     
     <!-- Inline critical CSS to prevent FOUC -->
     <style>
@@ -115,21 +128,30 @@
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <!-- Loading spinner that will be shown until React renders -->
-    <div id="app-loading" class="app-loading">
-      <div class="app-loading-spinner"></div>
-      <div class="app-loading-text">bossme.me se încarcă...</div>
-    </div>
     <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
+    
+    <!-- App loading indicator -->
+    <div class="app-loading">
+      <div class="app-loading-spinner"></div>
+      <div class="app-loading-text">Încărcare...</div>
+    </div>
+    
+    <script>
+      // Remove loading screen once page is loaded
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          var loadingScreen = document.querySelector('.app-loading');
+          if (loadingScreen) {
+            loadingScreen.classList.add('hidden');
+            // Remove from DOM after animation
+            setTimeout(function() {
+              if (loadingScreen.parentNode) {
+                loadingScreen.parentNode.removeChild(loadingScreen);
+              }
+            }, 300);
+          }
+        }, 500);
+      });
+    </script>
   </body>
 </html>
