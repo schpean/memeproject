@@ -57,17 +57,26 @@ const detectCrawler = (req) => {
   if (userAgent.toLowerCase().includes('bot') || 
       userAgent.toLowerCase().includes('whatsapp') || 
       userAgent.toLowerCase().includes('facebook') || 
+      userAgent.toLowerCase().includes('messenger') ||
       userAgent.toLowerCase().includes('twitter') ||
-      userAgent.toLowerCase().includes('twitterbot')) {
+      userAgent.toLowerCase().includes('twitterbot') ||
+      userAgent.toLowerCase().includes('electron')) {
     console.log('🔍 Crawler detected - Full User-Agent:', userAgent);
     console.log('🔍 Headers:', JSON.stringify(req.headers, null, 2));
   }
   
-  const isWhatsAppCrawler = userAgent.toLowerCase().includes('whatsapp');
+  // WhatsApp are mai multe variante de User-Agent
+  const isWhatsAppCrawler = userAgent.toLowerCase().includes('whatsapp') || 
+                           req.query._platform === 'whatsapp' ||
+                           (userAgent.toLowerCase().includes('electron') && req.query._platform === 'whatsapp');
   const isTwitterCrawler = userAgent.toLowerCase().includes('twitterbot') || 
-                          userAgent.toLowerCase().includes('twitter');
-  const isFacebookCrawler = userAgent.toLowerCase().includes('facebookexternalhit') || 
-                           userAgent.toLowerCase().includes('facebook');
+                          userAgent.toLowerCase().includes('twitter') ||
+                          req.query._platform === 'twitter';
+  const isFacebookCrawler = userAgent.toLowerCase().includes('facebookexternalhit') ||
+                           userAgent.toLowerCase().includes('messenger') ||
+                           userAgent.toLowerCase().includes('facebook') ||
+                           req.query._platform === 'facebook' ||
+                           req.query._platform === 'messenger';
   const isGenericBot = (userAgent.toLowerCase().includes('bot') || 
                        userAgent.toLowerCase().includes('crawler')) && 
                        !isWhatsAppCrawler && 
@@ -75,8 +84,12 @@ const detectCrawler = (req) => {
                        !isFacebookCrawler;
   
   if (isWhatsAppCrawler) {
-    console.log('✅ Detected WhatsApp crawler');
-    return 'whatsapp';
+    // Detectăm dacă este WhatsApp Desktop sau Mobile
+    const isDesktop = userAgent.toLowerCase().includes('electron') || 
+                     userAgent.toLowerCase().includes('windows') || 
+                     userAgent.toLowerCase().includes('macos');
+    console.log('✅ Detected WhatsApp crawler - Desktop:', isDesktop ? 'Yes' : 'No');
+    return isDesktop ? 'whatsapp-desktop' : 'whatsapp';
   }
   if (isTwitterCrawler) {
     console.log('✅ Detected Twitter crawler');
@@ -84,6 +97,11 @@ const detectCrawler = (req) => {
   }
   if (isFacebookCrawler) {
     console.log('✅ Detected Facebook crawler');
+    // Verificăm dacă este Messenger specific
+    if (userAgent.toLowerCase().includes('messenger') || req.query._platform === 'messenger') {
+      console.log('✅ Specifically detected Messenger crawler');
+      return 'messenger';
+    }
     return 'facebook';
   }
   if (isGenericBot) {
@@ -143,6 +161,11 @@ app.use(async (req, res, next) => {
           const timestamp = new Date().getTime();
           imageUrl = imageUrl + (imageUrl.includes('?') ? '&' : '?') + 't=' + timestamp + '&_nocache=1';
           
+          // Adaugă parametri specifici pentru WhatsApp Desktop
+          if (crawlerType === 'whatsapp-desktop') {
+            imageUrl += '&_client=desktop';
+          }
+          
           console.log(`[${crawlerType.toUpperCase()}] Using image URL:`, imageUrl);
         } else {
           // Folosește imaginea fallback
@@ -153,6 +176,9 @@ app.use(async (req, res, next) => {
         // Construiește titlul
         const title = meme.title || `${meme.company}'s review meme | bossme.me`;
         
+        // Titlu simplificat pentru toate platformele
+        const simplifiedTitle = 'bossme.me';
+        
         // Construiește descrierea
         let description = `Check out this meme about ${meme.company || 'workplace'}`;
         if (meme.message) {
@@ -162,8 +188,16 @@ app.use(async (req, res, next) => {
           description += `: ${truncatedMessage}`;
         }
         
+        // Descriere simplificată pentru toate platformele
+        let simplifiedDescription = 'bossme.me';
+        
         // Servește HTML special pentru crawler-ele social media
-        if (crawlerType === 'twitter' || crawlerType === 'facebook' || crawlerType === 'whatsapp') {
+        if (crawlerType === 'twitter' || 
+            crawlerType === 'facebook' || 
+            crawlerType === 'messenger' ||
+            crawlerType === 'whatsapp' || 
+            crawlerType === 'whatsapp-desktop') {
+          
           // Headere pentru crawlere
           res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
           res.setHeader('Access-Control-Allow-Origin', '*');
@@ -171,18 +205,31 @@ app.use(async (req, res, next) => {
           res.setHeader('X-Robots-Tag', 'all');
           
           // Headere specifice pentru diferite platforme
-          if (crawlerType === 'whatsapp') {
+          if (crawlerType === 'whatsapp' || crawlerType === 'whatsapp-desktop') {
             res.setHeader('X-WhatsApp-Crawler', 'allow');
             res.setHeader('X-Image-Max-Preview', 'large');
             console.log('✅ WhatsApp headers set for meme page:', req.path);
+            
+            // Headere suplimentare pentru WhatsApp Desktop
+            if (crawlerType === 'whatsapp-desktop') {
+              res.setHeader('X-WhatsApp-Desktop', 'true');
+              res.setHeader('Sec-Fetch-Mode', 'cors');
+              res.setHeader('Sec-Fetch-Dest', 'image');
+              console.log('✅ WhatsApp Desktop specific headers added');
+            }
           } else if (crawlerType === 'twitter') {
             res.setHeader('X-Twitter-Image-Access', 'allow');
             res.setHeader('X-Twitter-Crawler', 'allow');
             res.setHeader('X-Twitter-Card', 'summary_large_image');
             console.log('✅ Twitter headers set for meme page:', req.path);
-          } else if (crawlerType === 'facebook') {
+          } else if (crawlerType === 'facebook' || crawlerType === 'messenger') {
             res.setHeader('X-Facebook-Crawler', 'allow');
             console.log('✅ Facebook headers set for meme page:', req.path);
+            
+            if (crawlerType === 'messenger') {
+              res.setHeader('X-Messenger-Crawler', 'allow');
+              console.log('✅ Messenger specific headers added');
+            }
           }
           
           // Citește fișierul index.html pentru a-l modifica
@@ -197,18 +244,19 @@ app.use(async (req, res, next) => {
             let htmlWithMeta = data;
             
             // Înlocuiește titlul
-            htmlWithMeta = htmlWithMeta.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
+            // Pentru toate platformele folosim un titlu simplificat
+            htmlWithMeta = htmlWithMeta.replace(/<title>.*?<\/title>/, `<title>${simplifiedTitle}</title>`);
             
             // Înlocuiește meta tag-urile pentru Twitter și OG
             const metaReplacements = [
               // Meta pentru titlu
-              { pattern: /<meta property="og:title"[^>]*>/, replacement: `<meta property="og:title" content="${title}">` },
-              { pattern: /<meta name="twitter:title"[^>]*>/, replacement: `<meta name="twitter:title" content="${title}">` },
+              { pattern: /<meta property="og:title"[^>]*>/, replacement: `<meta property="og:title" content="${simplifiedTitle}">` },
+              { pattern: /<meta name="twitter:title"[^>]*>/, replacement: `<meta name="twitter:title" content="${simplifiedTitle}">` },
               
               // Meta pentru descriere
-              { pattern: /<meta property="og:description"[^>]*>/, replacement: `<meta property="og:description" content="${description}">` },
-              { pattern: /<meta name="twitter:description"[^>]*>/, replacement: `<meta name="twitter:description" content="${description}">` },
-              { pattern: /<meta name="description"[^>]*>/, replacement: `<meta name="description" content="${description}">` },
+              { pattern: /<meta property="og:description"[^>]*>/, replacement: `<meta property="og:description" content="${simplifiedDescription}">` },
+              { pattern: /<meta name="twitter:description"[^>]*>/, replacement: `<meta name="twitter:description" content="${simplifiedDescription}">` },
+              { pattern: /<meta name="description"[^>]*>/, replacement: `<meta name="description" content="${simplifiedDescription}">` },
               
               // Meta pentru imagine
               { pattern: /<meta property="og:image"[^>]*>/, replacement: `<meta property="og:image" content="${imageUrl}">` },
@@ -216,6 +264,22 @@ app.use(async (req, res, next) => {
               { pattern: /<meta property="og:image:url"[^>]*>/, replacement: `<meta property="og:image:url" content="${imageUrl}">` },
               { pattern: /<meta name="twitter:image"[^>]*>/, replacement: `<meta name="twitter:image" content="${imageUrl}">` },
               { pattern: /<meta name="twitter:image:src"[^>]*>/, replacement: `<meta name="twitter:image:src" content="${imageUrl}">` },
+              
+              // Meta pentru dimensiuni imagini - maxime pentru toate platformele
+              { pattern: /<meta property="og:image:width"[^>]*>/, replacement: `<meta property="og:image:width" content="1200">` },
+              { pattern: /<meta property="og:image:height"[^>]*>/, replacement: `<meta property="og:image:height" content="630">` },
+              
+              // WhatsApp specific meta tags
+              { pattern: /<meta property="whatsapp:image"[^>]*>/, replacement: `<meta property="whatsapp:image" content="${imageUrl}">` },
+              { pattern: /<meta property="whatsapp:title"[^>]*>/, replacement: `<meta property="whatsapp:title" content="${simplifiedTitle}">` },
+              { pattern: /<meta property="whatsapp:description"[^>]*>/, replacement: `<meta property="whatsapp:description" content="${simplifiedDescription}">` },
+              
+              // WhatsApp specific dimensions
+              { pattern: /<meta property="whatsapp:image:width"[^>]*>/, replacement: `<meta property="whatsapp:image:width" content="1200">` },
+              { pattern: /<meta property="whatsapp:image:height"[^>]*>/, replacement: `<meta property="whatsapp:image:height" content="630">` },
+              
+              // Facebook specifics
+              { pattern: /<meta property="fb:app_id"[^>]*>/, replacement: `<meta property="fb:app_id" content="936362457330483">` },
               
               // Meta pentru tipul de conținut
               { pattern: /<meta property="og:type"[^>]*>/, replacement: `<meta property="og:type" content="article">` },
@@ -233,6 +297,62 @@ app.use(async (req, res, next) => {
             // Adaugă meta tag pentru timpul actualizării pentru a preveni caching-ul
             const updateTimeTag = `<meta property="og:updated_time" content="${new Date().toISOString()}">`;
             htmlWithMeta = htmlWithMeta.replace('</head>', `${updateTimeTag}</head>`);
+            
+            // Adaugă meta tag-uri specifice pentru Facebook și Messenger
+            const socialOptimizationTags = `
+              <!-- Social optimization tags -->
+              <meta property="og:image:ratio" content="1.91">
+              <meta property="og:image:aspect_ratio" content="1.91">
+              <meta property="og:site_name" content="bossme.me">
+              <meta property="og:image:type" content="image/jpeg">
+              <meta property="og:rich_attachment" content="true">
+              <meta property="og:image:width:min" content="1200">
+              <meta property="og:image:height:min" content="630">
+            `;
+            htmlWithMeta = htmlWithMeta.replace('</head>', `${socialOptimizationTags}</head>`);
+            console.log('✅ Added image optimization meta tags');
+            
+            // Adaugă un script special pentru WhatsApp Desktop care forțează preview-ul
+            if (crawlerType === 'whatsapp-desktop') {
+              const whatsappDesktopScript = `
+                <script>
+                window.onload = function() {
+                  // Crează un element link preview pentru WhatsApp Desktop
+                  var linkPreview = document.createElement('div');
+                  linkPreview.className = 'whatsapp-preview';
+                  linkPreview.style.display = 'block';
+                  linkPreview.style.width = '100%';
+                  linkPreview.style.maxWidth = '600px';
+                  linkPreview.style.margin = '20px auto';
+                  linkPreview.style.padding = '10px';
+                  linkPreview.style.border = '1px solid #e2e2e2';
+                  linkPreview.style.borderRadius = '8px';
+                  linkPreview.style.backgroundColor = '#fff';
+                  
+                  // Adaugă imaginea
+                  var img = document.createElement('img');
+                  img.src = '${imageUrl}';
+                  img.alt = '${title}';
+                  img.style.width = '100%';
+                  img.style.maxHeight = '300px';
+                  img.style.objectFit = 'contain';
+                  linkPreview.appendChild(img);
+                  
+                  // Adaugă titlul
+                  var titleEl = document.createElement('h3');
+                  titleEl.textContent = '${simplifiedTitle}';
+                  titleEl.style.margin = '10px 0';
+                  titleEl.style.color = '#333';
+                  linkPreview.appendChild(titleEl);
+                  
+                  // Adaugă la pagină
+                  document.body.insertBefore(linkPreview, document.body.firstChild);
+                };
+                </script>
+              `;
+              htmlWithMeta = htmlWithMeta.replace('</head>', `${whatsappDesktopScript}</head>`);
+              console.log('✅ Added WhatsApp Desktop custom preview script');
+            }
             
             console.log(`[${crawlerType.toUpperCase()}] Serving custom meta tags for meme ${memeId}`);
             res.send(htmlWithMeta);

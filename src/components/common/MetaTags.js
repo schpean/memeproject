@@ -22,6 +22,10 @@ const MetaTags = ({
   console.log('- URL:', url);
   console.log('- Image input:', image);
   
+  // Simplificare pentru toate platformele
+  const simplifiedTitle = 'bossme.me';
+  const simplifiedDescription = 'bossme.me';
+  
   // Generăm un timestamp pentru a forța platforma socială să reincarce imaginile
   const timestamp = new Date().getTime();
   
@@ -172,15 +176,15 @@ const MetaTags = ({
   return (
     <Helmet>
       {/* Basic Meta Tags */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
+      <title>{simplifiedTitle}</title>
+      <meta name="description" content={simplifiedDescription} />
       <link rel="canonical" href={canonicalUrl} />
 
       {/* Open Graph / Facebook - Optimizat pentru preview-uri mari */}
       <meta property="og:type" content={type} />
       <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
+      <meta property="og:title" content={simplifiedTitle} />
+      <meta property="og:description" content={simplifiedDescription} />
       <meta property="og:site_name" content={siteName} />
       <meta property="og:locale" content={locale} />
       
@@ -189,28 +193,15 @@ const MetaTags = ({
       <meta property="og:image:secure_url" content={imageUrl} />
       <meta property="og:image:url" content={imageUrl} />
       
-      {/* Dimensiuni pentru imagine */}
-      {isFallbackImage ? (
-        // Dimensiuni pentru imaginea de fallback (512x512)
-        <>
-          <meta property="og:image:width" content="512" />
-          <meta property="og:image:height" content="512" />
-          <meta property="og:image:type" content="image/png" />
-          <meta property="og:image:width:min" content="200" />
-          <meta property="og:image:height:min" content="200" />
-        </>
-      ) : (
-        // Dimensiuni pentru meme (imagini reale)
-        <>
-          <meta property="og:image:width" content="1200" />
-          <meta property="og:image:height" content="630" />
-          <meta property="og:image:type" content="image/jpeg" />
-          <meta property="og:image:width:min" content="200" />
-          <meta property="og:image:height:min" content="200" />
-        </>
-      )}
-      
-      <meta property="og:image:alt" content={title} />
+      {/* Dimensiuni pentru imagine - maximizate pentru toate platformele */}
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:ratio" content="1.91" />
+      <meta property="og:image:aspect_ratio" content="1.91" />
+      <meta property="og:image:type" content="image/jpeg" />
+      <meta property="og:image:width:min" content="1200" />
+      <meta property="og:image:height:min" content="630" />
+      <meta property="og:image:alt" content={simplifiedTitle} />
       
       {/* Facebook-specific meta */}
       <meta property="fb:app_id" content="936362457330483" />
@@ -224,59 +215,29 @@ const MetaTags = ({
       <meta name="twitter:site" content="@bossme_me" />
       <meta name="twitter:creator" content="@bossme_me" />
       <meta name="twitter:url" content={canonicalUrl} />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
+      <meta name="twitter:title" content={simplifiedTitle} />
+      <meta name="twitter:description" content={simplifiedDescription} />
       <meta name="twitter:image" content={imageUrl} />
       <meta name="twitter:image:src" content={imageUrl} />
-      <meta name="twitter:image:alt" content={title} />
+      <meta name="twitter:image:alt" content={simplifiedTitle} />
       <meta name="twitter:domain" content="bossme.me" />
+      <meta name="twitter:image:width" content="1200" />
+      <meta name="twitter:image:height" content="630" />
+      <meta name="twitter:dnt" content="on" />
       
-      {/* Dimensiuni pentru Twitter */}
-      {isFallbackImage ? (
-        // Dimensiuni pentru imaginea de fallback
-        <>
-          <meta name="twitter:image:width" content="512" />
-          <meta name="twitter:image:height" content="512" />
-        </>
-      ) : (
-        // Dimensiuni pentru meme (imagini reale)
-        <>
-          <meta name="twitter:image:width" content="1200" />
-          <meta name="twitter:image:height" content="630" />
-        </>
-      )}
-      
-      {/* WhatsApp specific - Optimizate pentru link preview */}
-      {isFallbackImage ? (
-        <>
-          <meta property="og:image:width" content="512" />
-          <meta property="og:image:height" content="512" />
-        </>
-      ) : (
-        <>
-          <meta property="og:image:width" content="1200" />
-          <meta property="og:image:height" content="630" />
-        </>
-      )}
-      
-      {/* WhatsApp necesită aspect ratio de maxim 4:1 și minim 300px lățime */}
-      <meta property="whatsapp:title" content={title} />
-      <meta property="whatsapp:description" content={whatsappDescription} />
+      {/* WhatsApp Specific Tags */}
+      <meta property="whatsapp:title" content={simplifiedTitle} />
+      <meta property="whatsapp:description" content={simplifiedDescription} />
       <meta property="whatsapp:image" content={imageUrl} />
-      <meta property="whatsapp:image:alt" content={title} />
+      <meta property="whatsapp:image:width" content="1200" />
+      <meta property="whatsapp:image:height" content="630" />
+      <meta property="whatsapp:image:alt" content={simplifiedTitle} />
       
-      {/* WhatsApp dimension requirements for image */}
-      {isFallbackImage ? (
-        <>
-          <meta property="whatsapp:image:width" content="512" />
-          <meta property="whatsapp:image:height" content="512" />
-        </>
-      ) : (
-        <>
-          <meta property="whatsapp:image:width" content="1200" />
-          <meta property="whatsapp:image:height" content="630" />
-        </>
-      )}
+      {/* Specificații suplimentare pentru WhatsApp */}
+      <meta property="og:image:type" content="image/jpeg" />
+      <meta property="og:image:width:min" content="1200" />
+      <meta property="og:image:height:min" content="630" />
+      <meta property="og:rich_attachment" content="true" />
       
       {/* Specificații WhatsApp pentru browsere mobile */}
       <meta name="format-detection" content="telephone=no" />
@@ -306,6 +267,14 @@ const MetaTags = ({
           <meta name="twitter:platform" content="true" />
           <meta property="twitter:label1" content="Via" />
           <meta property="twitter:data1" content="@bossme_me" />
+        </>
+      )}
+      
+      {sharingPlatform === 'messenger' && (
+        <>
+          <meta name="messenger:platform" content="true" />
+          <meta property="og:image:ratio" content="1.91" />
+          <meta property="og:rich_attachment" content="true" />
         </>
       )}
       

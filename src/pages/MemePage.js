@@ -45,6 +45,9 @@ const MemePage = () => {
     console.log('Meme ID:', id);
     console.log('Procesez URL imagine original:', imageUrl);
     
+    // Detectăm platforma de partajare din URL (dacă există)
+    const platform = detectPlatform();
+    
     // Verificăm dacă imaginea vine de la un serviciu extern (imgflip, etc)
     if (imageUrl.includes('imgflip.com')) {
       // Convertim URL-ul imgflip la URL-ul direct către imagine
@@ -52,7 +55,13 @@ const MemePage = () => {
       if (match && match[1]) {
         const identifier = match[1];
         const timestamp = new Date().getTime();
-        const directUrl = `https://i.imgflip.com/${identifier}.jpg?t=${timestamp}&_nocache=1`;
+        let directUrl = `https://i.imgflip.com/${identifier}.jpg?t=${timestamp}&_nocache=1`;
+        
+        // Adăugăm parametru pentru platformă dacă există
+        if (platform) {
+          directUrl += `&_platform=${platform}`;
+        }
+        
         console.log('Am transformat URL-ul imgflip în URL direct:', directUrl);
         return directUrl;
       }
@@ -69,7 +78,13 @@ const MemePage = () => {
       
       // Adăugăm timestamp pentru a preveni caching
       const timestamp = new Date().getTime();
-      const fallbackUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
+      let fallbackUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
+      
+      // Adăugăm parametru pentru platformă dacă există
+      if (platform) {
+        fallbackUrl += `&_platform=${platform}`;
+      }
+      
       console.log('URL imagine fallback:', fallbackUrl);
       return fallbackUrl;
     }
@@ -115,7 +130,14 @@ const MemePage = () => {
       
       // Adăugăm timestamp pentru a preveni caching
       const timestamp = new Date().getTime();
-      return `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
+      let fallbackUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
+      
+      // Adăugăm parametru pentru platformă dacă există
+      if (platform) {
+        fallbackUrl += `&_platform=${platform}`;
+      }
+      
+      return fallbackUrl;
     }
     
     // Adăugăm parametrul de cache-busting pentru a forța reîncărcarea imaginii
@@ -124,7 +146,12 @@ const MemePage = () => {
     
     // Adăugăm și dimensiunile explicite pentru platformele sociale
     // Indicăm platforma pentru care este optimizată imaginea
-    fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&tw_width=1200&tw_height=630&_platform=share&_nocache=1`;
+    fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&tw_width=1200&tw_height=630&_nocache=1`;
+    
+    // Adăugăm parametru pentru platformă dacă există
+    if (platform) {
+      fullImageUrl += `&_platform=${platform}`;
+    }
     
     console.log('URL final pentru imaginea meme-ului cu timestamp:', fullImageUrl);
     
@@ -196,13 +223,50 @@ const MemePage = () => {
       ? 'https://bossme.me'
       : `https://${window.location.host}`;
     
+    // Detectăm platforma de partajare din URL (dacă există)
+    const urlParams = new URLSearchParams(window.location.search);
+    const platform = urlParams.get('_platform');
+    
     // Adăugăm parametru pentru a indica platforma de partajare
+    if (platform) {
+      return `${baseUrl}/meme/${id}?_platform=${platform}&_source=share`;
+    }
+    
     return `${baseUrl}/meme/${id}?_source=share`;
   };
   
+  // Detectează și optimizează pentru platforma de partajare
+  const detectPlatform = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('_platform') || '';
+  };
+  
+  // Generează URL-uri optimizate pentru diverse platforme
+  const getPlatformShareUrl = (platform) => {
+    const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+      ? 'https://bossme.me'
+      : `https://${window.location.host}`;
+    
+    const timestamp = new Date().getTime();
+    return `${baseUrl}/meme/${id}?_platform=${platform}&t=${timestamp}`;
+  };
+  
+  // Funcții helper pentru fiecare platformă
+  const getMessengerUrl = () => getPlatformShareUrl('messenger');
+  const getWhatsAppUrl = () => getPlatformShareUrl('whatsapp');
+  const getTwitterUrl = () => getPlatformShareUrl('twitter');
+  
   // Afișăm URL-ul imaginii pentru debugging
   const imageUrl = getFullImageUrl();
+  const platform = detectPlatform();
+  
   console.log('Final image URL for sharing:', imageUrl);
+  console.log('Detected platform:', platform);
+  
+  // Afișăm URL-urile specifice pentru platforme
+  console.log('Messenger URL:', getMessengerUrl());
+  console.log('WhatsApp URL:', getWhatsAppUrl());
+  console.log('Twitter URL:', getTwitterUrl());
   
   // Force URL pentru debugging
   useEffect(() => {
