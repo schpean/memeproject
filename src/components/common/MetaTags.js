@@ -54,7 +54,7 @@ const MetaTags = ({
           : `https://${window.location.host}`);
           
       isFallbackImage = true;
-      imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+      imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
       console.log('MetaTags - Folosim imaginea de fallback în loc de imgur:', imageUrl);
     }
     // Verificăm și convertim link-urile de la imgflip la URL-uri directe
@@ -62,7 +62,7 @@ const MetaTags = ({
       const match = image.match(/imgflip\.com\/i\/([a-zA-Z0-9]+)/);
       if (match && match[1]) {
         const identifier = match[1];
-        imageUrl = `https://i.imgflip.com/${identifier}.jpg?t=${timestamp}`;
+        imageUrl = `https://i.imgflip.com/${identifier}.jpg?t=${timestamp}&_nocache=1`;
         console.log('MetaTags - Am transformat URL-ul imgflip în URL direct:', imageUrl);
       } else {
         // Folosim fallback dacă nu putem converti URL-ul
@@ -73,7 +73,7 @@ const MetaTags = ({
             : `https://${window.location.host}`);
         
         isFallbackImage = true;
-        imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+        imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
       }
     }
     else {
@@ -99,7 +99,7 @@ const MetaTags = ({
       if (!imageUrl.includes('t=') && !imageUrl.includes('_t=')) {
         // Adăugăm timestamp la URL-ul imaginii pentru a forța reîmprospătarea și a preveni caching
         const separator = imageUrl.includes('?') ? '&' : '?';
-        imageUrl = `${imageUrl}${separator}t=${timestamp}`;
+        imageUrl = `${imageUrl}${separator}t=${timestamp}&_nocache=1`;
       }
       
       // Adăugăm parametri de dimensiune pentru Twitter Card
@@ -120,9 +120,13 @@ const MetaTags = ({
   } else {
     // Folosim imaginea de fallback de dimensiune mare în loc de favicon
     // web-app-manifest-512x512.png are dimensiuni suficient de mari pentru preview-uri
-    const baseUrl = window.location.protocol === 'https:' ? 'https' : 'http';
-    const hostname = window.location.hostname === 'bossme.me' ? 'bossme.me' : window.location.host;
-    imageUrl = `${baseUrl}://${hostname}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+    const baseUrl = window.location.hostname === 'bossme.me' 
+      ? 'https://bossme.me' 
+      : (window.location.protocol === 'https:' 
+        ? `${window.location.origin}` 
+        : `https://${window.location.host}`);
+    
+    imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
     
     // Adăugăm parametru pentru platformă
     if (sharingPlatform) {

@@ -53,55 +53,202 @@ if (!fs.existsSync(imagesDir)) {
 const detectCrawler = (req) => {
   const userAgent = req.headers['user-agent'] || '';
   
-  // Log pentru debugging
+  // Log mai detaliat pentru debugging
   if (userAgent.toLowerCase().includes('bot') || 
-      userAgent.includes('WhatsApp') || 
-      userAgent.includes('facebook') || 
-      userAgent.includes('Twitter')) {
-    console.log('Crawler detected - User-Agent:', userAgent);
+      userAgent.toLowerCase().includes('whatsapp') || 
+      userAgent.toLowerCase().includes('facebook') || 
+      userAgent.toLowerCase().includes('twitter') ||
+      userAgent.toLowerCase().includes('twitterbot')) {
+    console.log('🔍 Crawler detected - Full User-Agent:', userAgent);
+    console.log('🔍 Headers:', JSON.stringify(req.headers, null, 2));
   }
   
-  const isWhatsAppCrawler = userAgent.includes('WhatsApp');
-  const isTwitterCrawler = userAgent.includes('Twitterbot') || userAgent.includes('Twitter');
-  const isFacebookCrawler = userAgent.includes('facebookexternalhit') || userAgent.includes('Facebook');
-  const isGenericBot = userAgent.toLowerCase().includes('bot') && !isWhatsAppCrawler && !isTwitterCrawler && !isFacebookCrawler;
+  const isWhatsAppCrawler = userAgent.toLowerCase().includes('whatsapp');
+  const isTwitterCrawler = userAgent.toLowerCase().includes('twitterbot') || 
+                          userAgent.toLowerCase().includes('twitter');
+  const isFacebookCrawler = userAgent.toLowerCase().includes('facebookexternalhit') || 
+                           userAgent.toLowerCase().includes('facebook');
+  const isGenericBot = (userAgent.toLowerCase().includes('bot') || 
+                       userAgent.toLowerCase().includes('crawler')) && 
+                       !isWhatsAppCrawler && 
+                       !isTwitterCrawler && 
+                       !isFacebookCrawler;
   
-  if (isWhatsAppCrawler) return 'whatsapp';
-  if (isTwitterCrawler) return 'twitter';
-  if (isFacebookCrawler) return 'facebook';
-  if (isGenericBot) return 'bot';
+  if (isWhatsAppCrawler) {
+    console.log('✅ Detected WhatsApp crawler');
+    return 'whatsapp';
+  }
+  if (isTwitterCrawler) {
+    console.log('✅ Detected Twitter crawler');
+    return 'twitter';
+  }
+  if (isFacebookCrawler) {
+    console.log('✅ Detected Facebook crawler');
+    return 'facebook';
+  }
+  if (isGenericBot) {
+    console.log('✅ Detected generic bot crawler');
+    return 'bot';
+  }
   return null;
 };
 
 // Middleware special pentru a gestiona request-urile platformelor sociale
 // și a afișa meta tag-urile corecte
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   const crawlerType = detectCrawler(req);
   
-  // Dacă nu este crawler, continuă normal
+  // Adăugăm headere comune pentru toate request-urile
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  
+  // Dacă nu este crawler, continuă normal dar cu header-e relaxate
   if (!crawlerType) {
     return next();
   }
   
+  console.log(`[${crawlerType.toUpperCase()}] Crawler accessing path:`, req.path);
+  
   // Verifică dacă este o pagină de meme specifică
   const memeMatch = req.path.match(/^\/meme\/(\d+)/);
   if (memeMatch) {
-    console.log(`[${crawlerType}] Crawler accessing meme page:`, req.path);
+    const memeId = memeMatch[1];
+    console.log(`[${crawlerType.toUpperCase()}] Crawler accessing meme page id: ${memeId}`);
     
-    // Headere pentru crawlere
+    try {
+      // Obține datele meme-ului direct din baza de date
+      const memeResult = await pool.query('SELECT * FROM memes WHERE id = $1', [memeId]);
+      const meme = memeResult.rows[0];
+      
+      if (meme) {
+        console.log(`[${crawlerType.toUpperCase()}] Found meme:`, meme.title || 'No title');
+        
+        // Construiește URL-ul complet pentru imagine
+        let imageUrl = meme.image_url || meme.imageUrl;
+        const baseUrl = req.protocol + '://' + req.get('host');
+        
+        // Verifică și asigură-te că URL-ul imaginii este complet
+        if (imageUrl) {
+          // Detectează și evită url-urile de la imgur
+          if (imageUrl.includes('imgur')) {
+            console.log(`[${crawlerType.toUpperCase()}] Replacing imgur URL with fallback`);
+            imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png`;
+          } 
+          // Asigură-te că URL-ul este absolut
+          else if (!imageUrl.startsWith('http')) {
+            imageUrl = baseUrl + (imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl);
+          }
+          
+          // Adaugă timestamp pentru cache busting
+          const timestamp = new Date().getTime();
+          imageUrl = imageUrl + (imageUrl.includes('?') ? '&' : '?') + 't=' + timestamp + '&_nocache=1';
+          
+          console.log(`[${crawlerType.toUpperCase()}] Using image URL:`, imageUrl);
+        } else {
+          // Folosește imaginea fallback
+          imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${new Date().getTime()}&_nocache=1`;
+          console.log(`[${crawlerType.toUpperCase()}] Using fallback image:`, imageUrl);
+        }
+        
+        // Construiește titlul
+        const title = meme.title || `${meme.company}'s review meme | bossme.me`;
+        
+        // Construiește descrierea
+        let description = `Check out this meme about ${meme.company || 'workplace'}`;
+        if (meme.message) {
+          const truncatedMessage = meme.message.length > 120 
+            ? meme.message.substring(0, 120) + '...' 
+            : meme.message;
+          description += `: ${truncatedMessage}`;
+        }
+        
+        // Servește HTML special pentru crawler-ele social media
+        if (crawlerType === 'twitter' || crawlerType === 'facebook' || crawlerType === 'whatsapp') {
+          // Headere pentru crawlere
+          res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Cache-Control', 'public, max-age=300');
+          res.setHeader('X-Robots-Tag', 'all');
+          
+          // Headere specifice pentru diferite platforme
+          if (crawlerType === 'whatsapp') {
+            res.setHeader('X-WhatsApp-Crawler', 'allow');
+            res.setHeader('X-Image-Max-Preview', 'large');
+            console.log('✅ WhatsApp headers set for meme page:', req.path);
+          } else if (crawlerType === 'twitter') {
+            res.setHeader('X-Twitter-Image-Access', 'allow');
+            res.setHeader('X-Twitter-Crawler', 'allow');
+            res.setHeader('X-Twitter-Card', 'summary_large_image');
+            console.log('✅ Twitter headers set for meme page:', req.path);
+          } else if (crawlerType === 'facebook') {
+            res.setHeader('X-Facebook-Crawler', 'allow');
+            console.log('✅ Facebook headers set for meme page:', req.path);
+          }
+          
+          // Citește fișierul index.html pentru a-l modifica
+          const indexPath = path.join(__dirname, '../build', 'index.html');
+          fs.readFile(indexPath, 'utf8', (err, data) => {
+            if (err) {
+              console.error('❌ Error reading index.html:', err);
+              return next();
+            }
+            
+            // Înlocuiește meta tag-urile cu cele specifice pentru meme
+            let htmlWithMeta = data;
+            
+            // Înlocuiește titlul
+            htmlWithMeta = htmlWithMeta.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
+            
+            // Înlocuiește meta tag-urile pentru Twitter și OG
+            const metaReplacements = [
+              // Meta pentru titlu
+              { pattern: /<meta property="og:title"[^>]*>/, replacement: `<meta property="og:title" content="${title}">` },
+              { pattern: /<meta name="twitter:title"[^>]*>/, replacement: `<meta name="twitter:title" content="${title}">` },
+              
+              // Meta pentru descriere
+              { pattern: /<meta property="og:description"[^>]*>/, replacement: `<meta property="og:description" content="${description}">` },
+              { pattern: /<meta name="twitter:description"[^>]*>/, replacement: `<meta name="twitter:description" content="${description}">` },
+              { pattern: /<meta name="description"[^>]*>/, replacement: `<meta name="description" content="${description}">` },
+              
+              // Meta pentru imagine
+              { pattern: /<meta property="og:image"[^>]*>/, replacement: `<meta property="og:image" content="${imageUrl}">` },
+              { pattern: /<meta property="og:image:secure_url"[^>]*>/, replacement: `<meta property="og:image:secure_url" content="${imageUrl}">` },
+              { pattern: /<meta property="og:image:url"[^>]*>/, replacement: `<meta property="og:image:url" content="${imageUrl}">` },
+              { pattern: /<meta name="twitter:image"[^>]*>/, replacement: `<meta name="twitter:image" content="${imageUrl}">` },
+              { pattern: /<meta name="twitter:image:src"[^>]*>/, replacement: `<meta name="twitter:image:src" content="${imageUrl}">` },
+              
+              // Meta pentru tipul de conținut
+              { pattern: /<meta property="og:type"[^>]*>/, replacement: `<meta property="og:type" content="article">` },
+              { pattern: /<meta property="og:url"[^>]*>/, replacement: `<meta property="og:url" content="${baseUrl}/meme/${memeId}">` },
+              
+              // Aspect ratio pentru Twitter Card
+              { pattern: /<meta name="twitter:card"[^>]*>/, replacement: `<meta name="twitter:card" content="summary_large_image">` },
+            ];
+            
+            // Aplică toate înlocuirile
+            metaReplacements.forEach(replacement => {
+              htmlWithMeta = htmlWithMeta.replace(replacement.pattern, replacement.replacement);
+            });
+            
+            // Adaugă meta tag pentru timpul actualizării pentru a preveni caching-ul
+            const updateTimeTag = `<meta property="og:updated_time" content="${new Date().toISOString()}">`;
+            htmlWithMeta = htmlWithMeta.replace('</head>', `${updateTimeTag}</head>`);
+            
+            console.log(`[${crawlerType.toUpperCase()}] Serving custom meta tags for meme ${memeId}`);
+            res.send(htmlWithMeta);
+          });
+          return; // Oprește procesarea aici, nu merge la next()
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error fetching meme for crawler:`, error);
+    }
+  } else if (req.path.startsWith('/uploads/') || req.path.startsWith('/images/')) {
+    // Setăm header-uri pentru acces la resursele de imagine
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'public, max-age=300');
-    res.setHeader('X-Robots-Tag', 'all');
-    
-    // Headere specifice pentru diferite platforme
-    if (crawlerType === 'whatsapp') {
-      res.setHeader('X-WhatsApp-Crawler', 'allow');
-      res.setHeader('X-Image-Max-Preview', 'large');
-    } else if (crawlerType === 'twitter') {
-      res.setHeader('X-Twitter-Image-Access', 'allow');
-      res.setHeader('X-Twitter-Crawler', 'allow');
-    }
+    console.log(`[${crawlerType.toUpperCase()}] Crawler accessing image:`, req.path);
   }
   
   // Continuă spre următorul middleware

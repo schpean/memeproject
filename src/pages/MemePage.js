@@ -51,14 +51,15 @@ const MemePage = () => {
       const match = imageUrl.match(/imgflip\.com\/i\/([a-zA-Z0-9]+)/);
       if (match && match[1]) {
         const identifier = match[1];
-        const directUrl = `https://i.imgflip.com/${identifier}.jpg`;
+        const timestamp = new Date().getTime();
+        const directUrl = `https://i.imgflip.com/${identifier}.jpg?t=${timestamp}&_nocache=1`;
         console.log('Am transformat URL-ul imgflip în URL direct:', directUrl);
         return directUrl;
       }
     }
     
     // Nu acceptăm URL-uri de la imgur (acestea nu sunt permise în aplicația noastră)
-    if (imageUrl.includes('imgur.com')) {
+    if (imageUrl.includes('imgur.com') || imageUrl.includes('imgur')) {
       console.error('Detected imgur URL, not using it:', imageUrl);
       console.log('⚠️ Imgur URL detectat - vom folosi imaginea de fallback');
       // Folosim imaginea fallback în loc
@@ -68,7 +69,7 @@ const MemePage = () => {
       
       // Adăugăm timestamp pentru a preveni caching
       const timestamp = new Date().getTime();
-      const fallbackUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+      const fallbackUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
       console.log('URL imagine fallback:', fallbackUrl);
       return fallbackUrl;
     }
@@ -114,7 +115,7 @@ const MemePage = () => {
       
       // Adăugăm timestamp pentru a preveni caching
       const timestamp = new Date().getTime();
-      return `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}`;
+      return `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
     }
     
     // Adăugăm parametrul de cache-busting pentru a forța reîncărcarea imaginii
@@ -123,7 +124,7 @@ const MemePage = () => {
     
     // Adăugăm și dimensiunile explicite pentru platformele sociale
     // Indicăm platforma pentru care este optimizată imaginea
-    fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&tw_width=1200&tw_height=630&_platform=share`;
+    fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&tw_width=1200&tw_height=630&_platform=share&_nocache=1`;
     
     console.log('URL final pentru imaginea meme-ului cu timestamp:', fullImageUrl);
     
@@ -134,6 +135,20 @@ const MemePage = () => {
           console.log('🟢 Imaginea există și este accesibilă:', response.status);
         } else {
           console.log('🔴 Imaginea nu este accesibilă:', response.status);
+          
+          // Dacă imaginea nu este accesibilă, vom folosi fallback
+          const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+            ? 'https://bossme.me' 
+            : `https://${window.location.host}`;
+            
+          const fallbackUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
+          console.log('Folosim URL fallback:', fallbackUrl);
+          
+          // Nu putem returna direct de aici din cauza naturii asincrone
+          // Dar putem actualiza state-ul component pentru reimaginea
+          if (typeof window !== 'undefined') {
+            window.imgUrlFallback = fallbackUrl;
+          }
         }
       })
       .catch(error => {
@@ -141,6 +156,13 @@ const MemePage = () => {
       });
     
     console.log('========== END MEME IMAGE DEBUG ==========');
+    
+    // Verificăm dacă avem un fallback setat de verificarea asincronă de mai sus
+    if (typeof window !== 'undefined' && window.imgUrlFallback) {
+      const fallback = window.imgUrlFallback;
+      window.imgUrlFallback = null; // resetăm pentru viitoarele apeluri
+      return fallback;
+    }
     
     return fullImageUrl;
   };
