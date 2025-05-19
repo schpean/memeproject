@@ -256,6 +256,29 @@ const MemePage = () => {
   const getWhatsAppUrl = () => getPlatformShareUrl('whatsapp');
   const getTwitterUrl = () => getPlatformShareUrl('twitter');
   
+  // Generează URL Messenger cu forcing direct pe imagine
+  const getMessengerImageDirectUrl = () => {
+    if (!meme || !imageUrl) return null;
+    
+    // Encodăm URL-ul imaginii
+    const encodedImageUrl = encodeURIComponent(imageUrl);
+    
+    // Construim URL-ul de tip messenger-share
+    const baseUrl = 'https://www.facebook.com/dialog/send';
+    const timestamp = new Date().getTime();
+    
+    // Folosim app_id special
+    const queryParams = new URLSearchParams({
+      app_id: '936362457330483',
+      link: getPlatformShareUrl('messenger'),
+      redirect_uri: 'https://bossme.me',
+      picture: imageUrl,
+      display: 'popup'
+    });
+    
+    return `${baseUrl}?${queryParams.toString()}`;
+  };
+  
   // Afișăm URL-ul imaginii pentru debugging
   const imageUrl = getFullImageUrl();
   const platform = detectPlatform();
@@ -265,6 +288,7 @@ const MemePage = () => {
   
   // Afișăm URL-urile specifice pentru platforme
   console.log('Messenger URL:', getMessengerUrl());
+  console.log('Messenger Direct Image URL:', getMessengerImageDirectUrl());
   console.log('WhatsApp URL:', getWhatsAppUrl());
   console.log('Twitter URL:', getTwitterUrl());
   

@@ -228,7 +228,12 @@ app.use(async (req, res, next) => {
             
             if (crawlerType === 'messenger') {
               res.setHeader('X-Messenger-Crawler', 'allow');
-              console.log('✅ Messenger specific headers added');
+              // Forțează expiarea cache-ului pentru Messenger
+              res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+              res.setHeader('Surrogate-Control', 'no-store');
+              res.setHeader('Pragma', 'no-cache');
+              res.setHeader('Expires', '0');
+              console.log('✅ Messenger specific headers added with aggressive cache busting');
             }
           }
           
@@ -278,7 +283,7 @@ app.use(async (req, res, next) => {
               { pattern: /<meta property="whatsapp:image:width"[^>]*>/, replacement: `<meta property="whatsapp:image:width" content="1200">` },
               { pattern: /<meta property="whatsapp:image:height"[^>]*>/, replacement: `<meta property="whatsapp:image:height" content="630">` },
               
-              // Facebook specifics
+              // Facebook specifics - corectăm ID-ul de aplicație
               { pattern: /<meta property="fb:app_id"[^>]*>/, replacement: `<meta property="fb:app_id" content="936362457330483">` },
               
               // Meta pentru tipul de conținut
@@ -312,6 +317,128 @@ app.use(async (req, res, next) => {
             htmlWithMeta = htmlWithMeta.replace('</head>', `${socialOptimizationTags}</head>`);
             console.log('✅ Added image optimization meta tags');
             
+            // Dacă este Messenger, adaugă tag-uri speciale pentru Messenger
+            if (crawlerType === 'messenger') {
+              // Corectări pentru optimizarea preview-urilor pe Messenger ca cele de pe platforme populare de social media
+              const messengerSpecificTags = `
+                <!-- Messenger special preview optimization -->
+                <meta property="og:image:secure_url" content="${imageUrl}">
+                <meta property="og:image:url" content="${imageUrl}">
+                <meta property="og:image:alt" content="bossme.me meme">
+                <meta property="og:url" content="${baseUrl}/meme/${memeId}">
+                <meta property="og:image:width" content="1080">
+                <meta property="og:image:height" content="1080">
+                <meta property="og:see_also" content="${baseUrl}">
+                <meta property="og:image:user_generated" content="true">
+                <meta property="al:android:url" content="${baseUrl}/meme/${memeId}">
+                <meta property="al:ios:url" content="${baseUrl}/meme/${memeId}">
+                <meta property="og:video:tag" content="meme">
+                <link rel="image_src" href="${imageUrl}">
+              `;
+              htmlWithMeta = htmlWithMeta.replace('</head>', `${messengerSpecificTags}</head>`);
+              console.log('✅ Added special Messenger preview optimization');
+              
+              // Adaugă script special pentru Messenger
+              const messengerScript = `
+                <script>
+                  // Script pentru optimizarea preview-urilor Messenger
+                  window.fbAsyncInit = function() {
+                    FB.init({
+                      appId: '936362457330483',
+                      autoLogAppEvents: true,
+                      xfbml: true,
+                      version: 'v17.0'
+                    });
+                  };
+                </script>
+                <script async defer src="https://connect.facebook.net/en_US/sdk.js"></script>
+              `;
+              htmlWithMeta = htmlWithMeta.replace('</head>', `${messengerScript}</head>`);
+              
+              // Injectează CSS pentru a forța imaginea la dimensiune maximă (similar cu platformele populare de social media)
+              const inlineCSS = `
+                <style>
+                  .og-image {
+                    width: 100%;
+                    max-width: 100%;
+                    height: auto;
+                    border-radius: 0;
+                    margin: 0;
+                    padding: 0;
+                  }
+                  
+                  /* Optimizat pentru preview-uri Messenger */
+                  [data-scribe="element:card_image"] {
+                    width: 100% !important;
+                    height: auto !important;
+                    max-width: 100% !important;
+                    max-height: none !important;
+                    border-radius: 0 !important;
+                  }
+                </style>
+              `;
+              htmlWithMeta = htmlWithMeta.replace('</head>', `${inlineCSS}</head>`);
+              
+              // Adaugă codul pentru preîncărcare agresivă a imaginii
+              const imagePreloadCode = `
+                <script>
+                  // Forțăm încărcarea imaginii pentru a fi disponibilă crawler-ului Messenger
+                  document.addEventListener('DOMContentLoaded', function() {
+                    var img = new Image();
+                    img.src = '${imageUrl}';
+                    img.onload = function() {
+                      // Adăugăm imaginea direct în DOM pentru a fi siguri că e vizibilă pentru crawler
+                      var preloadDiv = document.createElement('div');
+                      preloadDiv.style.position = 'absolute';
+                      preloadDiv.style.top = '0';
+                      preloadDiv.style.left = '0';
+                      preloadDiv.style.width = '100%';
+                      preloadDiv.style.zIndex = '9999';
+                      preloadDiv.style.boxSizing = 'border-box';
+                      preloadDiv.style.backgroundColor = '#fff';
+                      
+                      var imgElement = document.createElement('img');
+                      imgElement.src = '${imageUrl}';
+                      imgElement.style.width = '100%';
+                      imgElement.style.height = 'auto';
+                      imgElement.alt = 'bossme.me meme';
+                      imgElement.className = 'og-image';
+                      
+                      preloadDiv.appendChild(imgElement);
+                      document.body.insertBefore(preloadDiv, document.body.firstChild);
+                      
+                      // Adăugăm și un script care forțează reîncărcarea paginii dacă crawler-ul Facebook a ratat imaginea
+                      if (navigator.userAgent.indexOf('facebookexternalhit') > -1 || 
+                          navigator.userAgent.indexOf('Messenger') > -1 || 
+                          document.referrer.indexOf('facebook.com') > -1 ||
+                          document.referrer.indexOf('messenger.com') > -1) {
+                        // Forțăm refresh dacă imaginea nu a fost încărcată în 500ms
+                        setTimeout(function() {
+                          if (!imgElement.complete || imgElement.naturalWidth === 0) {
+                            window.location.reload();
+                          }
+                        }, 500);
+                      }
+                    };
+                  });
+                </script>
+              `;
+              htmlWithMeta = htmlWithMeta.replace('</head>', `${imagePreloadCode}</head>`);
+              
+              // Debug helper - pentru a detecta când crawler-ul vine
+              const debugScript = `
+                <script>
+                  // Pentru debugging
+                  console.log('User-Agent:', navigator.userAgent);
+                  if (navigator.userAgent.indexOf('facebookexternalhit') > -1 || 
+                      navigator.userAgent.indexOf('Messenger') > -1) {
+                    console.log('Facebook/Messenger crawler detected!');
+                  }
+                </script>
+              `;
+              htmlWithMeta = htmlWithMeta.replace('</head>', `${debugScript}</head>`);
+            }
+            
             // Adaugă un script special pentru WhatsApp Desktop care forțează preview-ul
             if (crawlerType === 'whatsapp-desktop') {
               const whatsappDesktopScript = `
@@ -332,7 +459,7 @@ app.use(async (req, res, next) => {
                   // Adaugă imaginea
                   var img = document.createElement('img');
                   img.src = '${imageUrl}';
-                  img.alt = '${title}';
+                  img.alt = '${simplifiedTitle}';
                   img.style.width = '100%';
                   img.style.maxHeight = '300px';
                   img.style.objectFit = 'contain';
@@ -353,6 +480,25 @@ app.use(async (req, res, next) => {
               htmlWithMeta = htmlWithMeta.replace('</head>', `${whatsappDesktopScript}</head>`);
               console.log('✅ Added WhatsApp Desktop custom preview script');
             }
+            
+            // Adaugă un script special pentru force loading imagine pentru toate platformele
+            const forceImageLoadScript = `
+              <script>
+                // Forțăm preîncărcarea imaginii
+                (function() {
+                  var img = new Image();
+                  img.src = '${imageUrl}';
+                  img.onload = function() {
+                    console.log('Image preloaded successfully');
+                  };
+                  img.onerror = function() {
+                    console.error('Error preloading image');
+                  };
+                })();
+              </script>
+            `;
+            htmlWithMeta = htmlWithMeta.replace('</head>', `${forceImageLoadScript}</head>`);
+            console.log('✅ Added force image loading script');
             
             console.log(`[${crawlerType.toUpperCase()}] Serving custom meta tags for meme ${memeId}`);
             res.send(htmlWithMeta);
