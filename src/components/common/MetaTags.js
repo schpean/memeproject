@@ -47,11 +47,7 @@ const MetaTags = ({
     if (image.includes('imgur.com')) {
       console.error('Detected imgur URL, not using it:', image);
       // Folosim imaginea de fallback în loc
-      const baseUrl = window.location.hostname === 'bossme.me' 
-        ? 'https://bossme.me' 
-        : (window.location.protocol === 'https:' 
-          ? `${window.location.origin}` 
-          : `https://${window.location.host}`);
+      const baseUrl = 'https://bossme.me';
           
       isFallbackImage = true;
       imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
@@ -66,11 +62,7 @@ const MetaTags = ({
         console.log('MetaTags - Am transformat URL-ul imgflip în URL direct:', imageUrl);
       } else {
         // Folosim fallback dacă nu putem converti URL-ul
-        const baseUrl = window.location.hostname === 'bossme.me' 
-          ? 'https://bossme.me' 
-          : (window.location.protocol === 'https:' 
-            ? `${window.location.origin}` 
-            : `https://${window.location.host}`);
+        const baseUrl = 'https://bossme.me';
         
         isFallbackImage = true;
         imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
@@ -80,11 +72,7 @@ const MetaTags = ({
       // Adăugăm protocolul și domeniul dacă lipsesc
       if (!image.startsWith('http')) {
         // Folosim întotdeauna HTTPS pentru a preveni mixed content
-        const baseUrl = window.location.hostname === 'bossme.me' 
-          ? 'https://bossme.me' 
-          : (window.location.protocol === 'https:' 
-            ? `${window.location.origin}` 
-            : `https://${window.location.host}`);
+        const baseUrl = 'https://bossme.me';
             
         const imagePath = image.startsWith('/') ? image : '/' + image;
         imageUrl = baseUrl + imagePath;
@@ -120,11 +108,7 @@ const MetaTags = ({
   } else {
     // Folosim imaginea de fallback de dimensiune mare în loc de favicon
     // web-app-manifest-512x512.png are dimensiuni suficient de mari pentru preview-uri
-    const baseUrl = window.location.hostname === 'bossme.me' 
-      ? 'https://bossme.me' 
-      : (window.location.protocol === 'https:' 
-        ? `${window.location.origin}` 
-        : `https://${window.location.host}`);
+    const baseUrl = 'https://bossme.me';
     
     imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
     
@@ -137,8 +121,10 @@ const MetaTags = ({
     isFallbackImage = true;
   }
 
-  // URL-ul canonic
-  const canonicalUrl = url || window.location.href;
+  // URL-ul canonic - Asigură-te că este întotdeauna HTTPS și domeniul corect
+  const canonicalUrl = url ? 
+    (url.startsWith('http') ? url.replace('http://', 'https://').replace('www.bossme.me', 'bossme.me') : `https://bossme.me${url.startsWith('/') ? url : '/' + url}`) : 
+    'https://bossme.me';
 
   // Descriere limitată pentru WhatsApp (max 80 caractere recomandat)
   const whatsappDescription = description && description.length > 80 

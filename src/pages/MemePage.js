@@ -71,10 +71,8 @@ const MemePage = () => {
     if (imageUrl.includes('imgur.com') || imageUrl.includes('imgur')) {
       console.error('Detected imgur URL, not using it:', imageUrl);
       console.log('⚠️ Imgur URL detectat - vom folosi imaginea de fallback');
-      // Folosim imaginea fallback în loc
-      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-        ? 'https://bossme.me'
-        : `https://${window.location.host}`;
+      // Folosim imaginea fallback - întotdeauna cu domeniul bossme.me fix
+      const baseUrl = 'https://bossme.me';
       
       // Adăugăm timestamp pentru a preveni caching
       const timestamp = new Date().getTime();
@@ -105,10 +103,8 @@ const MemePage = () => {
     }
     // Pentru URL-uri relative - construim URL-ul complet
     else {
-      // Baza URL trebuie să fie întotdeauna HTTPS pentru Facebook și alte platforme
-      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-        ? 'https://bossme.me'
-        : `https://${window.location.host}`;
+      // Folosim întotdeauna https://bossme.me pentru toate URL-urile de imagini
+      const baseUrl = 'https://bossme.me';
       
       // Asigurăm formatul corect al path-ului
       const imagePath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
@@ -123,10 +119,8 @@ const MemePage = () => {
       console.error('URL invalid pentru imagine:', fullImageUrl);
       console.log('⚠️ URL invalid - vom folosi imaginea de fallback');
       
-      // Folosim imaginea fallback în caz de eroare
-      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-        ? 'https://bossme.me'
-        : `https://${window.location.host}`;
+      // Folosim imaginea fallback - întotdeauna cu domeniul bossme.me fix
+      const baseUrl = 'https://bossme.me';
       
       // Adăugăm timestamp pentru a preveni caching
       const timestamp = new Date().getTime();
@@ -163,9 +157,7 @@ const MemePage = () => {
           console.log('🔴 Imaginea nu este accesibilă:', response.status);
           
           // Dacă imaginea nu este accesibilă, vom folosi fallback
-          const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-            ? 'https://bossme.me' 
-            : `https://${window.location.host}`;
+          const baseUrl = 'https://bossme.me';
             
           const fallbackUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
           console.log('Folosim URL fallback:', fallbackUrl);
@@ -207,12 +199,8 @@ const MemePage = () => {
   
   // Generează URL-ul canonic absolut
   const getCanonicalUrl = () => {
-    // URL-ul canonic trebuie să fie întotdeauna HTTPS pentru rețelele sociale
-    const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-      ? 'https://bossme.me'
-      : `https://${window.location.host}`;
-    
-    return `${baseUrl}/meme/${id}`;
+    // URL-ul canonic este ÎNTOTDEAUNA https://bossme.me pentru a preveni redirecționări circulare
+    return `https://bossme.me/meme/${id}`;
   };
   
   // Detectează și optimizează pentru platforma de partajare
@@ -223,11 +211,8 @@ const MemePage = () => {
   
   // Generează URL-uri optimizate pentru diverse platforme
   const getPlatformShareUrl = (platform) => {
-    const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
-      ? 'https://bossme.me'
-      : `https://${window.location.host}`;
-    
-    return `${baseUrl}/meme/${id}`;
+    // Folosim strict https://bossme.me pentru toate URL-urile partajate
+    return `https://bossme.me/meme/${id}${platform ? `?_platform=${platform}` : ''}`;
   };
   
   // Funcții helper pentru fiecare platformă

@@ -15,31 +15,43 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
   
   // Asigurăm că URL-ul este absolut (conține domeniul complet)
   const getAbsoluteUrl = () => {
-    if (!url) return window.location.href;
+    if (!url) return 'https://bossme.me';
     
-    // Dacă URL-ul conține deja protocol (http/https), este deja absolut
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
+    // Dacă URL-ul conține deja protocol, asigurăm-ne că este HTTPS și domeniul corect
+    if (url.startsWith('http')) {
+      // Înlocuim http:// cu https:// și asigurăm-ne că domeniul este bossme.me
+      const httpsUrl = url.replace('http://', 'https://');
+      
+      // Verificăm dacă conține domeniul bossme.me
+      if (httpsUrl.includes('bossme.me')) {
+        const urlObj = new URL(httpsUrl);
+        // Actualizăm domeniul dacă există diferențe (www. etc)
+        if (urlObj.hostname !== 'bossme.me') {
+          urlObj.hostname = 'bossme.me';
+          return urlObj.toString();
+        }
+        return httpsUrl;
+      }
+      
+      // Dacă nu e pe bossme.me, folosim URL-ul relativ cu baseUrl
+      const path = new URL(httpsUrl).pathname;
+      return getPathUrl(path);
     }
     
-    // Detectăm mediul și folosim domeniul corect
-    let baseUrl;
-    if (window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production') {
-      baseUrl = 'https://bossme.me';
-    } else {
-      baseUrl = window.location.origin;
-    }
+    // Pentru URL-uri relative
+    return getPathUrl(url);
+  };
+  
+  // Helper pentru construirea URL-urilor din path
+  const getPathUrl = (path) => {
+    const baseUrl = 'https://bossme.me';
     
-    // Adăugăm parametrul de cache-busting pentru a forța reîmprospătarea cache-ului
-    const separator = url.includes('?') ? '&' : '?';
+    // Adăugăm parametrul de cache-busting
+    const formattedPath = path.startsWith('/') ? path : `/${path}`;
+    const separator = formattedPath.includes('?') ? '&' : '?';
     const timestamp = new Date().getTime();
     
-    // Construim URL-ul absolut
-    if (url.startsWith('/')) {
-      return `${baseUrl}${url}${separator}_t=${timestamp}&_platform=share`;
-    } else {
-      return `${baseUrl}/${url}${separator}_t=${timestamp}&_platform=share`;
-    }
+    return `${baseUrl}${formattedPath}${separator}_t=${timestamp}&_platform=share`;
   };
   
   // URL-ul absolut cu parametru pentru cache-busting
