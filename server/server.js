@@ -284,7 +284,7 @@ app.use(async (req, res, next) => {
               { pattern: /<meta property="whatsapp:image:height"[^>]*>/, replacement: `<meta property="whatsapp:image:height" content="630">` },
               
               // Facebook specifics - corectăm ID-ul de aplicație
-              { pattern: /<meta property="fb:app_id"[^>]*>/, replacement: `<meta property="fb:app_id" content="936362457330483">` },
+              { pattern: /<meta property="fb:app_id"[^>]*>/, replacement: `<meta property="fb:app_id" content="1219609932336050">` },
               
               // Meta pentru tipul de conținut
               { pattern: /<meta property="og:type"[^>]*>/, replacement: `<meta property="og:type" content="article">` },
@@ -344,7 +344,7 @@ app.use(async (req, res, next) => {
                   // Script pentru optimizarea preview-urilor Messenger
                   window.fbAsyncInit = function() {
                     FB.init({
-                      appId: '936362457330483',
+                      appId: '1219609932336050',
                       autoLogAppEvents: true,
                       xfbml: true,
                       version: 'v17.0'

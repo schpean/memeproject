@@ -141,7 +141,7 @@ const ShareDropdown = ({ url, title = '', message = '' }) => {
             window.open(`fb-messenger://share?link=${encodeURIComponent(url)}`, '_self');
           } else {
             // Pentru desktop, folosim dialog/send direct
-            window.open(`https://www.facebook.com/dialog/send?app_id=936362457330483&link=${encodeURIComponent(url)}&redirect_uri=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+            window.open(`https://www.facebook.com/dialog/send?app_id=1219609932336050&link=${encodeURIComponent(url)}&redirect_uri=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
           }
         } catch (e) {
           // Fallback general în caz de eroare

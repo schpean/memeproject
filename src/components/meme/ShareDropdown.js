@@ -242,7 +242,7 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
           } else {
             // Pentru desktop, folosim dialog/send direct cu URL absolut și parametri optimizați
             const fbUrl = new URL('https://www.facebook.com/dialog/send');
-            fbUrl.searchParams.append('app_id', '936362457330483');
+            fbUrl.searchParams.append('app_id', '1219609932336050');
             fbUrl.searchParams.append('link', absoluteUrl);
             fbUrl.searchParams.append('redirect_uri', absoluteUrl);
             
