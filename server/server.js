@@ -271,23 +271,23 @@ app.use(async (req, res, next) => {
             
             // Înlocuiește meta tag-urile pentru Twitter și OG
             const metaReplacements = [
-              // Meta pentru titlu
+              // Meta pentru titlu - SIMPLU SI SCURT pentru Facebook
               { pattern: /<meta property="og:title"[^>]*>/, replacement: `<meta property="og:title" content="${simplifiedTitle}">` },
               { pattern: /<meta name="twitter:title"[^>]*>/, replacement: `<meta name="twitter:title" content="${simplifiedTitle}">` },
               
-              // Meta pentru descriere
+              // Meta pentru descriere - SIMPLU SI SCURT pentru Facebook
               { pattern: /<meta property="og:description"[^>]*>/, replacement: `<meta property="og:description" content="${simplifiedDescription}">` },
               { pattern: /<meta name="twitter:description"[^>]*>/, replacement: `<meta name="twitter:description" content="${simplifiedDescription}">` },
               { pattern: /<meta name="description"[^>]*>/, replacement: `<meta name="description" content="${simplifiedDescription}">` },
               
-              // Meta pentru imagine
+              // Meta pentru imagine - DIMENSIUNI OPTIME pentru Facebook
               { pattern: /<meta property="og:image"[^>]*>/, replacement: `<meta property="og:image" content="${imageUrl}">` },
               { pattern: /<meta property="og:image:secure_url"[^>]*>/, replacement: `<meta property="og:image:secure_url" content="${imageUrl}">` },
               { pattern: /<meta property="og:image:url"[^>]*>/, replacement: `<meta property="og:image:url" content="${imageUrl}">` },
               { pattern: /<meta name="twitter:image"[^>]*>/, replacement: `<meta name="twitter:image" content="${imageUrl}">` },
               { pattern: /<meta name="twitter:image:src"[^>]*>/, replacement: `<meta name="twitter:image:src" content="${imageUrl}">` },
               
-              // Meta pentru dimensiuni imagini - maxime pentru toate platformele
+              // Meta pentru dimensiuni imagini - DIMENSIUNI OPTIME pentru Facebook
               { pattern: /<meta property="og:image:width"[^>]*>/, replacement: `<meta property="og:image:width" content="1200">` },
               { pattern: /<meta property="og:image:height"[^>]*>/, replacement: `<meta property="og:image:height" content="630">` },
               { pattern: /<meta property="og:image:type"[^>]*>/, replacement: `<meta property="og:image:type" content="image/jpeg">` },
@@ -298,18 +298,18 @@ app.use(async (req, res, next) => {
               { pattern: /<meta property="whatsapp:title"[^>]*>/, replacement: `<meta property="whatsapp:title" content="${simplifiedTitle}">` },
               { pattern: /<meta property="whatsapp:description"[^>]*>/, replacement: `<meta property="whatsapp:description" content="${simplifiedDescription}">` },
               
-              // WhatsApp specific dimensions
+              // WhatsApp specific dimensions - OPTIME
               { pattern: /<meta property="whatsapp:image:width"[^>]*>/, replacement: `<meta property="whatsapp:image:width" content="1200">` },
               { pattern: /<meta property="whatsapp:image:height"[^>]*>/, replacement: `<meta property="whatsapp:image:height" content="630">` },
               
-              // Facebook specifics - corectăm ID-ul de aplicație
+              // Facebook specifics - OPTIMIZAT PENTRU PREVIEW MARE
               { pattern: /<meta property="fb:app_id"[^>]*>/, replacement: `<meta property="fb:app_id" content="1219609932336050">` },
               
-              // Meta pentru tipul de conținut
+              // Meta pentru tipul de conținut - ARTICLE pentru preview mai mare
               { pattern: /<meta property="og:type"[^>]*>/, replacement: `<meta property="og:type" content="article">` },
               { pattern: /<meta property="og:url"[^>]*>/, replacement: `<meta property="og:url" content="${baseUrl}/meme/${memeId}">` },
               
-              // Aspect ratio pentru Twitter Card
+              // Aspect ratio pentru Twitter Card - LARGE
               { pattern: /<meta name="twitter:card"[^>]*>/, replacement: `<meta name="twitter:card" content="summary_large_image">` },
             ];
             
@@ -340,7 +340,7 @@ app.use(async (req, res, next) => {
             if (crawlerType === 'messenger') {
               // Corectări pentru optimizarea preview-urilor pe Messenger ca cele de pe platforme populare de social media
               const messengerSpecificTags = `
-                <!-- Messenger special preview optimization -->
+                <!-- Optimizări pentru previzualizări Messenger în toate contextele -->
                 <meta property="og:image:secure_url" content="${imageUrl}">
                 <meta property="og:image:url" content="${imageUrl}">
                 <meta property="og:image:alt" content="bossme.me meme">
@@ -361,6 +361,17 @@ app.use(async (req, res, next) => {
                 <meta property="og:rich_attachment" content="true">
                 <meta property="og:image:width:min" content="1200">
                 <meta property="og:image:height:min" content="630">
+                
+                <!-- Optimizare specială pentru grupuri și feed-uri sociale -->
+                <meta property="og:type" content="article">
+                <meta property="og:title:ct" content="bossme.me">
+                <meta property="og:is_group_linking" content="true">
+                <meta property="og:display_style" content="attach">
+                <meta property="og:force_large_media" content="true">
+                <meta property="og:large_media" content="true">
+                <meta property="og:image:ratio" content="1.91">
+                <meta property="og:aspect_ratio" content="1.91">
+                <meta property="og:msg_template" content="Check this meme out">
               `;
               htmlWithMeta = htmlWithMeta.replace('</head>', `${messengerSpecificTags}</head>`);
               console.log('✅ Added special Messenger preview optimization');
