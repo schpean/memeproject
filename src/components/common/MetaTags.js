@@ -196,7 +196,7 @@ const MetaTags = ({
       <meta property="og:image:alt" content={title} />
       
       {/* Facebook-specific meta */}
-      <meta property="fb:app_id" content="936362457330483" />
+      <meta property="fb:app_id" content="1219609932336050" />
       
       {/* Meta tag-uri pentru Facebook Scraper - Forțează reincărcarea */}
       <meta property="og:rich_attachment" content="true" />
@@ -229,7 +229,7 @@ const MetaTags = ({
       )}
       
       {/* Additional Facebook Debugging Tags */}
-      <meta property="og:app_id" content="936362457330483" />
+      <meta property="og:app_id" content="1219609932336050" />
     </Helmet>
   );
 };

@@ -244,7 +244,7 @@ const MemePage = () => {
     
     // Folosim app_id corect
     const queryParams = new URLSearchParams({
-      app_id: '936362457330483',
+      app_id: '1219609932336050',
       link: getPlatformShareUrl('messenger'),
       redirect_uri: 'https://bossme.me'
     });
