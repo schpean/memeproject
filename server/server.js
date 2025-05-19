@@ -63,6 +63,7 @@ const detectCrawler = (req) => {
       userAgent.toLowerCase().includes('electron')) {
     console.log('🔍 Crawler detected - Full User-Agent:', userAgent);
     console.log('🔍 Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('🔍 URL requested:', req.originalUrl || req.url);
   }
   
   // WhatsApp are mai multe variante de User-Agent
@@ -75,39 +76,21 @@ const detectCrawler = (req) => {
   const isFacebookCrawler = userAgent.toLowerCase().includes('facebookexternalhit') ||
                            userAgent.toLowerCase().includes('messenger') ||
                            userAgent.toLowerCase().includes('facebook') ||
+                           userAgent.toLowerCase().includes('instagram') ||
                            req.query._platform === 'facebook' ||
-                           req.query._platform === 'messenger';
-  const isGenericBot = (userAgent.toLowerCase().includes('bot') || 
-                       userAgent.toLowerCase().includes('crawler')) && 
-                       !isWhatsAppCrawler && 
-                       !isTwitterCrawler && 
-                       !isFacebookCrawler;
+                           req.query._platform === 'messenger' ||
+                           req.query._messenger === '1';
   
   if (isWhatsAppCrawler) {
-    // Detectăm dacă este WhatsApp Desktop sau Mobile
-    const isDesktop = userAgent.toLowerCase().includes('electron') || 
-                     userAgent.toLowerCase().includes('windows') || 
-                     userAgent.toLowerCase().includes('macos');
-    console.log('✅ Detected WhatsApp crawler - Desktop:', isDesktop ? 'Yes' : 'No');
-    return isDesktop ? 'whatsapp-desktop' : 'whatsapp';
-  }
-  if (isTwitterCrawler) {
-    console.log('✅ Detected Twitter crawler');
+    return 'whatsapp';
+  } else if (isTwitterCrawler) {
     return 'twitter';
-  }
-  if (isFacebookCrawler) {
-    console.log('✅ Detected Facebook crawler');
-    // Verificăm dacă este Messenger specific
-    if (userAgent.toLowerCase().includes('messenger') || req.query._platform === 'messenger') {
-      console.log('✅ Specifically detected Messenger crawler');
-      return 'messenger';
-    }
+  } else if (isFacebookCrawler) {
     return 'facebook';
-  }
-  if (isGenericBot) {
-    console.log('✅ Detected generic bot crawler');
+  } else if (userAgent.toLowerCase().includes('bot')) {
     return 'bot';
   }
+  
   return null;
 };
 
@@ -553,6 +536,18 @@ app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirnam
       } else if (crawlerType === 'twitter') {
         res.setHeader('X-Twitter-Image-Access', 'allow');
         res.setHeader('X-Twitter-Crawler', 'allow');
+      } else if (crawlerType === 'facebook') {
+        // Setări specializate pentru Facebook/Messenger
+        res.setHeader('X-Facebook-Image-Access', 'allow');
+        res.setHeader('X-Facebook-Crawler', 'allow');
+        res.setHeader('X-FB-Debug', 'true');
+        
+        // Forțăm cache-control pentru a evita probleme de reload
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        
+        // Headeruri care ajută la prevenirea redirecționărilor
+        res.setHeader('Link', '<' + req.protocol + '://' + req.get('host') + req.originalUrl + '>; rel="canonical"');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
       }
     } else {
       // Prevenim cache-ul complet pentru utilizatori normali

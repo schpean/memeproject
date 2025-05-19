@@ -39,6 +39,11 @@ const MetaTags = ({
   };
   
   const sharingPlatform = detectPlatform();
+
+  // URL-ul fallback pentru imaginea statică care sigur funcționează
+  const getFallbackImageUrl = () => {
+    return `https://bossme.me/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1${sharingPlatform ? `&_platform=${sharingPlatform}` : ''}`;
+  };
   
   // Asigură-te că avem un URL complet pentru imagine
   let imageUrl;
@@ -47,10 +52,8 @@ const MetaTags = ({
     if (image.includes('imgur.com')) {
       console.error('Detected imgur URL, not using it:', image);
       // Folosim imaginea de fallback în loc
-      const baseUrl = 'https://bossme.me';
-          
       isFallbackImage = true;
-      imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
+      imageUrl = getFallbackImageUrl();
       console.log('MetaTags - Folosim imaginea de fallback în loc de imgur:', imageUrl);
     }
     // Verificăm și convertim link-urile de la imgflip la URL-uri directe
@@ -58,14 +61,12 @@ const MetaTags = ({
       const match = image.match(/imgflip\.com\/i\/([a-zA-Z0-9]+)/);
       if (match && match[1]) {
         const identifier = match[1];
-        imageUrl = `https://i.imgflip.com/${identifier}.jpg?t=${timestamp}&_nocache=1`;
+        imageUrl = `https://i.imgflip.com/${identifier}.jpg?t=${timestamp}&_nocache=1&_messenger=1`;
         console.log('MetaTags - Am transformat URL-ul imgflip în URL direct:', imageUrl);
       } else {
         // Folosim fallback dacă nu putem converti URL-ul
-        const baseUrl = 'https://bossme.me';
-        
         isFallbackImage = true;
-        imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
+        imageUrl = getFallbackImageUrl();
       }
     }
     else {
@@ -90,10 +91,16 @@ const MetaTags = ({
         imageUrl = `${imageUrl}${separator}t=${timestamp}&_nocache=1`;
       }
       
-      // Adăugăm parametri de dimensiune pentru Twitter Card
-      if (!imageUrl.includes('tw_width=') && !imageUrl.includes('tw_height=')) {
+      // Adăugăm parametri de dimensiune pentru Facebook/Messenger
+      if (!imageUrl.includes('width=') && !imageUrl.includes('height=')) {
         const separator = imageUrl.includes('?') ? '&' : '?';
-        imageUrl = `${imageUrl}${separator}tw_width=1200&tw_height=630`;
+        imageUrl = `${imageUrl}${separator}width=1200&height=630`;
+      }
+      
+      // Adăugăm parametri pentru a indica că este pentru Messenger
+      if (!imageUrl.includes('_messenger=')) {
+        const separator = imageUrl.includes('?') ? '&' : '?';
+        imageUrl = `${imageUrl}${separator}_messenger=1`;
       }
       
       // Adăugăm parametru pentru platforma de partajare
@@ -107,16 +114,7 @@ const MetaTags = ({
     }
   } else {
     // Folosim imaginea de fallback de dimensiune mare în loc de favicon
-    // web-app-manifest-512x512.png are dimensiuni suficient de mari pentru preview-uri
-    const baseUrl = 'https://bossme.me';
-    
-    imageUrl = `${baseUrl}/images/web-app-manifest-512x512.png?t=${timestamp}&_nocache=1`;
-    
-    // Adăugăm parametru pentru platformă
-    if (sharingPlatform) {
-      imageUrl += `&_platform=${sharingPlatform}`;
-    }
-    
+    imageUrl = getFallbackImageUrl();
     console.log('MetaTags - Nu am găsit imagine, folosesc imaginea fallback:', imageUrl);
     isFallbackImage = true;
   }
@@ -175,7 +173,7 @@ const MetaTags = ({
       <meta property="og:image:secure_url" content={imageUrl} />
       <meta property="og:image:url" content={imageUrl} />
       
-      {/* Dimensiuni pentru imagine - maximizate pentru toate platformele */}
+      {/* Dimensiuni pentru imagine - maximizate pentru Facebook/Messenger */}
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       <meta property="og:image:type" content="image/jpeg" />
@@ -187,6 +185,14 @@ const MetaTags = ({
       {/* Meta tag-uri pentru Facebook Scraper - Forțează reincărcarea */}
       <meta property="og:rich_attachment" content="true" />
       <meta property="og:updated_time" content={new Date().toISOString()} />
+      
+      {/* Tag-uri suplimentare pentru Facebook Messenger */}
+      <meta property="og:image:user_generated" content="false" />
+      <meta property="og:image:secure" content="true" />
+      <meta property="messenger:crop_x" content="0" />
+      <meta property="messenger:crop_y" content="0" />
+      <meta property="messenger:crop_w" content="1200" />
+      <meta property="messenger:crop_h" content="630" />
       
       {/* Twitter Card - optimizare pentru card mare */}
       <meta name="twitter:card" content={twitterCard} />
