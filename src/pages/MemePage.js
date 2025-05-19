@@ -144,9 +144,8 @@ const MemePage = () => {
     const timestamp = new Date().getTime();
     const separator = fullImageUrl.includes('?') ? '&' : '?';
     
-    // Adăugăm și dimensiunile explicite pentru platformele sociale
-    // Indicăm platforma pentru care este optimizată imaginea
-    fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&tw_width=1200&tw_height=630&_nocache=1`;
+    // Adăugăm dimensiunile standard pentru Facebook/Messenger (1200x630)
+    fullImageUrl = `${fullImageUrl}${separator}t=${timestamp}&width=1200&height=630&_nocache=1`;
     
     // Adăugăm parametru pentru platformă dacă există
     if (platform) {
@@ -196,24 +195,14 @@ const MemePage = () => {
   
   // Construiește titlul pentru meta tags
   const getMetaTitle = () => {
-    if (!meme) return 'bossme.me - Workplace Memes';
-    return meme.title || `${meme.company}'s review meme | bossme.me`;
+    if (!meme) return 'bossme.me';
+    return meme.title || 'bossme.me';
   };
   
   // Construiește descrierea pentru meta tags
   const getMetaDescription = () => {
-    if (!meme) return 'Expose the Fun. Share the Struggles. Meme Your Workplace!';
-    
-    let description = `Check out this meme about ${meme.company || 'workplace'}`;
-    if (meme.message) {
-      // Limitează descrierea la 160 de caractere
-      const truncatedMessage = meme.message.length > 120 
-        ? meme.message.substring(0, 120) + '...' 
-        : meme.message;
-      description += `: ${truncatedMessage}`;
-    }
-    
-    return description;
+    if (!meme) return 'bossme.me';
+    return 'bossme.me';
   };
   
   // Generează URL-ul canonic absolut
@@ -223,16 +212,7 @@ const MemePage = () => {
       ? 'https://bossme.me'
       : `https://${window.location.host}`;
     
-    // Detectăm platforma de partajare din URL (dacă există)
-    const urlParams = new URLSearchParams(window.location.search);
-    const platform = urlParams.get('_platform');
-    
-    // Adăugăm parametru pentru a indica platforma de partajare
-    if (platform) {
-      return `${baseUrl}/meme/${id}?_platform=${platform}&_source=share`;
-    }
-    
-    return `${baseUrl}/meme/${id}?_source=share`;
+    return `${baseUrl}/meme/${id}`;
   };
   
   // Detectează și optimizează pentru platforma de partajare
@@ -247,8 +227,7 @@ const MemePage = () => {
       ? 'https://bossme.me'
       : `https://${window.location.host}`;
     
-    const timestamp = new Date().getTime();
-    return `${baseUrl}/meme/${id}?_platform=${platform}&t=${timestamp}`;
+    return `${baseUrl}/meme/${id}`;
   };
   
   // Funcții helper pentru fiecare platformă
@@ -258,22 +237,16 @@ const MemePage = () => {
   
   // Generează URL Messenger cu forcing direct pe imagine
   const getMessengerImageDirectUrl = () => {
-    if (!meme || !imageUrl) return null;
-    
-    // Encodăm URL-ul imaginii
-    const encodedImageUrl = encodeURIComponent(imageUrl);
+    if (!meme) return null;
     
     // Construim URL-ul de tip messenger-share
     const baseUrl = 'https://www.facebook.com/dialog/send';
-    const timestamp = new Date().getTime();
     
-    // Folosim app_id special
+    // Folosim app_id corect
     const queryParams = new URLSearchParams({
       app_id: '936362457330483',
       link: getPlatformShareUrl('messenger'),
-      redirect_uri: 'https://bossme.me',
-      picture: imageUrl,
-      display: 'popup'
+      redirect_uri: 'https://bossme.me'
     });
     
     return `${baseUrl}?${queryParams.toString()}`;
@@ -285,18 +258,6 @@ const MemePage = () => {
   
   console.log('Final image URL for sharing:', imageUrl);
   console.log('Detected platform:', platform);
-  
-  // Afișăm URL-urile specifice pentru platforme
-  console.log('Messenger URL:', getMessengerUrl());
-  console.log('Messenger Direct Image URL:', getMessengerImageDirectUrl());
-  console.log('WhatsApp URL:', getWhatsAppUrl());
-  console.log('Twitter URL:', getTwitterUrl());
-  
-  // Force URL pentru debugging
-  useEffect(() => {
-    console.log('Current canonical URL:', getCanonicalUrl());
-    console.log('Current image URL:', imageUrl);
-  }, [imageUrl]);
   
   return (
     <>

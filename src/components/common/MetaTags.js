@@ -22,10 +22,6 @@ const MetaTags = ({
   console.log('- URL:', url);
   console.log('- Image input:', image);
   
-  // Simplificare pentru toate platformele
-  const simplifiedTitle = 'bossme.me';
-  const simplifiedDescription = 'bossme.me';
-  
   // Generăm un timestamp pentru a forța platforma socială să reincarce imaginile
   const timestamp = new Date().getTime();
   
@@ -176,15 +172,15 @@ const MetaTags = ({
   return (
     <Helmet>
       {/* Basic Meta Tags */}
-      <title>{simplifiedTitle}</title>
-      <meta name="description" content={simplifiedDescription} />
+      <title>{title}</title>
+      <meta name="description" content={description} />
       <link rel="canonical" href={canonicalUrl} />
 
       {/* Open Graph / Facebook - Optimizat pentru preview-uri mari */}
       <meta property="og:type" content={type} />
       <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:title" content={simplifiedTitle} />
-      <meta property="og:description" content={simplifiedDescription} />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
       <meta property="og:site_name" content={siteName} />
       <meta property="og:locale" content={locale} />
       
@@ -196,12 +192,8 @@ const MetaTags = ({
       {/* Dimensiuni pentru imagine - maximizate pentru toate platformele */}
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      <meta property="og:image:ratio" content="1.91" />
-      <meta property="og:image:aspect_ratio" content="1.91" />
       <meta property="og:image:type" content="image/jpeg" />
-      <meta property="og:image:width:min" content="1200" />
-      <meta property="og:image:height:min" content="630" />
-      <meta property="og:image:alt" content={simplifiedTitle} />
+      <meta property="og:image:alt" content={title} />
       
       {/* Facebook-specific meta */}
       <meta property="fb:app_id" content="936362457330483" />
@@ -213,33 +205,17 @@ const MetaTags = ({
       {/* Twitter Card - optimizare pentru card mare */}
       <meta name="twitter:card" content={twitterCard} />
       <meta name="twitter:site" content="@bossme_me" />
-      <meta name="twitter:creator" content="@bossme_me" />
-      <meta name="twitter:url" content={canonicalUrl} />
-      <meta name="twitter:title" content={simplifiedTitle} />
-      <meta name="twitter:description" content={simplifiedDescription} />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={imageUrl} />
-      <meta name="twitter:image:src" content={imageUrl} />
-      <meta name="twitter:image:alt" content={simplifiedTitle} />
-      <meta name="twitter:domain" content="bossme.me" />
-      <meta name="twitter:image:width" content="1200" />
-      <meta name="twitter:image:height" content="630" />
-      <meta name="twitter:dnt" content="on" />
+      <meta name="twitter:image:alt" content={title} />
       
       {/* WhatsApp Specific Tags */}
-      <meta property="whatsapp:title" content={simplifiedTitle} />
-      <meta property="whatsapp:description" content={simplifiedDescription} />
+      <meta property="whatsapp:title" content={title} />
+      <meta property="whatsapp:description" content={whatsappDescription} />
       <meta property="whatsapp:image" content={imageUrl} />
-      <meta property="whatsapp:image:width" content="1200" />
-      <meta property="whatsapp:image:height" content="630" />
-      <meta property="whatsapp:image:alt" content={simplifiedTitle} />
       
-      {/* Specificații suplimentare pentru WhatsApp */}
-      <meta property="og:image:type" content="image/jpeg" />
-      <meta property="og:image:width:min" content="1200" />
-      <meta property="og:image:height:min" content="630" />
-      <meta property="og:rich_attachment" content="true" />
-      
-      {/* Specificații WhatsApp pentru browsere mobile */}
+      {/* Specificații suplimentare pentru partajare */}
       <meta name="format-detection" content="telephone=no" />
       <meta name="robots" content="max-image-preview:large" />
       
@@ -248,40 +224,12 @@ const MetaTags = ({
         <>
           <meta property="article:published_time" content={new Date().toISOString()} />
           <meta property="article:modified_time" content={new Date().toISOString()} />
-          <meta property="article:author" content="bossme.me" />
-          <meta property="article:section" content="Workplace Memes" />
-          <meta property="article:tag" content="workplace,reviews,meme" />
+          <meta property="article:tag" content="meme,workplace,review" />
         </>
       )}
       
-      {/* Tag-uri speciale pentru diferite platforme */}
-      {sharingPlatform === 'whatsapp' && (
-        <>
-          <meta name="whatsapp:platform" content="true" />
-          <meta property="og:whatsapp" content="true" />
-        </>
-      )}
-      
-      {sharingPlatform === 'twitter' && (
-        <>
-          <meta name="twitter:platform" content="true" />
-          <meta property="twitter:label1" content="Via" />
-          <meta property="twitter:data1" content="@bossme_me" />
-        </>
-      )}
-      
-      {sharingPlatform === 'messenger' && (
-        <>
-          <meta name="messenger:platform" content="true" />
-          <meta property="og:image:ratio" content="1.91" />
-          <meta property="og:rich_attachment" content="true" />
-        </>
-      )}
-      
-      {/* Meta tag suplimentar pentru a preveni caching în unele cazuri */}
-      <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-      <meta httpEquiv="Pragma" content="no-cache" />
-      <meta httpEquiv="Expires" content="0" />
+      {/* Additional Facebook Debugging Tags */}
+      <meta property="og:app_id" content="936362457330483" />
     </Helmet>
   );
 };
