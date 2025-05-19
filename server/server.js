@@ -53,23 +53,43 @@ if (!fs.existsSync(imagesDir)) {
 const detectCrawler = (req) => {
   const userAgent = req.headers['user-agent'] || '';
   
-  // Log mai detaliat pentru debugging
-  if (userAgent.toLowerCase().includes('bot') || 
-      userAgent.toLowerCase().includes('whatsapp') || 
-      userAgent.toLowerCase().includes('facebook') || 
+  // Log detaliat pentru debugging Facebook
+  if (userAgent.toLowerCase().includes('facebook') || 
+      userAgent.toLowerCase().includes('facebookexternalhit') ||
       userAgent.toLowerCase().includes('messenger') ||
-      userAgent.toLowerCase().includes('twitter') ||
-      userAgent.toLowerCase().includes('twitterbot') ||
-      userAgent.toLowerCase().includes('electron')) {
-    console.log('🔍 Crawler detected - Full User-Agent:', userAgent);
-    console.log('🔍 Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('🔍 URL requested:', req.originalUrl || req.url);
+      userAgent.toLowerCase().includes('fban') ||
+      userAgent.toLowerCase().includes('fbsv')) {
+    console.log('🔍 Facebook-related crawler detected:');
+    console.log('- User-Agent:', userAgent);
+    console.log('- URL Requested:', req.originalUrl || req.url);
+    console.log('- Query params:', req.query);
+    console.log('- Headers:', JSON.stringify(req.headers, null, 2));
   }
   
-  // WhatsApp are mai multe variante de User-Agent
+  // Special case for Facebook Crawler
+  if (userAgent.toLowerCase().includes('facebookexternalhit') ||
+      userAgent.toLowerCase().includes('facebook') ||
+      userAgent.toLowerCase().includes('fb_iab') ||
+      userAgent.toLowerCase().includes('fban/') ||
+      userAgent.toLowerCase().includes('fbsv/')) {
+    console.log('🔍 Facebook crawler detected with agent:', userAgent);
+    
+    // Check if it's specifically Messenger
+    if (userAgent.toLowerCase().includes('messenger') ||
+        req.query._platform === 'messenger' ||
+        req.query._messenger === '1') {
+      console.log('📱 Messenger crawler specifically identified');
+      return 'messenger';
+    }
+    
+    return 'facebook';
+  }
+  
+  // WhatsApp detection
   if (userAgent.toLowerCase().includes('whatsapp') ||
       userAgent.toLowerCase().includes('wa/2.') || 
-      userAgent.toLowerCase().includes('wp-desktop')) {
+      userAgent.toLowerCase().includes('wp-desktop') ||
+      req.query._platform === 'whatsapp') {
     if (userAgent.toLowerCase().includes('windows') || 
         userAgent.toLowerCase().includes('mac') || 
         userAgent.toLowerCase().includes('desktop')) {
@@ -78,38 +98,14 @@ const detectCrawler = (req) => {
     return 'whatsapp';
   }
   
-  // Detectăm Messenger
-  const facebookTokens = ['facebook', 'fb_iab', 'fban', 'fbav', 'fbsv', 'fbios', 'fb_app_id', 'fbbv'];
-  const messengerTokens = ['messenger', 'msgr', 'fb_messenger', 'orca-android', 'orca-ios', 'msys', 'fb4a', 'fblite'];
-  
-  const isFacebook = facebookTokens.some(token => userAgent.toLowerCase().includes(token));
-  const isMessenger = messengerTokens.some(token => userAgent.toLowerCase().includes(token));
-  
-  // Verificăm și headerele specifice pentru Messenger
-  const fbTags = req.headers['x-facebook'] || 
-                 req.headers['x-fb'] || 
-                 req.headers['facebook-api-version'] ||
-                 req.headers['fb-api-version'] ||
-                 req.headers['facebook-app-id'] ||
-                 (req.query && (req.query._fb || req.query._messenger || req.query._platform === 'messenger'));
-                 
-  // Dacă avem semne clare de Messenger, returnăm Messenger
-  if (isMessenger || (isFacebook && fbTags && req.headers['user-agent'].toLowerCase().includes('mobile'))) {
-    return 'messenger';
-  }
-  
-  // Twitter
+  // Twitter detection
   if (userAgent.toLowerCase().includes('twitter') || 
-      userAgent.toLowerCase().includes('twitterbot')) {
+      userAgent.toLowerCase().includes('twitterbot') ||
+      req.query._platform === 'twitter') {
     return 'twitter';
   }
   
-  // Facebook general 
-  if (isFacebook || userAgent.toLowerCase().includes('facebookexternalhit')) {
-    return 'facebook';
-  }
-  
-  // Pentru alte user-agent-uri de bot/crawler
+  // Generic bot detection
   if (userAgent.toLowerCase().includes('bot') || 
       userAgent.toLowerCase().includes('crawler') ||
       userAgent.toLowerCase().includes('spider')) {
@@ -162,29 +158,20 @@ app.use(async (req, res, next) => {
           } 
           // Asigură-te că URL-ul este absolut și folosește HTTPS
           else if (!imageUrl.startsWith('http')) {
-            // Folosim întotdeauna HTTPS pentru imagini
-            // Pentru imagini locale din uploads, folosim endpoint-ul special pentru Facebook
+            // Folosim întotdeauna HTTPS pentru imagini - URL DIRECT
             if (imageUrl.includes('/uploads/')) {
-              const uploadFilename = imageUrl.split('/uploads/').pop();
-              // Folosim endpoint-ul special pentru Facebook crawler
-              imageUrl = 'https://' + req.get('host') + '/facebook-crawler-image/' + uploadFilename;
-              console.log(`[${crawlerType.toUpperCase()}] Using special Facebook endpoint:`, imageUrl);
+              // Servim imaginea direct din path-ul original
+              imageUrl = 'https://' + req.get('host') + imageUrl;
+              console.log(`[${crawlerType.toUpperCase()}] Using direct image URL:`, imageUrl);
             } else {
               imageUrl = 'https://' + req.get('host') + (imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl);
+              console.log(`[${crawlerType.toUpperCase()}] Converted to absolute HTTPS URL:`, imageUrl);
             }
           }
           // Forțăm HTTPS pentru url-uri HTTP
           else if (imageUrl.startsWith('http://')) {
-            // Verificăm dacă este o imagine locală din uploads
-            if (imageUrl.includes('/uploads/')) {
-              const uploadFilename = imageUrl.split('/uploads/').pop();
-              // Folosim endpoint-ul special pentru Facebook crawler
-              imageUrl = 'https://' + req.get('host') + '/facebook-crawler-image/' + uploadFilename;
-              console.log(`[${crawlerType.toUpperCase()}] Converted HTTP uploads to special Facebook endpoint:`, imageUrl);
-            } else {
-              imageUrl = imageUrl.replace('http://', 'https://');
-              console.log(`[${crawlerType.toUpperCase()}] Converted HTTP to HTTPS for image URL:`, imageUrl);
-            }
+            imageUrl = imageUrl.replace('http://', 'https://');
+            console.log(`[${crawlerType.toUpperCase()}] Converted HTTP to HTTPS for image URL:`, imageUrl);
           }
           
           // Adaugă timestamp pentru cache busting
@@ -303,6 +290,8 @@ app.use(async (req, res, next) => {
               // Meta pentru dimensiuni imagini - maxime pentru toate platformele
               { pattern: /<meta property="og:image:width"[^>]*>/, replacement: `<meta property="og:image:width" content="1200">` },
               { pattern: /<meta property="og:image:height"[^>]*>/, replacement: `<meta property="og:image:height" content="630">` },
+              { pattern: /<meta property="og:image:type"[^>]*>/, replacement: `<meta property="og:image:type" content="image/jpeg">` },
+              { pattern: /<meta property="og:image:alt"[^>]*>/, replacement: `<meta property="og:image:alt" content="${simplifiedTitle}">` },
               
               // WhatsApp specific meta tags
               { pattern: /<meta property="whatsapp:image"[^>]*>/, replacement: `<meta property="whatsapp:image" content="${imageUrl}">` },
@@ -364,11 +353,12 @@ app.use(async (req, res, next) => {
                 <meta property="al:ios:url" content="${baseUrl}/meme/${memeId}">
                 <meta property="og:video:tag" content="meme">
                 <link rel="image_src" href="${imageUrl}">
-                <!-- Adăugăm forțat imagini specifice pentru îmbunătățirea Messenger -->
-                <meta name="facebook:share:image" content="${imageUrl}">
-                <meta name="facebook:share:width" content="1200">
-                <meta name="facebook:share:height" content="630">
+                <!-- Tag-uri suplimentare pentru Facebook Messenger -->
+                <meta property="fb:pages" content="1219609932336050">
+                <meta property="article:publisher" content="https://www.facebook.com/bossme.me">
+                <meta property="og:locale" content="ro_RO">
                 <meta property="og:image:type" content="image/jpeg">
+                <meta property="og:rich_attachment" content="true">
                 <meta property="og:image:width:min" content="1200">
                 <meta property="og:image:height:min" content="630">
               `;
@@ -590,7 +580,7 @@ app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirnam
       } else if (crawlerType === 'twitter') {
         res.setHeader('X-Twitter-Image-Access', 'allow');
         res.setHeader('X-Twitter-Crawler', 'allow');
-      } else if (crawlerType === 'facebook') {
+      } else if (crawlerType === 'facebook' || crawlerType === 'messenger') {
         // Setări specializate pentru Facebook/Messenger
         res.setHeader('X-Facebook-Image-Access', 'allow');
         res.setHeader('X-Facebook-Crawler', 'allow');
@@ -600,7 +590,7 @@ app.use('/uploads', staticFilesCorsMiddleware, express.static(path.join(__dirnam
         res.setHeader('Cache-Control', 'public, max-age=3600');
         
         // Headeruri care ajută la prevenirea redirecționărilor
-        res.setHeader('Link', '<' + req.protocol + '://' + req.get('host') + req.originalUrl + '>; rel="canonical"');
+        res.setHeader('Link', '<https://' + req.get('host') + req.originalUrl + '>; rel="canonical"');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
       }
     } else {
