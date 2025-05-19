@@ -267,7 +267,13 @@ router.post('/', upload.single('image'), checkUserStatus, async (req, res) => {
       imageUrl = `/${relativePath.replace(/\\/g, '/')}`;
     } else if (image_url) {
       // Dacă avem un URL de imagine, îl folosim direct
-      imageUrl = image_url;
+      // Dar ne asigurăm că folosim HTTPS pentru imagine
+      if (image_url.startsWith('http://')) {
+        imageUrl = image_url.replace('http://', 'https://');
+        console.log('Converted image URL from HTTP to HTTPS:', imageUrl);
+      } else {
+        imageUrl = image_url;
+      }
     } else {
       // Dacă nu avem nici fișier, nici URL, returnăm eroare
       return res.status(400).json({ error: 'Image file is required' });
