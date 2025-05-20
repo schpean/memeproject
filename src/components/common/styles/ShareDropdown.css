@@ -1,0 +1,133 @@
+.share-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.share-button {
+  background: none;
+  border: none;
+  color: var(--text-gray) !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 50% !important;
+  transition: all 0.2s ease;
+}
+
+.share-button:hover {
+  background-color: var(--bg-light) !important;
+  color: var(--primary-color) !important;
+  transform: translateY(-2px);
+}
+
+.share-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background-color: var(--bg-white);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 0.5rem;
+  z-index: 1000;
+  min-width: 160px;
+  opacity: 0;
+  transform: translateY(-10px);
+  animation: dropdown-appear 0.2s ease forwards;
+}
+
+@keyframes dropdown-appear {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.share-option {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+  color: var(--text-dark);
+}
+
+.share-option:hover {
+  background-color: var(--bg-light);
+}
+
+.share-icon {
+  margin-right: 0.75rem;
+  font-size: 1rem;
+}
+
+/* Stiluri specifice pentru fiecare opțiune */
+.share-option.facebook .share-icon {
+  color: #1877F2;
+}
+
+.share-option.instagram .share-icon {
+  color: #C13584;
+}
+
+.share-option.whatsapp .share-icon {
+  color: #25D366;
+}
+
+.share-option.twitter .share-icon {
+  color: #1DA1F2;
+}
+
+.share-option.copy .share-icon {
+  color: var(--secondary-color);
+}
+
+/* Stiluri responsive */
+@media (max-width: 768px) {
+  .share-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    border-radius: 12px 12px 0 0;
+    margin-top: 0;
+    padding: 1rem;
+    transform: translateY(100%);
+    animation: mobile-dropdown-appear 0.3s ease forwards;
+  }
+  
+  @keyframes mobile-dropdown-appear {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .share-option {
+    padding: 1rem;
+  }
+}
+
+/* Scrie și stiluri dark mode dacă este necesar */
+@media (prefers-color-scheme: dark) {
+  .share-dropdown {
+    background-color: var(--bg-dark, #222);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .share-option {
+    color: var(--text-light, #eee);
+  }
+  
+  .share-option:hover {
+    background-color: var(--bg-darker, #333);
+  }
+} 

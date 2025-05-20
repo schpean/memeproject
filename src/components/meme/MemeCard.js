@@ -4,9 +4,11 @@ import AuthContext from '../../contexts/AuthContext';
 import { memeApi, commentApi } from '../../api/api';
 import { API_BASE_URL } from '../../utils/config';
 import { notify } from '../common/Notification';
+import ShareDropdown from './ShareDropdown';
 import { formatCount } from '../../utils/format';
 import './styles/MemeCard.css';
-import { FaComment, FaArrowUp, FaShare, FaHourglassHalf, FaCheck, FaTimes, FaEllipsisH } from 'react-icons/fa';
+import './styles/ShareDropdown.css';
+import { FaComment, FaArrowUp, FaHourglassHalf, FaCheck, FaTimes, FaEllipsisH } from 'react-icons/fa';
 
 const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus = false }) => {
   const { currentUser, hasUpvoted, addUpvotedMeme, removeUpvotedMeme, isAdmin, isModerator } = useContext(AuthContext);
@@ -125,81 +127,47 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
     }
   };
 
-  // Handle share button click
-  const handleShare = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Create the shareable link
-    const shareUrl = `${window.location.origin}/meme/${meme.id}`;
-    
-    // Function to notify user that the link is ready to be copied
-    const showShareNotification = () => {
-      const textArea = document.createElement('textarea');
-      textArea.value = shareUrl;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      
-      notify(`Share this link: ${shareUrl}`, 'info');
-      
-      textArea.focus();
-      textArea.select();
-      
-      try {
-        // Use document.execCommand as fallback
-        const successful = document.execCommand('copy');
-        if (successful) {
-          notify('Link copied to clipboard!', 'success');
-        } else {
-          // Only show alert if execCommand fails
-          alert(`Copy this link to share: ${shareUrl}`);
-          notify('Please copy the link manually', 'info');
-        }
-      } catch (err) {
-        console.error('Fallback clipboard copy failed:', err);
-        // Only show alert if execCommand throws an error
-        alert(`Copy this link to share: ${shareUrl}`);
-      }
-      
-      document.body.removeChild(textArea);
-    };
-    
-    // Try the Clipboard API first (modern browsers in secure context)
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(shareUrl)
-        .then(() => {
-          notify('Link copied to clipboard!', 'success');
-        })
-        .catch(err => {
-          console.error('Clipboard API failed:', err);
-          // Fall back to the manual method
-          showShareNotification();
-        });
-    } else {
-      // Fallback for browsers without Clipboard API support
-      console.log('Clipboard API not available, using fallback');
-      showShareNotification();
-    }
-  };
-
   // Get proper image URL
   const getImageUrl = () => {
     const imageUrl = meme.imageUrl || meme.image_url;
     
+    // Dacă nu există URL de imagine, returnăm placeholder
+    if (!imageUrl) {
+      return '/placeholder-meme.jpg';
+    }
+    
+    // Construim URL-ul complet pentru imagine
+    let fullImageUrl;
+    
     // Handle server-relative URLs (those starting with /uploads/)
-    if (imageUrl && imageUrl.startsWith('/uploads/')) {
-      return `${API_BASE_URL}${imageUrl}`;
+    if (imageUrl.startsWith('/uploads/')) {
+      // Determine base URL based on environment
+      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+        ? 'https://bossme.me'
+        : `${window.location.origin}`;
+      
+      // Asigură-te că URL-ul rezultat este complet
+      fullImageUrl = `${baseUrl}${imageUrl}`;
+    }
+    // Handle absolute URLs with HTTP - convert to HTTPS
+    else if (imageUrl.startsWith('http://')) {
+      fullImageUrl = imageUrl.replace('http://', 'https://');
+    }
+    // Handle absolute URLs with HTTPS - keep as is
+    else if (imageUrl.startsWith('https://')) {
+      fullImageUrl = imageUrl;
+    }
+    // Handle other relative URLs
+    else {
+      const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+        ? 'https://bossme.me'
+        : window.location.origin;
+      
+      const imagePath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+      fullImageUrl = `${baseUrl}${imagePath}`;
     }
     
-    // Handle absolute URLs - ensure they're preserved as-is
-    if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
-      return imageUrl;
-    }
-    
-    // For completely broken image paths, use a placeholder
-    return imageUrl || '/placeholder-meme.jpg';
+    return fullImageUrl;
   };
 
   // Get meme title or fallback
@@ -265,6 +233,25 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
     }
   };
 
+  // Generăm URL-ul absolut pentru partajare
+  const getShareUrl = () => {
+    const relativePath = `/meme/${meme.id}`;
+    const baseUrl = window.location.hostname === 'bossme.me' || process.env.NODE_ENV === 'production'
+      ? 'https://bossme.me'
+      : window.location.origin;
+    return `${baseUrl}${relativePath}`;
+  };
+  
+  // URL-ul pentru share
+  const shareUrl = getShareUrl();
+  
+  // Imagine pentru partajare
+  const shareImageUrl = getImageUrl();
+  
+  // Debug pentru a vedea url-ul
+  console.log('MemeCard share URL:', shareUrl);
+  console.log('MemeCard image URL:', shareImageUrl);
+
   return (
     <div className={`meme-card ${compact ? 'compact' : ''}`}>
       <div className="meme-header">
@@ -324,14 +311,12 @@ const MemeCard = ({ meme, onVote = () => {}, compact = false, showApprovalStatus
         </div>
         
         <div className="meme-actions-right">
-          <button 
-            className="share-button" 
-            onClick={handleShare}
-            title="Share this meme"
-          >
-            <FaShare className="icon" />
-            <span>Share</span>
-          </button>
+          <ShareDropdown 
+            url={shareUrl}
+            title={getMemeTitle()}
+            message={meme.message || ''}
+            imageUrl={shareImageUrl}
+          />
           
           {showApprovalStatus && (isAdmin || isModerator) && meme.approval_status === 'pending' && (
             <>

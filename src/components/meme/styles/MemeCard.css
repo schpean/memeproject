@@ -381,3 +381,27 @@
   padding: 0.3rem 0.5rem;
   font-size: 0.8rem;
 } 
+
+/* Adaug stiluri suplimentare pentru butonul de share și dropdown */
+.meme-actions-right .share-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.meme-actions-right .share-button {
+  background: none;
+  border: none;
+  color: var(--text-gray) !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+}
+
+.meme-actions-right .share-button:hover {
+  background-color: var(--bg-light) !important;
+  color: var(--primary-color) !important;
+  transform: translateY(-2px);
+} 

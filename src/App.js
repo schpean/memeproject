@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import Home from './pages/Home';
@@ -43,6 +44,7 @@ const AuthContextConnector = ({ children }) => {
 
 function App() {
   return (
+    <HelmetProvider>
     <AuthProvider>
       <NotificationProvider>
         <Router>
@@ -79,6 +81,7 @@ function App() {
         </Router>
       </NotificationProvider>
     </AuthProvider>
+    </HelmetProvider>
   );
 }
 

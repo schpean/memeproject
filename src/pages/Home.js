@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import MemeCard from '../components/meme/MemeCard';
+import MetaTags from '../components/common/MetaTags';
 import './styles/Home.css';
 import { API_ENDPOINTS, POLLING_URL, API_BASE_URL } from '../utils/config';
 import { FaFire, FaChartLine, FaClock, FaAngleDown, FaSort, FaCalendarAlt, FaComment, FaArrowUp } from 'react-icons/fa';
@@ -433,6 +434,14 @@ const Home = () => {
   }
 
   return (
+    <>
+      <MetaTags 
+        title="bossme.me - Workplace Memes & Company Reviews"
+        description="Expose the Fun. Share the Struggles. Meme Your Workplace! Join the community sharing funny and relatable workplace experiences through memes."
+        image="/images/bossme-cover.jpg"
+        type="website"
+      />
+      
     <div className="home">
       {/* Hero Section */}
       <section className="hero-section">
@@ -551,6 +560,7 @@ const Home = () => {
         {loading && <div className="loading-more">Loading more memes...</div>}
       </div>
     </div>
+    </>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/BrowseMemes.css';
 import MemeCard from '../components/meme/MemeCard';
+import MetaTags from '../components/common/MetaTags';
 import { API_ENDPOINTS } from '../utils/config';
 import { Link } from 'react-router-dom';
 import { FaSort, FaCalendarAlt, FaComment, FaArrowUp, FaSearch, FaTimes, FaChevronDown, FaChevronUp, FaBuilding, FaChevronRight, FaChevronLeft, FaHome } from 'react-icons/fa';
@@ -193,6 +194,18 @@ const BrowseMemes = () => {
   }
 
   return (
+    <>
+      <MetaTags 
+        title={selectedCompany 
+          ? `${selectedCompany} Memes & Reviews | bossme.me` 
+          : "Browse Workplace Memes & Reviews | bossme.me"}
+        description={selectedCompany 
+          ? `Check out the latest meme reviews about ${selectedCompany}. Share your workplace experience with funny memes!` 
+          : "Browse and discover meme reviews about companies, workplaces and bosses. Filter by company or sort by popularity."}
+        image="/images/browse-memes-cover.jpg"
+        type="website"
+      />
+      
     <div className="browse-memes">
       <h1>Browse meme based reviews</h1>
       
@@ -305,6 +318,7 @@ const BrowseMemes = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 
