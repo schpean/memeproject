@@ -272,7 +272,7 @@ router.post('/', upload.single('image'), checkUserStatus, async (req, res) => {
         imageUrl = image_url.replace('http://', 'https://');
         console.log('Converted image URL from HTTP to HTTPS:', imageUrl);
       } else {
-        imageUrl = image_url;
+      imageUrl = image_url;
       }
     } else {
       // Dacă nu avem nici fișier, nici URL, returnăm eroare

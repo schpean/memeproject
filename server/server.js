@@ -68,7 +68,7 @@ const detectCrawler = (req) => {
   
   // Special case for Facebook Crawler
   if (userAgent.toLowerCase().includes('facebookexternalhit') ||
-      userAgent.toLowerCase().includes('facebook') ||
+                           userAgent.toLowerCase().includes('facebook') ||
       userAgent.toLowerCase().includes('fb_iab') ||
       userAgent.toLowerCase().includes('fban/') ||
       userAgent.toLowerCase().includes('fbsv/')) {

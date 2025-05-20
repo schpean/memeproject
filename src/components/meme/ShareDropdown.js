@@ -287,31 +287,45 @@ const ShareDropdown = ({ url, title = '', message = '', imageUrl = '' }) => {
         
         try {
           if (isMobile) {
-            // Pentru dispozitive mobile, încercăm să deschidem direct aplicația Instagram
-            // Adăugăm parametri specifici pentru optimizare
-            const igUrl = new URL(absoluteUrl);
-            if (!igUrl.searchParams.has('_platform')) {
-              igUrl.searchParams.set('_platform', 'instagram');
-            }
-            igUrl.searchParams.set('_t', new Date().getTime());
+            // Pentru dispozitive mobile, folosim schema directă pentru Instagram messages
+            // În loc să folosim instagram://share care duce la selectarea imaginii
+            window.open(`instagram://direct/inbox`, '_self');
             
-            // Încercăm să deschidem direct aplicația Instagram
-            window.open(`instagram://share?text=${encodeURIComponent(title || '')}&url=${encodeURIComponent(igUrl.toString())}`, '_self');
-            
-            // Alternativ putem încerca și schema pentru mesaje directe
-            // window.open(`instagram://direct/inbox`, '_self');
-            
-            // După o mică pauză, verificăm dacă s-a deschis aplicația, dacă nu, folosim browser
+            // După o mică pauză, dacă Instagram nu s-a deschis, oferim fallback
             setTimeout(() => {
-              window.open(`https://instagram.com/direct/inbox`, '_blank');
+              // Copiem link-ul în clipboard pentru utilizator
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(absoluteUrl)
+                  .then(() => {
+                    notify('Link copiat în clipboard! Lipește-l în Instagram.', 'success');
+                    window.open('https://instagram.com/direct/inbox', '_blank');
+                  })
+                  .catch(() => {
+                    // Fallback în caz că clipboard API nu funcționează
+                    window.open('https://instagram.com/direct/inbox', '_blank');
+                  });
+              } else {
+                window.open('https://instagram.com/direct/inbox', '_blank');
+              }
             }, 500);
           } else {
-            // Pentru desktop, deschidem pagina de mesaje Instagram în browser
-            window.open(`https://instagram.com/direct/inbox`, '_blank');
+            // Pentru desktop, copiem link-ul și deschidem Instagram web
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(absoluteUrl)
+                .then(() => {
+                  notify('Link copiat în clipboard! Lipește-l în Instagram.', 'success');
+                  window.open('https://instagram.com/direct/inbox', '_blank');
+                })
+                .catch(() => {
+                  window.open('https://instagram.com/direct/inbox', '_blank');
+                });
+            } else {
+              window.open('https://instagram.com/direct/inbox', '_blank');
+            }
           }
         } catch (e) {
           // Fallback general în caz de eroare
-          window.open(`https://instagram.com/`, '_blank');
+          window.open('https://instagram.com/', '_blank');
         }
         
         closeDropdown();
