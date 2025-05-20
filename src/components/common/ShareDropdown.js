@@ -166,27 +166,48 @@ const ShareDropdown = ({ url, title = '', message = '' }) => {
         
         try {
           if (isMobile) {
-            // Pentru dispozitive mobile, folosim schema directă pentru Instagram messages
-            // În loc să folosim instagram://share care duce la selectarea imaginii
-            window.open(`instagram://direct/inbox`, '_self');
-            
-            // După o mică pauză, dacă Instagram nu s-a deschis, oferim fallback
-            setTimeout(() => {
-              // Copiem link-ul în clipboard pentru utilizator
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(url)
-                  .then(() => {
-                    notify('Link copiat în clipboard! Lipește-l în Instagram.', 'success');
-                    window.open('https://instagram.com/direct/inbox', '_blank');
-                  })
-                  .catch(() => {
-                    // Fallback în caz că clipboard API nu funcționează
-                    window.open('https://instagram.com/direct/inbox', '_blank');
-                  });
-              } else {
-                window.open('https://instagram.com/direct/inbox', '_blank');
+            // Pentru dispozitive mobile, mai întâi copiem link-ul în clipboard
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(url)
+                .then(() => {
+                  // Afișăm notificarea și apoi deschidem Instagram
+                  notify('Link copiat în clipboard! Lipește-l în Instagram.', 'success');
+                  
+                  // Întârziere mică pentru a permite notificării să fie vizibilă
+                  setTimeout(() => {
+                    // Încercăm schema mai specifică pentru mesaje directe
+                    window.open(`instagram://direct`, '_self');
+                  }, 300);
+                })
+                .catch(() => {
+                  // Dacă clipboard API nu funcționează, deschidem direct Instagram
+                  window.open(`instagram://direct`, '_self');
+                });
+            } else {
+              // Fallback pentru browserele care nu suportă clipboard API
+              try {
+                // Folosim metoda veche de copiere în clipboard
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                if (successful) {
+                  notify('Link copiat în clipboard! Lipește-l în Instagram.', 'success');
+                }
+                
+                // Deschidem Instagram după o scurtă pauză
+                setTimeout(() => {
+                  window.open(`instagram://direct`, '_self');
+                }, 300);
+              } catch (e) {
+                // Dacă nici metoda veche nu funcționează, deschidem direct Instagram
+                window.open(`instagram://direct`, '_self');
               }
-            }, 500);
+            }
           } else {
             // Pentru desktop, copiem link-ul și deschidem Instagram web
             if (navigator.clipboard && navigator.clipboard.writeText) {
