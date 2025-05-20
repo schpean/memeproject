@@ -283,7 +283,13 @@
 /* Responsive styling */
 @media (max-width: 768px) {
   .memes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: 1fr;
+    gap: 15px;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0 10px;
+    box-sizing: border-box;
   }
   
   .section-header {
@@ -302,7 +308,64 @@
   }
   
   .compact-view .memes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: 1fr;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0 10px;
+  }
+
+  .meme-card.compact {
+    transform: none;
+  }
+
+  .meme-card.compact:hover {
+    transform: none;
+  }
+  
+  .memes-section {
+    padding: 2rem 10px;
+  }
+
+  /* Stiluri specifice pentru imaginile meme pe pagina Home pe mobil */
+  .memes-section .meme-image {
+    object-fit: contain !important;
+    max-height: none !important;
+    background-color: #000;
+    margin: 0 auto;
+    display: block;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+    max-width: 100%;
+    width: 100%;
+    height: auto !important;
+    min-height: 300px !important;
+  }
+
+  .memes-section .meme-image-container {
+    background-color: #000;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    overflow: hidden;
+    width: 100% !important;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+    padding-top: 0 !important;
+    height: auto !important;
+    min-height: 300px !important;
+  }
+  
+  /* Ajustare pentru cardul de meme în contextul Home */
+  .memes-section .meme-card {
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
   }
 }
 

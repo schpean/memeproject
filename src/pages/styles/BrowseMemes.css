@@ -164,5 +164,53 @@
   
   .meme-grid {
     grid-template-columns: 1fr;
+    gap: 15px;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0 10px;
+    box-sizing: border-box;
+  }
+
+  .browse-memes {
+    padding: 2rem 10px;
+  }
+
+  .browse-memes .meme-image {
+    object-fit: contain;
+    max-height: none;
+    background-color: #000;
+    margin: 0 auto;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    min-height: 300px;
+  }
+
+  .browse-memes .meme-image-container {
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    width: 100% !important;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+    padding-top: 0;
+    height: auto;
+    min-height: 300px;
+  }
+  
+  .browse-memes .meme-card {
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
   }
 } 

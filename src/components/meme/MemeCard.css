@@ -262,12 +262,51 @@
   font-size: 0.85rem;
 }
 
+/* For smaller screens */
 @media (max-width: 768px) {
   .meme-card {
     margin-bottom: 15px;
   }
   
   .meme-image {
-    max-height: 250px;
+    max-height: none; /* Eliminăm restricția de înălțime maximă */
+    min-height: 250px; /* Înălțime minimă pentru asigurarea vizibilității */
+    /* Permitem imaginii să își mențină proporțiile naturale */
+    object-fit: contain; 
+    height: auto; /* Înălțimea se ajustează automat conform conținutului */
+  }
+  
+  .meme-image-container {
+    padding-top: 0; /* Eliminăm padding-ul top fix */
+    height: auto; /* Înălțimea se ajustează automat */
+    min-height: 250px; /* Înălțime minimă pentru container */
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Ajustări pentru imaginile în modul compact */
+  .meme-card.compact .meme-image {
+    max-height: none;
+    min-height: 250px;
+    height: auto;
+  }
+}
+
+/* Desktop styles - ensure these are not affected by mobile changes */
+@media (min-width: 769px) {
+  .meme-card {
+    border-radius: 8px;
+    transition: box-shadow 0.3s, transform 0.3s;
+  }
+  
+  .meme-image {
+    object-fit: contain;
+    max-height: 550px;
+  }
+  
+  .meme-image-container {
+    position: relative;
+    overflow: hidden;
+    padding-top: 75%; /* 4:3 Aspect Ratio - doar pentru desktop */
   }
 } 

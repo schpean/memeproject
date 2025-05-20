@@ -196,7 +196,9 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .meme-page {
-    padding: 1rem;
+    padding: 0 10px;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   
   .meme-content {
@@ -210,6 +212,59 @@
   
   .vote-button {
     margin-right: 0.5rem;
+  }
+
+  /* Îmbunătățiri pentru afișarea imaginilor pe mobil */
+  .meme-image-container {
+    padding: 0;
+    height: auto;
+    width: 100%;
+    max-width: 100%;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+    min-height: 300px; /* Înălțime minimă mai mare pentru a permite imaginilor să se extindă */
+  }
+
+  .meme-image {
+    max-width: 100%;
+    max-height: none; /* Eliminăm restricția de înălțime maximă */
+    width: 100%;
+    height: auto; /* Înălțimea se ajustează automat conform conținutului */
+    min-height: 300px; /* Înălțime minimă inițială */
+    object-fit: contain; /* Permitem imaginii să își mențină proporțiile naturale */
+    margin: 0 auto;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+  }
+
+  .meme-container {
+    border-radius: 0;
+    margin-bottom: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-shadow: none;
+    transform: translateX(0) !important;
+    position: relative;
+    left: 0 !important;
+  }
+
+  .meme-header {
+    padding: 0.8rem 1rem;
+  }
+
+  .meme-actions {
+    padding: 0.8rem 1rem;
+  }
+
+  .navigation-links {
+    padding: 0 1rem;
   }
 }
 

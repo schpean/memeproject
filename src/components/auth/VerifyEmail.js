@@ -36,7 +36,7 @@ const VerifyEmail = () => {
       <div className="verify-email-container success">
         <h2>Email Verified Successfully!</h2>
         <p>Your email has been verified and your account is now active.</p>
-        <p>You can now enjoy all the features of MemeWebsite.</p>
+        <p>You can now enjoy all the features of bossme.me</p>
         <div className="actions">
           <Link to="/" className="btn primary">Go to Home</Link>
         </div>

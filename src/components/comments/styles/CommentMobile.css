@@ -1,0 +1,357 @@
+/* 
+ * REDESIGN COMPLET PENTRU VERSIUNEA MOBILĂ
+ * SOLUȚIE FINALĂ GARANTATĂ PENTRU LINII VERTICALE LIPITE
+ * VERSION 10.0 - SOLUȚIE ABSOLUTĂ
+ */
+
+@media only screen and (max-width: 576px) {
+  body .reddit-comment-section,
+  body .comment-list,
+  html .reddit-comment-section,
+  html .comment-list,
+  div.reddit-comment-section,
+  div.comment-list {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-left: -20px !important;
+    position: relative !important;
+    overflow: visible !important;
+    left: 0 !important;
+    box-sizing: border-box !important;
+    border: none !important;
+  }
+  
+  body .reddit-comment,
+  html .reddit-comment,
+  div.reddit-comment {
+    margin: 1px 0 !important;
+    padding: 4px 4px 4px 0px !important;
+    border-radius: 0 !important;
+    background-color: rgba(255, 255, 255, 0.4) !important;
+    border: 1px solid #f0f0f0 !important;
+    position: relative !important;
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+    word-break: break-word !important;
+    margin-left: -1px !important;
+  }
+  
+  body .reddit-comment *,
+  html .reddit-comment * {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+  }
+  
+  body .comment-avatar,
+  html .comment-avatar {
+    margin-right: 2px !important;
+    margin-left: 5px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  body .avatar-image,
+  html .avatar-image {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  
+  body .comment-text,
+  html .comment-text {
+    font-size: 13px !important;
+    margin-bottom: 0 !important;
+    line-height: 1.2 !important;
+    width: 95% !important;
+    max-width: 100% !important;
+  }
+  
+  body .comment-header,
+  html .comment-header {
+    margin-bottom: 0px !important;
+    width: calc(100% - 25px) !important;
+  }
+  
+  body .comment-author,
+  html .comment-author {
+    font-size: 11px !important;
+    max-width: 70% !important;
+    text-overflow: ellipsis !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+  }
+  
+  body .comment-time,
+  html .comment-time,
+  body .comment-dot,
+  html .comment-dot {
+    font-size: 9px !important;
+  }
+  
+  body .comment-vote,
+  html .comment-vote {
+    min-width: 14px !important;
+    height: 14px !important;
+    margin-right: 2px !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+  }
+  
+  body .comment-vote .upvote-icon,
+  html .comment-vote .upvote-icon {
+    font-size: 7px !important;
+  }
+  
+  body .vote-count,
+  html .vote-count {
+    font-size: 8px !important;
+  }
+  
+  /* RESETARE TOTALĂ A INDENTĂRII CU SELECTORI ULTRA-SPECIFICI */
+  body .comment-replies,
+  body .comment-replies .comment-replies,
+  body .comment-replies .comment-replies .comment-replies,
+  html .comment-replies,
+  html .comment-replies .comment-replies,
+  html .comment-replies .comment-replies .comment-replies,
+  div.comment-replies,
+  div.comment-replies div.comment-replies,
+  div.comment-replies div.comment-replies div.comment-replies,
+  .reddit-comment .comment-replies,
+  .reddit-comment-section .comment-replies,
+  .comment-replies.comment-replies,
+  div[class^="comment-replies"],
+  div[class*=" comment-replies"],
+  body div[class^="comment-replies"],
+  body div[class*=" comment-replies"],
+  html div[class^="comment-replies"],
+  html div[class*=" comment-replies"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    position: static !important;
+    left: 0 !important;
+    top: 0 !important;
+    box-sizing: border-box !important;
+    border-left: none !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    text-indent: 0 !important;
+  }
+  
+  /* RESETARE PENTRU FIECARE NIVEL DE COMENTARIU */
+  body .comment-replies .reddit-comment,
+  body .comment-replies .comment-replies .reddit-comment,
+  body .comment-replies .comment-replies .comment-replies .reddit-comment,
+  html .comment-replies .reddit-comment,
+  html .comment-replies .comment-replies .reddit-comment,
+  html .comment-replies .comment-replies .comment-replies .reddit-comment,
+  div.comment-replies div.reddit-comment,
+  div.comment-replies div.comment-replies div.reddit-comment,
+  div.comment-replies div.comment-replies div.comment-replies div.reddit-comment {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: -17px !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    left: 0 !important;
+    margin-top: 1px !important;
+    margin-bottom: 1px !important;
+    padding-left: 0 !important;
+    border-radius: 0 !important;
+  }
+  
+  /* Fundaluri mai subtile */
+  body .comment-replies .reddit-comment,
+  html .comment-replies .reddit-comment {
+    background-color: rgba(252, 252, 252, 0.3) !important;
+    border-color: #f8f8f8 !important;
+  }
+  
+  body .comment-replies .comment-replies .reddit-comment,
+  html .comment-replies .comment-replies .reddit-comment {
+    background-color: rgba(250, 250, 250, 0.3) !important;
+    border-color: #f5f5f5 !important;
+  }
+  
+  body .comment-replies .comment-replies .comment-replies .reddit-comment,
+  html .comment-replies .comment-replies .comment-replies .reddit-comment {
+    background-color: rgba(248, 248, 248, 0.3) !important;
+    border-color: #f2f2f2 !important;
+  }
+  
+  /* Conținut fluid cu margin forțat */
+  body .comment-content,
+  html .comment-content {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: calc(100% - 25px) !important;
+    box-sizing: border-box !important;
+    margin-left: 5px !important;
+  }
+  
+  /* ===== LINII VERTICALE CU POZIȚII ABSOLUTE - GARANTAT VIZIBILE ===== */
+  
+  /* PRIMA LINIE - poziționată în exteriorul elementului */
+  body .comment-replies .reddit-comment::before,
+  html .comment-replies .reddit-comment::before,
+  div.comment-replies div.reddit-comment::before {
+    content: "" !important;
+    position: absolute !important;
+    left: -2px !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 3px !important;
+    background-color: #4dabf7 !important;
+    display: block !important;
+    z-index: 999 !important;
+  }
+  
+  /* A DOUA LINIE */
+  body .comment-replies .comment-replies .reddit-comment::before,
+  html .comment-replies .comment-replies .reddit-comment::before,
+  div.comment-replies div.comment-replies div.reddit-comment::before {
+    left: 1px !important;
+    width: 3px !important;
+    background-color: #6c5ce7 !important;
+    z-index: 998 !important;
+  }
+  
+  /* A TREIA LINIE */
+  body .comment-replies .comment-replies .comment-replies .reddit-comment::before,
+  html .comment-replies .comment-replies .comment-replies .reddit-comment::before,
+  div.comment-replies div.comment-replies div.comment-replies div.reddit-comment::before {
+    left: 4px !important;
+    width: 3px !important;
+    background-color: #a29bfe !important;
+    z-index: 997 !important;
+  }
+  
+  /* Indicatori ierarhie - font mic */
+  body .comment-replies .reddit-comment .comment-author::after,
+  html .comment-replies .reddit-comment .comment-author::after {
+    content: "•" !important;
+    font-size: 5px !important;
+    color: #4dabf7 !important;
+    font-weight: bold !important;
+    margin-left: 1px !important;
+  }
+  
+  body .comment-replies .comment-replies .reddit-comment .comment-author::after,
+  html .comment-replies .comment-replies .reddit-comment .comment-author::after {
+    content: "••" !important;
+    color: #6c5ce7 !important;
+  }
+  
+  body .comment-replies .comment-replies .comment-replies .reddit-comment .comment-author::after,
+  html .comment-replies .comment-replies .comment-replies .reddit-comment .comment-author::after {
+    content: "•••" !important;
+    color: #a29bfe !important;
+  }
+  
+  /* Butoane mai mici */
+  body .collapse-toggle-button,
+  html .collapse-toggle-button {
+    padding: 0px 1px !important;
+    font-size: 6px !important;
+    right: 3px !important;
+    top: 2px !important;
+    opacity: 0.6 !important;
+    border-radius: 2px !important;
+    position: absolute !important;
+    z-index: 2 !important;
+  }
+  
+  body .delete-comment-button,
+  html .delete-comment-button {
+    padding: 0px 1px !important;
+    font-size: 6px !important;
+    right: 30px !important;
+    top: 2px !important;
+    opacity: 0.6 !important;
+    border-radius: 2px !important;
+    position: absolute !important;
+    z-index: 2 !important;
+  }
+  
+  /* Reply button */
+  body .reply-button,
+  html .reply-button {
+    font-size: 8px !important;
+    padding: 0px 2px !important;
+    margin-top: 1px !important;
+  }
+  
+  /* Form reply */
+  body .reply-form,
+  html .reply-form {
+    margin-top: 1px !important;
+    padding: 2px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  body .reply-form textarea,
+  html .reply-form textarea {
+    min-height: 30px !important;
+    padding: 2px !important;
+    font-size: 11px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  body .reply-actions,
+  html .reply-actions {
+    margin-top: 1px !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+  }
+  
+  body .reply-actions button,
+  html .reply-actions button {
+    padding: 1px 4px !important;
+    font-size: 8px !important;
+  }
+  
+  /* ECRANE FOARTE MICI - FORȚEAZĂ ȘI MAI MULT */
+  @media only screen and (max-width: 320px) {
+    body .reddit-comment-section,
+    html .reddit-comment-section,
+    div.reddit-comment-section {
+      margin-left: -25px !important;
+      width: calc(100% + 25px) !important;
+      max-width: calc(100% + 25px) !important;
+    }
+    
+    body .reddit-comment,
+    html .reddit-comment,
+    div.reddit-comment {
+      padding: 4px 4px 4px 0 !important;
+      margin-left: -1px !important;
+    }
+    
+    /* Ajustare poziții linii pentru ecrane foarte mici */
+    body .comment-replies .reddit-comment::before,
+    html .comment-replies .reddit-comment::before {
+      left: -2px !important;
+    }
+    
+    body .comment-replies .comment-replies .reddit-comment::before,
+    html .comment-replies .comment-replies .reddit-comment::before {
+      left: 1px !important;
+    }
+    
+    body .comment-replies .comment-replies .comment-replies .reddit-comment::before,
+    html .comment-replies .comment-replies .comment-replies .reddit-comment::before {
+      left: 4px !important;
+    }
+  }
+} 

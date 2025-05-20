@@ -51,12 +51,15 @@ const UserDetails = () => {
       try {
         const response = await fetch(API_ENDPOINTS.userStats(id), {
           headers: {
-            'user-id': currentUser.uid
+            'user-id': currentUser.uid,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
           }
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch user stats: ${response.status}`);
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Failed to fetch user stats: ${response.status}`);
         }
         
         const stats = await response.json();
